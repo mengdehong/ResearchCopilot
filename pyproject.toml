@@ -5,7 +5,7 @@ description = "意图驱动型自动案头研究工作站"
 requires-python = ">=3.11"
 dependencies = [
     # --- Web Framework ---
-    "fastapi>=0.115.0",
+    "fastapi[standard]>=0.115.0",
     "uvicorn[standard]>=0.34.0",
     # --- Database ---
     "sqlalchemy[asyncio]>=2.0.36",
