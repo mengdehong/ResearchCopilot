@@ -4,7 +4,6 @@ from typing import Annotated, TypedDict
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
-
 # ── Reducer ──
 
 def merge_dicts(left: dict, right: dict) -> dict:

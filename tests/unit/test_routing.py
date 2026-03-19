@@ -1,7 +1,7 @@
 """Routing 逻辑测试。"""
 from unittest.mock import MagicMock
 
-from backend.agent.routing import apply_hard_rules, route_to_workflow, route_after_eval
+from backend.agent.routing import apply_hard_rules, route_after_eval, route_to_workflow
 
 
 def test_hard_rule_code_block() -> None:

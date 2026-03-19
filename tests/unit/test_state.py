@@ -1,8 +1,13 @@
 """Agent State 定义测试。"""
 from backend.agent.state import (
-    SharedState, SupervisorState, DiscoveryState,
-    ExtractionState, IdeationState, ExecutionState,
-    CritiqueState, PublishState, merge_dicts,
+    CritiqueState,
+    DiscoveryState,
+    ExecutionState,
+    ExtractionState,
+    IdeationState,
+    PublishState,
+    SharedState,
+    merge_dicts,
 )
 
 

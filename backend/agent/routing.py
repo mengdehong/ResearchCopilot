@@ -1,6 +1,7 @@
 """Supervisor 路由逻辑。硬规则门禁 + LLM 路由 + 检查点回评。"""
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Literal
 
 from pydantic import BaseModel
 

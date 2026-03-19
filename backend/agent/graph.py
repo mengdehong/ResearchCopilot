@@ -1,7 +1,7 @@
 """Supervisor 主图编排。连接硬规则路由、LLM 路由、检查点回评和 6 个 WF subgraph。"""
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 
-from backend.agent.routing import route_to_workflow, route_after_eval
+from backend.agent.routing import route_after_eval, route_to_workflow
 from backend.agent.state import SupervisorState
 from backend.core.logger import get_logger
 
