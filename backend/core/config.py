@@ -1,4 +1,4 @@
-"""全局配置加载。基于 Pydantic BaseSettings，支持 .env 文件和环境变量。"""
+"""全局配置加载。基于 Pydantic BaseSettings, 支持 .env 文件和环境变量。"""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

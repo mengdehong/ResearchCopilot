@@ -2,6 +2,7 @@
 import io
 import tarfile
 import time
+import typing
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -40,7 +41,7 @@ class CodeExecutor(Protocol):
 class DockerExecutor:
     """基于 Docker 的代码执行器。"""
 
-    LABELS = {"app": "research-copilot", "role": "sandbox"}
+    LABELS: typing.ClassVar[dict[str, str]] = {"app": "research-copilot", "role": "sandbox"}
 
     def __init__(
         self,

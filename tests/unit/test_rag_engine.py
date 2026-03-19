@@ -22,14 +22,14 @@ ID_C = "00000000-0000-0000-0000-000000000003"
 
 
 def test_rrf_merge_basic() -> None:
-    """B 出现在两个列表中，RRF 分数应最高。"""
+    """B 出现在两个列表中, RRF 分数应最高。"""
     list_a = [_make_chunk(ID_A, 0.9), _make_chunk(ID_B, 0.8)]
     list_b = [_make_chunk(ID_B, 0.85), _make_chunk(ID_C, 0.7)]
 
     merged = RAGEngine._rrf_merge(list_a, list_b)
     ids = [str(c.chunk_id) for c in merged]
 
-    # B 出现在两个列表中，RRF 分数应最高
+    # B 出现在两个列表中, RRF 分数应最高
     assert ids[0] == ID_B
     assert len(merged) == 3
 

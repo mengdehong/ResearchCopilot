@@ -72,7 +72,7 @@ class RAGEngine:
         query: RetrievalQuery,
         session: AsyncSession,
     ) -> list[RetrievedChunk]:
-        """混合检索：向量 + 关键词 → RRF 融合 → 返回 top-N。"""
+        """混合检索: 向量 + 关键词 → RRF 融合 → 返回 top-N。"""
         query_embedding = self.embed_text(query.query_text)
 
         vector_results = await self._vector_search(

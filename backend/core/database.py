@@ -24,6 +24,6 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
 async def get_session(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> AsyncGenerator[AsyncSession, None]:
-    """每请求一个 session，请求结束自动关闭。"""
+    """每请求一个 session, 请求结束自动关闭。"""
     async with session_factory() as session:
         yield session

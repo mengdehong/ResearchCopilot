@@ -1,4 +1,4 @@
-"""Sandbox Manager 单元测试（mock Docker SDK）。"""
+"""Sandbox Manager 单元测试(mock Docker SDK)。"""
 from unittest.mock import MagicMock, patch
 
 import docker.errors
@@ -9,7 +9,7 @@ from backend.services.sandbox_manager import DockerExecutor, ExecutionRequest
 @patch("backend.services.sandbox_manager.docker")
 def test_execute_success(mock_docker: MagicMock) -> None:
     """执行成功时返回 success=True 并清理容器。"""
-    # 保留真实的 errors 模块，否则 except docker.errors.* 会崩溃
+    # 保留真实的 errors 模块, 否则 except docker.errors.* 会崩溃
     mock_docker.errors = docker.errors
 
     container = MagicMock()

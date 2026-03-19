@@ -1,4 +1,4 @@
-"""结构化日志配置。基于 structlog，支持 trace_id 串联请求链路、敏感字段脱敏。"""
+"""结构化日志配置。基于 structlog, 支持 trace_id 串联请求链路、敏感字段脱敏。"""
 import logging
 import re
 import sys
@@ -10,7 +10,7 @@ _logging_configured = False
 
 
 def setup_logging(*, debug: bool = False) -> None:
-    """初始化 structlog 配置。应用启动时调用一次，重复调用安全（幂等）。"""
+    """初始化 structlog 配置。应用启动时调用一次, 重复调用安全(幂等)。"""
     global _logging_configured
     if _logging_configured:
         return

@@ -82,7 +82,7 @@ class MinerUParser:
         """调用 MinerU 解析 PDF 为结构化文档。"""
         logger.info("mineru_parse_start", path=str(pdf_path))
         try:
-            # MinerU API 调用（实际集成时填充）
+            # MinerU API 调用(实际集成时填充)
             # from magic_pdf.pipe.UNIPipe import UNIPipe
             raise NotImplementedError("MinerU integration pending")
         except Exception:
@@ -94,7 +94,7 @@ class FallbackParser:
     """PyMuPDF 纯文本 fallback 解析器。"""
 
     def parse(self, pdf_path: Path) -> ParsedDocument:
-        """降级解析：仅提取纯文本。"""
+        """降级解析: 仅提取纯文本。"""
         if fitz is None:
             raise ImportError("PyMuPDF (fitz) is not installed")
 
