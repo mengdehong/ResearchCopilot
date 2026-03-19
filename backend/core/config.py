@@ -1,4 +1,4 @@
-"""全局配置加载。基于 Pydantic BaseSettings，支持 .env 文件和环境变量。"""
+"""全局配置加载。基于 Pydantic BaseSettings, 支持 .env 文件和环境变量。"""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,3 +39,8 @@ class Settings(BaseSettings):
     # --- Celery ---
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
+    # --- LangSmith ---
+    langsmith_api_key: str | None = None
+    # --- MinerU ---
+    mineru_api_url: str = "https://mineru.net/api/v4"
+    mineru_api_key: str | None = None

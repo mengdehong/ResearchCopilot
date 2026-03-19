@@ -1,4 +1,4 @@
-"""LLM 统一封装。多 Provider 适配，上层只依赖 langchain-core 的 BaseChatModel。"""
+"""LLM 统一封装。多 Provider 适配, 上层只依赖 langchain-core 的 BaseChatModel。"""
 from enum import StrEnum
 
 from langchain_core.language_models import BaseChatModel
@@ -54,7 +54,7 @@ class LLMGateway:
         api_key: str,
         temperature: float,
     ) -> BaseChatModel:
-        """工厂方法：根据 provider 创建对应的 ChatModel。"""
+        """工厂方法: 根据 provider 创建对应的 ChatModel。"""
         match provider:
             case LLMProvider.OPENAI:
                 from langchain_openai import ChatOpenAI
