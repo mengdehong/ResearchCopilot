@@ -134,8 +134,13 @@ class RAGEngine:
         session: AsyncSession,
         query: RetrievalQuery,
     ) -> list[RetrievedChunk]:
-        """PostgreSQL tsvector 全文检索。"""
-        sql = text("""
+        """PostgreSQL tsvector 全文検索。"""
+        doc_filter = ""
+        if query.document_ids:
+            ids = ",".join(f"'{d!s}'" for d in query.document_ids)
+            doc_filter = f"AND document_id IN ({ids})"
+
+        sql = text(f"""
             SELECT id, document_id, content_text, section_path,
                    page_numbers,
                    ts_rank(
@@ -146,7 +151,7 @@ class RAGEngine:
             WHERE document_id IN (
                 SELECT id FROM documents
                 WHERE workspace_id = :workspace_id
-            )
+            ) {doc_filter}
             AND to_tsvector('english', content_text)
                 @@ plainto_tsquery('english', :query)
             ORDER BY score DESC
