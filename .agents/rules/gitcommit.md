@@ -1,0 +1,11 @@
+---
+trigger: always_on
+glob:
+description:
+---
+- Perform only if explicitly requested by the user
+- Commit messages: `type: short description` (e.g., `feat: add tier drag-drop`,
+  `fix: rank compression edge case`, `refactor: extract shelf repository`).
+- Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `style`, `ci`.
+- Keep commits atomic — one logical change per commit.
+
