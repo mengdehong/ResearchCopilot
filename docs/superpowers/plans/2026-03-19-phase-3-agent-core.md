@@ -824,4 +824,18 @@ git commit -m "feat: add Supervisor graph skeleton with routing and checkpoint e
 
 ---
 
+## 可观测性要求（横切）
+
+> 对应 [可观测性设计 §二.4](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/specs/2026-03-19-observability-design.md)
+
+在实现 Task 5（routing.py + graph.py）时，确保以下日志点：
+
+- `supervisor_node` 路由决策日志：`logger.info("routing_decision", target=..., mode=..., reasoning=...)`
+- `checkpoint_eval_node` 回评结果日志：`logger.info("checkpoint_eval", step_index=..., passed=..., reason=...)`
+- 硬规则匹配日志：`logger.info("hard_rule_matched", rule_name=..., target=...)`
+
+各 WF placeholder 节点暂不加日志（Phase 4 填充真实逻辑时补充）。
+
+---
+
 **Phase 3 完成标志：** 全部单元测试通过 + Supervisor 主图骨架可编译 + lint 无报错 → 可进入 Phase 4（填充 6 个 WF subgraph）。

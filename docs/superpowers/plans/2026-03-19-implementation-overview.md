@@ -4,6 +4,8 @@
 
 **Goal:** 将已完成的 8 个设计 spec 转化为可执行代码，按依赖层级分阶段实现全栈科研自动代理工作站。
 
+**横切关注点：** 可观测性（日志/指标/追踪）贯穿 Phase 2-8，详见 [可观测性设计](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/specs/2026-03-19-observability-design.md)。
+
 **Architecture:** 前后分离的微服务架构。后端分为 FastAPI BFF（业务控制面）+ LangGraph Server（Agent 运行时）+ Celery Worker（异步管道）。前端 React SPA 通过 SSE/REST 与 BFF 通信。PostgreSQL + pgvector 为唯一数据源。
 
 **Tech Stack:** Python 3.11+ / uv / FastAPI / LangGraph / Celery / Docker SDK / React 18 / TypeScript / Vite / Zustand / React Query / TipTap / PostgreSQL 16 + pgvector
@@ -86,12 +88,13 @@ P8                                                     ████████
 
 ## 实施约定
 
-| 约定       | 规则                                 |
-| ---------- | ------------------------------------ |
-| 包管理     | `uv`，所有依赖写入 `pyproject.toml`  |
-| 代码风格   | `ruff` lint + format，严格类型标注   |
-| 测试框架   | `pytest` + `pytest-asyncio`          |
-| Git 规范   | 原子提交，`type: short description`  |
-| 分支策略   | Phase 粒度 feature branch → main     |
-| 环境变量   | Pydantic `BaseSettings`，`.env` 文件 |
-| 数据库迁移 | Alembic                              |
+| 约定       | 规则                                                                           |
+| ---------- | ------------------------------------------------------------------------------ |
+| 包管理     | `uv`，所有依赖写入 `pyproject.toml`                                            |
+| 代码风格   | `ruff` lint + format，严格类型标注                                             |
+| 测试框架   | `pytest` + `pytest-asyncio`                                                    |
+| Git 规范   | 原子提交，`type: short description`                                            |
+| 分支策略   | Phase 粒度 feature branch → main                                               |
+| 环境变量   | Pydantic `BaseSettings`，`.env` 文件                                           |
+| 数据库迁移 | Alembic                                                                        |
+| 可观测性   | structlog 结构化日志 + trace_id 传播 + LangSmith LLM 追踪 + Prometheus Metrics |

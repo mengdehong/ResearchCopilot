@@ -14,6 +14,7 @@
 - [沙箱设计](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/specs/2026-03-19-sandbox-design.md) — §三 数据模型, §四 容器生命周期
 - [RAG Pipeline 设计](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/specs/2026-03-19-rag-pipeline-design.md) — §四 Retrieval Pipeline
 - [Agent 设计](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/specs/2026-03-19-langgraph-agent-design.md) — §一 State 架构（ExecutionResult 等数据模型）
+- [可观测性设计](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/specs/2026-03-19-observability-design.md) — §二 日志规范, §三.2 LangSmith 集成
 
 ---
 
@@ -818,6 +819,46 @@ Expected: `2 passed`
 ```bash
 git add backend/services/rag_engine.py tests/unit/test_rag_engine.py
 git commit -m "feat: add RAG engine with hybrid retrieval and RRF fusion"
+```
+
+## Task 5: 可观测性增强
+
+**Files:**
+- Modify: `backend/core/logger.py`
+- Modify: `backend/core/config.py`
+
+> 对应 [可观测性设计 §二.3 + §三.2](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/specs/2026-03-19-observability-design.md)。
+
+- [ ] **Step 1: logger.py 追加敏感字段脱敏 processor**
+
+在 `shared_processors` 列表中追加 `sanitize_sensitive_fields` processor，对字段名包含 `api_key`, `secret`, `token`, `password`, `jwt`, `authorization`（不区分大小写）的值替换为 `***`。
+
+- [ ] **Step 2: config.py 追加 LangSmith 配置**
+
+`Settings` 类追加：
+```python
+# --- LangSmith ---
+langsmith_api_key: str | None = None
+```
+
+- [ ] **Step 3: 在 4 个 Service 中添加业务关键日志点**
+
+按可观测性设计 §2.4 表格，在已实现的 `llm_gateway.py`、`sandbox_manager.py`、`parser_engine.py`、`rag_engine.py` 中确保 INFO 级别日志包含规定的结构化字段。
+
+- [ ] **Step 4: .env.example 追加 LangSmith 变量**
+
+```
+# --- LangSmith ---
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=
+LANGSMITH_API_KEY=
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add backend/core/logger.py backend/core/config.py .env.example
+git commit -m "feat: add log sanitization processor and LangSmith config"
 ```
 
 ---

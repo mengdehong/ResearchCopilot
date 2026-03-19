@@ -788,16 +788,17 @@ QuotaService
 
 ## 十、技术选型汇总
 
-| 组件           | 选择                      | 理由                                  |
-| -------------- | ------------------------- | ------------------------------------- |
-| Web 框架       | FastAPI                   | 异步原生，Pydantic 类型安全，团队经验 |
-| ORM            | SQLAlchemy 2.0 (async)    | 成熟稳定，原生 async session          |
-| 数据校验       | Pydantic V2               | FastAPI 原生支持，高性能              |
-| JWT 验证       | 第三方 Auth SDK + PyJWT   | 只验证不签发                          |
-| 对象存储       | boto3 (S3) / minio-py     | S3 兼容 API，云端/私有化统一          |
-| LangGraph 通信 | langgraph-sdk HTTP Client | 底层控制，显式生命周期管理            |
-| 异步任务       | Celery + Redis            | 与架构文档一致                        |
-| 结构化日志     | structlog                 | 支持 trace_id 串联，JSON 输出         |
-| 限流           | Redis + 令牌桶            | 粗粒度中间件 + 业务级 QuotaService    |
-| SSE 事件缓冲   | Redis (TTL key)           | 断线重连事件重播                      |
+| 组件           | 选择                              | 理由                                                                                   |
+| -------------- | --------------------------------- | -------------------------------------------------------------------------------------- |
+| Web 框架       | FastAPI                           | 异步原生，Pydantic 类型安全，团队经验                                                  |
+| ORM            | SQLAlchemy 2.0 (async)            | 成熟稳定，原生 async session                                                           |
+| 数据校验       | Pydantic V2                       | FastAPI 原生支持，高性能                                                               |
+| JWT 验证       | 第三方 Auth SDK + PyJWT           | 只验证不签发                                                                           |
+| 对象存储       | boto3 (S3) / minio-py             | S3 兼容 API，云端/私有化统一                                                           |
+| LangGraph 通信 | langgraph-sdk HTTP Client         | 底层控制，显式生命周期管理                                                             |
+| 异步任务       | Celery + Redis                    | 与架构文档一致                                                                         |
+| 结构化日志     | structlog                         | 支持 trace_id 串联，JSON 输出。详见 [可观测性设计](2026-03-19-observability-design.md) |
+| Metrics 暴露   | prometheus-fastapi-instrumentator | `/metrics` 端点自动暴露请求延迟/QPS/状态码                                             |
+| 限流           | Redis + 令牌桶                    | 粗粒度中间件 + 业务级 QuotaService                                                     |
+| SSE 事件缓冲   | Redis (TTL key)                   | 断线重连事件重播                                                                       |
 

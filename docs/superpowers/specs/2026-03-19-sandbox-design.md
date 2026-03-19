@@ -182,12 +182,12 @@ WORKDIR /workspace
 
 ### 6.2 错误分类与处理策略
 
-| 错误类型                    | 处理方         | 行为                                                                                    |
-| --------------------------- | -------------- | --------------------------------------------------------------------------------------- |
-| 代码运行报错（exit_code≠0） | Agent 节点     | LLM 反思 + 重写代码，重新执行（max 3 轮）                                               |
-| 执行超时（>10 min）         | DockerExecutor | `container.kill()`，返回 `ExecutionResult(success=False, stderr="Execution timed out")` |
-| Docker Daemon 不可用        | DockerExecutor | 抛 `SandboxUnavailableError`，Agent 层不重试                                            |
-| 容器销毁失败                | DockerExecutor | 日志告警 + 后台清理任务定期扫描孤儿容器                                                 |
+| 错误类型                    | 处理方         | 行为                                                                                                             |
+| --------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 代码运行报错（exit_code≠0） | Agent 节点     | LLM 反思 + 重写代码，重新执行（max 3 轮）                                                                        |
+| 执行超时（>10 min）         | DockerExecutor | `container.kill()`，返回 `ExecutionResult(success=False, stderr="Execution timed out")`                          |
+| Docker Daemon 不可用        | DockerExecutor | 抛 `SandboxUnavailableError`，Agent 层不重试                                                                     |
+| 容器销毁失败                | DockerExecutor | 日志告警 + 后台清理任务定期扫描孤儿容器。Sandbox Metrics 详见 [可观测性设计](2026-03-19-observability-design.md) |
 
 ### 6.3 孤儿容器清理
 

@@ -328,16 +328,17 @@ Discovery → Extraction → Ideation → Execution → Critique → Publish
 
 ### 关键机制
 
-| 机制                  | 实现方式                                                                                                                                                                     |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Human-in-the-loop** | LangGraph `interrupt()` 挂起 → 前端弹出确认卡片 → `Command(resume=...)` 恢复。触发点：Discovery 论文勾选、沙盒执行前（MVP:approve/reject）、报告定稿前（reject→Canvas 手改） |
-| **流式状态推送**      | SSE 推送 Agent 当前执行节点 + CoT 日志至前端 Chat 区                                                                                                                         |
-| **Critique 打回循环** | Critique WF 输出 structured feedback → 检查点回评节点将 feedback 以 messages 注入上游 WF → 重新执行 → 再送回 Critique（max 2 轮迭代）                                        |
-| **错误重试**          | 沙盒 WF 内置 max_retries=3 循环；文献检索失败走降级提示                                                                                                                      |
-| **学科切换**          | Supervisor 骨架 prompt + 学科 snippet YAML 文件注入（YAML baseline，DB 可覆盖），用户在设置中配置                                                                            |
-| **Skill 系统**        | 四层体系（Tool→Skill→Workflow→Supervisor）。SkillRegistry 启动时扫描注册，mode=tool 绑定 Supervisor，mode=subgraph 嵌入 Workflow                                             |
-| **任务控制**          | 用户可随时暂停/恢复/终止(Kill)后台异步任务，通过 Thread 状态管理                                                                                                             |
-| **状态通知**          | 长耗时任务完成/异常时，通过站内 UI 通知（后续支持邮件）                                                                                                                      |
+| 机制                  | 实现方式                                                                                                                                                                                                                                       |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Human-in-the-loop** | LangGraph `interrupt()` 挂起 → 前端弹出确认卡片 → `Command(resume=...)` 恢复。触发点：Discovery 论文勾选、沙盒执行前（MVP:approve/reject）、报告定稿前（reject→Canvas 手改）                                                                   |
+| **流式状态推送**      | SSE 推送 Agent 当前执行节点 + CoT 日志至前端 Chat 区                                                                                                                                                                                           |
+| **Critique 打回循环** | Critique WF 输出 structured feedback → 检查点回评节点将 feedback 以 messages 注入上游 WF → 重新执行 → 再送回 Critique（max 2 轮迭代）                                                                                                          |
+| **错误重试**          | 沙盒 WF 内置 max_retries=3 循环；文献检索失败走降级提示                                                                                                                                                                                        |
+| **学科切换**          | Supervisor 骨架 prompt + 学科 snippet YAML 文件注入（YAML baseline，DB 可覆盖），用户在设置中配置                                                                                                                                              |
+| **Skill 系统**        | 四层体系（Tool→Skill→Workflow→Supervisor）。SkillRegistry 启动时扫描注册，mode=tool 绑定 Supervisor，mode=subgraph 嵌入 Workflow                                                                                                               |
+| **任务控制**          | 用户可随时暂停/恢复/终止(Kill)后台异步任务，通过 Thread 状态管理                                                                                                                                                                               |
+| **状态通知**          | 长耗时任务完成/异常时，通过站内 UI 通知（后续支持邮件）                                                                                                                                                                                        |
+| **可观测性**          | 渐进式方案：MVP 阶段 structlog 结构化日志 + trace_id 跨服务传播 + LangSmith LLM 追踪 + FastAPI Metrics 端点；生产阶段升级 Grafana + Prometheus + Loki 全栈监控。详见 [可观测性设计](docs/superpowers/specs/2026-03-19-observability-design.md) |
 
 ### 动态组合示例
 

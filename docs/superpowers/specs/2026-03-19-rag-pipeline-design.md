@@ -304,12 +304,12 @@
 
 ## 六、技术选型汇总
 
-| 组件            | 选择                    | 理由                                    |
-| --------------- | ----------------------- | --------------------------------------- |
-| PDF 解析        | MinerU (GPU)            | 双栏/公式/表格精准还原，输出结构化 bbox |
-| 向量数据库      | pgvector                | 与业务数据同库，分表方案原生支持        |
-| 全文检索        | PostgreSQL tsvector     | 零额外依赖，与向量检索同库同查询        |
-| Embedding 模型  | bge-m3（推荐）          | 多语言、高维度、学术场景表现优秀        |
-| Reranker        | bge-reranker-v2（推荐） | 跨语言 cross-encoder，精排效果好        |
-| 异步任务        | Celery + Redis          | 与架构文档一致                          |
-| LLM（语义增强） | Provider-agnostic       | 复用 llm_gateway.py 统一封装            |
+| 组件            | 选择                    | 理由                                                                                |
+| --------------- | ----------------------- | ----------------------------------------------------------------------------------- |
+| PDF 解析        | MinerU (GPU)            | 双栏/公式/表格精准还原，输出结构化 bbox                                             |
+| 向量数据库      | pgvector                | 与业务数据同库，分表方案原生支持                                                    |
+| 全文检索        | PostgreSQL tsvector     | 零额外依赖，与向量检索同库同查询                                                    |
+| Embedding 模型  | bge-m3（推荐）          | 多语言、高维度、学术场景表现优秀                                                    |
+| Reranker        | bge-reranker-v2（推荐） | 跨语言 cross-encoder，精排效果好                                                    |
+| 异步任务        | Celery + Redis          | 与架构文档一致。任务日志规范详见 [可观测性设计](2026-03-19-observability-design.md) |
+| LLM（语义增强） | Provider-agnostic       | 复用 llm_gateway.py 统一封装                                                        |
