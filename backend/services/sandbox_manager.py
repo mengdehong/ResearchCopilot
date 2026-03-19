@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 import docker
+import requests
 from docker.models.containers import Container
 
 from backend.core.logger import get_logger
@@ -110,15 +111,17 @@ class DockerExecutor:
         try:
             result = container.wait(timeout=timeout)
             exit_code: int = result.get("StatusCode", 1)
-        except Exception:
-            # Timeout or connection error: kill the container
+        except requests.exceptions.ConnectionError:
+            # Docker SDK raises ConnectionError when wait() times out
             with contextlib.suppress(docker.errors.DockerException):
                 container.kill()
             return 137, "", f"Execution timed out after {timeout}s"
 
-        logs = container.logs(stdout=True, stderr=True, stream=False)
-        stdout = (logs or b"").decode(errors="replace")
-        return exit_code, stdout, ""
+        stdout_bytes = container.logs(stdout=True, stderr=False, stream=False)
+        stderr_bytes = container.logs(stdout=False, stderr=True, stream=False)
+        stdout = (stdout_bytes or b"").decode(errors="replace")
+        stderr = (stderr_bytes or b"").decode(errors="replace")
+        return exit_code, stdout, stderr
 
     def _extract_outputs(self, container: Container) -> dict[str, bytes]:
         try:
