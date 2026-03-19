@@ -41,3 +41,6 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://localhost:6379/1"
     # --- LangSmith ---
     langsmith_api_key: str | None = None
+    # --- MinerU ---
+    mineru_api_url: str = "https://mineru.net/api/v4"
+    mineru_api_key: str | None = None
