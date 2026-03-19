@@ -1,8 +1,8 @@
 """Logger 测试。"""
 import logging
 
-from backend.core.logger import setup_logging
 import backend.core.logger as logger_module
+from backend.core.logger import setup_logging
 
 
 def test_setup_logging_idempotent() -> None:

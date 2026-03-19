@@ -11,7 +11,7 @@ _logging_configured = False
 
 def setup_logging(*, debug: bool = False) -> None:
     """初始化 structlog 配置。应用启动时调用一次，重复调用安全（幂等）。"""
-    global _logging_configured  # noqa: PLW0603
+    global _logging_configured
     if _logging_configured:
         return
     _logging_configured = True
