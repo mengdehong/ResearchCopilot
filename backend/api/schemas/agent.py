@@ -1,4 +1,5 @@
 """Agent schemas — run request/event DTOs (stub, pending P2 completion)."""
+
 import uuid
 
 from pydantic import BaseModel

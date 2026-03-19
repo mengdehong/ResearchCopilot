@@ -1,4 +1,5 @@
 """RAG 检索引擎。向量+关键词混合检索、RRF 融合、Reranker 精排。"""
+
 import uuid
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -20,6 +21,7 @@ class QueryIntent(StrEnum):
 @dataclass(frozen=True)
 class RetrievalQuery:
     """检索请求。"""
+
     query_text: str
     workspace_id: uuid.UUID
     intent: QueryIntent = QueryIntent.EVIDENCE_LEVEL
@@ -31,6 +33,7 @@ class RetrievalQuery:
 @dataclass(frozen=True)
 class RetrievedChunk:
     """检索结果。"""
+
     chunk_id: uuid.UUID
     document_id: uuid.UUID
     content_text: str
@@ -45,7 +48,9 @@ class RAGEngine:
     """RAG 检索引擎。"""
 
     def __init__(
-        self, *, embedding_model_name: str = "BAAI/bge-m3",
+        self,
+        *,
+        embedding_model_name: str = "BAAI/bge-m3",
     ) -> None:
         self._embedding_model_name = embedding_model_name
         self._embedder: object | None = None
@@ -54,6 +59,7 @@ class RAGEngine:
         """延迟加载 Embedding 模型。"""
         if self._embedder is None:
             from sentence_transformers import SentenceTransformer
+
             self._embedder = SentenceTransformer(self._embedding_model_name)
         return self._embedder
 
@@ -76,14 +82,17 @@ class RAGEngine:
         query_embedding = self.embed_text(query.query_text)
 
         vector_results = await self._vector_search(
-            session, query, query_embedding,
+            session,
+            query,
+            query_embedding,
         )
         keyword_results = await self._keyword_search(
-            session, query,
+            session,
+            query,
         )
 
         fused = self._rrf_merge(vector_results, keyword_results, k=60)
-        return fused[:query.top_n_final]
+        return fused[: query.top_n_final]
 
     async def _vector_search(
         self,
@@ -110,11 +119,14 @@ class RAGEngine:
             ORDER BY embedding <=> :embedding
             LIMIT :limit
         """)
-        result = await session.execute(sql, {
-            "embedding": embedding_str,
-            "workspace_id": str(query.workspace_id),
-            "limit": query.top_k_coarse,
-        })
+        result = await session.execute(
+            sql,
+            {
+                "embedding": embedding_str,
+                "workspace_id": str(query.workspace_id),
+                "limit": query.top_k_coarse,
+            },
+        )
         rows = result.fetchall()
         return [
             RetrievedChunk(
@@ -152,11 +164,14 @@ class RAGEngine:
             ORDER BY score DESC
             LIMIT :limit
         """)
-        result = await session.execute(sql, {
-            "query": query.query_text,
-            "workspace_id": str(query.workspace_id),
-            "limit": query.top_k_coarse,
-        })
+        result = await session.execute(
+            sql,
+            {
+                "query": query.query_text,
+                "workspace_id": str(query.workspace_id),
+                "limit": query.top_k_coarse,
+            },
+        )
         rows = result.fetchall()
         return [
             RetrievedChunk(
@@ -183,19 +198,17 @@ class RAGEngine:
         chunks: dict[uuid.UUID, RetrievedChunk] = {}
 
         for rank, chunk in enumerate(list_a):
-            scores[chunk.chunk_id] = (
-                scores.get(chunk.chunk_id, 0) + 1 / (k + rank + 1)
-            )
+            scores[chunk.chunk_id] = scores.get(chunk.chunk_id, 0) + 1 / (k + rank + 1)
             chunks[chunk.chunk_id] = chunk
 
         for rank, chunk in enumerate(list_b):
-            scores[chunk.chunk_id] = (
-                scores.get(chunk.chunk_id, 0) + 1 / (k + rank + 1)
-            )
+            scores[chunk.chunk_id] = scores.get(chunk.chunk_id, 0) + 1 / (k + rank + 1)
             chunks[chunk.chunk_id] = chunk
 
         sorted_ids = sorted(
-            scores, key=lambda cid: scores[cid], reverse=True,
+            scores,
+            key=lambda cid: scores[cid],
+            reverse=True,
         )
         return [
             RetrievedChunk(

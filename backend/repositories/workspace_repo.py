@@ -1,4 +1,5 @@
 """Workspace repository — pure functions."""
+
 import uuid
 
 from sqlalchemy import select
@@ -9,7 +10,8 @@ from backend.repositories.base import soft_delete as _base_soft_delete
 
 
 async def list_by_owner(
-    session: AsyncSession, owner_id: uuid.UUID,
+    session: AsyncSession,
+    owner_id: uuid.UUID,
 ) -> list[Workspace]:
     """List non-deleted workspaces owned by the given user."""
     stmt = select(Workspace).where(

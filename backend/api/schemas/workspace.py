@@ -1,4 +1,5 @@
 """Workspace schemas — request/response DTOs."""
+
 import uuid
 from datetime import datetime
 

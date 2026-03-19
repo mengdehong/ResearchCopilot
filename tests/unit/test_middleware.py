@@ -1,4 +1,5 @@
 """中间件单元测试 -- RequestIDMiddleware + AccessLogMiddleware."""
+
 from unittest.mock import patch
 
 import pytest
@@ -53,7 +54,8 @@ class TestRequestIDMiddleware:
     async def test_uses_provided_trace_id(self, client: AsyncClient) -> None:
         custom_trace_id = "custom-trace-id-12345"
         response = await client.get(
-            "/test", headers={"X-Trace-ID": custom_trace_id},
+            "/test",
+            headers={"X-Trace-ID": custom_trace_id},
         )
         assert response.headers["x-trace-id"] == custom_trace_id
 

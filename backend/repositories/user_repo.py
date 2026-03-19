@@ -1,4 +1,5 @@
 """User repository — pure functions."""
+
 import uuid
 
 from sqlalchemy import select

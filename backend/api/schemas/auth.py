@@ -1,4 +1,5 @@
 """Auth schemas — JWT payload and user info DTOs."""
+
 import uuid
 
 from pydantic import BaseModel

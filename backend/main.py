@@ -1,4 +1,5 @@
 """Research Copilot — FastAPI entry point."""
+
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 

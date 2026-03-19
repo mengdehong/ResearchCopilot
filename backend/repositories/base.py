@@ -3,6 +3,7 @@
 All functions accept AsyncSession as first argument (no class state).
 Use TypeVar for type-safe generic operations across ORM models.
 """
+
 import uuid
 from typing import TypeVar
 
@@ -22,7 +23,9 @@ async def create(session: AsyncSession, instance: T) -> T:
 
 
 async def get_by_id(
-    session: AsyncSession, model: type[T], entity_id: uuid.UUID,
+    session: AsyncSession,
+    model: type[T],
+    entity_id: uuid.UUID,
 ) -> T | None:
     """Get a single entity by primary key."""
     stmt = select(model).where(model.id == entity_id)  # type: ignore[attr-defined]

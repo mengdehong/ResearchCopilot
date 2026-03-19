@@ -1,4 +1,4 @@
-"""Editor API router tests — including ownership verification."""
+"""Agent API router tests — endpoint signatures, ownership, and 501 responses."""
 
 import uuid
 from datetime import UTC, datetime
@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from backend.models.editor_draft import EditorDraft
 from backend.models.thread import Thread
 from backend.models.user import User
 from backend.models.workspace import Workspace
@@ -49,16 +48,6 @@ def _make_thread(workspace_id: uuid.UUID) -> Thread:
     return thread
 
 
-def _make_draft(thread_id: uuid.UUID) -> EditorDraft:
-    draft = EditorDraft()
-    draft.id = uuid.uuid4()
-    draft.thread_id = thread_id
-    draft.content = "# My Draft"
-    draft.created_at = datetime.now(tz=UTC)
-    draft.updated_at = datetime.now(tz=UTC)
-    return draft
-
-
 @pytest.fixture
 def mock_user() -> User:
     return _make_user()
@@ -84,84 +73,77 @@ async def client(mock_user: User, mock_session: AsyncMock) -> AsyncClient:
     app.dependency_overrides.clear()
 
 
-class TestEditorRouter:
-    @patch("backend.api.routers.editor.editor_repo")
-    @patch("backend.api.routers.editor.base_repo")
-    async def test_save_draft(
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+
+class TestAgentRouter:
+    @patch("backend.api.routers.agent.base_repo")
+    async def test_create_run_returns_501(
         self,
         mock_base: MagicMock,
-        mock_repo: MagicMock,
         client: AsyncClient,
         mock_user: User,
     ) -> None:
         ws = _make_workspace(mock_user.id)
         thread = _make_thread(ws.id)
-        draft = _make_draft(thread.id)
-
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
-        mock_repo.upsert_draft = AsyncMock(return_value=draft)
 
-        response = await client.put(
-            f"/api/v1/drafts/{thread.id}",
-            json={"content": "# My Draft"},
+        response = await client.post(
+            f"/api/v1/threads/{thread.id}/runs",
+            json={"message": "summarize this paper"},
         )
-        assert response.status_code == 200
-        assert response.json()["content"] == "# My Draft"
+        assert response.status_code == 501
+        assert "not yet implemented" in response.json()["detail"]
 
-    @patch("backend.api.routers.editor.editor_repo")
-    @patch("backend.api.routers.editor.base_repo")
-    async def test_load_draft(
+    @patch("backend.api.routers.agent.base_repo")
+    async def test_stream_events_returns_501(
         self,
         mock_base: MagicMock,
-        mock_repo: MagicMock,
         client: AsyncClient,
         mock_user: User,
     ) -> None:
         ws = _make_workspace(mock_user.id)
         thread = _make_thread(ws.id)
-        draft = _make_draft(thread.id)
-
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
-        mock_repo.get_by_thread_id = AsyncMock(return_value=draft)
 
-        response = await client.get(f"/api/v1/drafts/{thread.id}")
-        assert response.status_code == 200
-        assert response.json()["thread_id"] == str(thread.id)
+        response = await client.get(f"/api/v1/threads/{thread.id}/events")
+        assert response.status_code == 501
 
-    @patch("backend.api.routers.editor.editor_repo")
-    @patch("backend.api.routers.editor.base_repo")
-    async def test_load_draft_not_found(
+    @patch("backend.api.routers.agent.base_repo")
+    async def test_interrupt_returns_501(
         self,
         mock_base: MagicMock,
-        mock_repo: MagicMock,
         client: AsyncClient,
         mock_user: User,
     ) -> None:
         ws = _make_workspace(mock_user.id)
         thread = _make_thread(ws.id)
-
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
-        mock_repo.get_by_thread_id = AsyncMock(return_value=None)
 
-        response = await client.get(f"/api/v1/drafts/{thread.id}")
-        assert response.status_code == 404
+        response = await client.post(
+            f"/api/v1/threads/{thread.id}/interrupt",
+            json={"action": "approve"},
+        )
+        assert response.status_code == 501
 
-    @patch("backend.api.routers.editor.base_repo")
-    async def test_save_draft_thread_not_found(
+    @patch("backend.api.routers.agent.base_repo")
+    async def test_create_run_thread_not_found(
         self,
         mock_base: MagicMock,
         client: AsyncClient,
     ) -> None:
         mock_base.get_by_id = AsyncMock(return_value=None)
 
-        response = await client.put(
-            f"/api/v1/drafts/{uuid.uuid4()}",
-            json={"content": "test"},
+        response = await client.post(
+            f"/api/v1/threads/{uuid.uuid4()}/runs",
+            json={"message": "test"},
         )
         assert response.status_code == 404
 
-    @patch("backend.api.routers.editor.base_repo")
-    async def test_save_draft_wrong_owner_returns_403(
+    @patch("backend.api.routers.agent.base_repo")
+    async def test_create_run_wrong_owner(
         self,
         mock_base: MagicMock,
         client: AsyncClient,
@@ -169,26 +151,10 @@ class TestEditorRouter:
     ) -> None:
         ws = _make_workspace(uuid.uuid4())  # different owner
         thread = _make_thread(ws.id)
-
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
 
-        response = await client.put(
-            f"/api/v1/drafts/{thread.id}",
-            json={"content": "test"},
+        response = await client.post(
+            f"/api/v1/threads/{thread.id}/runs",
+            json={"message": "test"},
         )
-        assert response.status_code == 403
-
-    @patch("backend.api.routers.editor.base_repo")
-    async def test_load_draft_wrong_owner_returns_403(
-        self,
-        mock_base: MagicMock,
-        client: AsyncClient,
-        mock_user: User,
-    ) -> None:
-        ws = _make_workspace(uuid.uuid4())  # different owner
-        thread = _make_thread(ws.id)
-
-        mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
-
-        response = await client.get(f"/api/v1/drafts/{thread.id}")
         assert response.status_code == 403

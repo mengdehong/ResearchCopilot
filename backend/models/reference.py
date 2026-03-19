@@ -1,4 +1,5 @@
-"""参考文献 ORM（结构化存储，不做 Embedding）。"""
+"""参考文献 ORM (结构化存储, 不做 Embedding)。"""
+
 import uuid
 
 from sqlalchemy import ForeignKey, Integer, Text
@@ -12,7 +13,9 @@ class Reference(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "references"
 
     document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False,
+        UUID(as_uuid=True),
+        ForeignKey("documents.id"),
+        nullable=False,
     )
     ref_index: Mapped[int] = mapped_column(Integer, nullable=False)
     ref_title: Mapped[str] = mapped_column(Text, nullable=False)
@@ -20,5 +23,7 @@ class Reference(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     ref_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ref_doi: Mapped[str | None] = mapped_column(Text, nullable=True)
     linked_document_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id"), nullable=True,
+        UUID(as_uuid=True),
+        ForeignKey("documents.id"),
+        nullable=True,
     )

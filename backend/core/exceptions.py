@@ -1,10 +1,12 @@
 """自定义异常类型与全局异常处理器。"""
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 
 class AppError(Exception):
     """业务异常基类。"""
+
     status_code: int = 500
     error_code: str = "INTERNAL_ERROR"
     message: str = "An unexpected error occurred"

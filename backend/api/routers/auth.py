@@ -1,4 +1,5 @@
 """Auth API router — stub."""
+
 from fastapi import APIRouter, Depends
 
 from backend.api.dependencies import get_current_user

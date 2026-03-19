@@ -1,4 +1,5 @@
 """PDF 解析引擎。封装 MinerU 和 PyMuPDF fallback。"""
+
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -22,6 +23,7 @@ class ParseQuality(StrEnum):
 @dataclass
 class ParsedSection:
     """解析出的章节。"""
+
     heading: str
     level: int
     content: str
@@ -31,6 +33,7 @@ class ParsedSection:
 @dataclass
 class ParsedTable:
     """解析出的表格。"""
+
     title: str
     raw_data: dict[str, object]
     page_number: int
@@ -40,6 +43,7 @@ class ParsedTable:
 @dataclass
 class ParsedFigure:
     """解析出的图表。"""
+
     caption: str
     image_path: str
     context: str
@@ -50,6 +54,7 @@ class ParsedFigure:
 @dataclass
 class ParsedEquation:
     """解析出的公式。"""
+
     latex: str
     context: str
     label: str | None = None
@@ -60,6 +65,7 @@ class ParsedEquation:
 @dataclass
 class ParsedDocument:
     """完整的解析结果。"""
+
     title: str
     abstract: str
     sections: list[ParsedSection] = field(default_factory=list)
@@ -72,6 +78,7 @@ class ParsedDocument:
 
 class PdfParser(Protocol):
     """PDF 解析器抽象接口。"""
+
     def parse(self, pdf_path: Path) -> ParsedDocument: ...
 
 
@@ -80,6 +87,7 @@ class MinerUParser:
 
     def __init__(self, *, api_url: str | None = None, api_key: str | None = None) -> None:
         from backend.core.config import Settings
+
         settings = Settings()
         self._api_url = api_url or settings.mineru_api_url
         self._api_key = api_key or settings.mineru_api_key
@@ -174,7 +182,14 @@ class MinerUParser:
 
                 with zipfile.ZipFile(io.BytesIO(zip_res.content)) as zf:
                     names = zf.namelist()
-                    target = next((n for n in names if n.lower().endswith("/full.md") or n.lower() == "full.md"), None)
+                    target = next(
+                        (
+                            n
+                            for n in names
+                            if n.lower().endswith("/full.md") or n.lower() == "full.md"
+                        ),
+                        None,
+                    )
                     if not target:
                         target = next((n for n in names if n.lower().endswith(".md")), None)
                     if not target:

@@ -1,4 +1,5 @@
 """PostgreSQL 异步数据库引擎与 Session 工厂。"""
+
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -12,7 +13,11 @@ from sqlalchemy.ext.asyncio import (
 def create_engine(database_url: str, *, echo: bool = False) -> AsyncEngine:
     """创建 SQLAlchemy 异步引擎。"""
     return create_async_engine(
-        database_url, echo=echo, pool_size=20, max_overflow=10, pool_pre_ping=True,
+        database_url,
+        echo=echo,
+        pool_size=20,
+        max_overflow=10,
+        pool_pre_ping=True,
     )
 
 

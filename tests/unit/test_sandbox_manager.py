@@ -1,4 +1,5 @@
 """Sandbox Manager 单元测试(mock Docker SDK)。"""
+
 from unittest.mock import MagicMock, patch
 
 import docker.errors
@@ -56,7 +57,9 @@ def test_execute_timeout(mock_docker: MagicMock) -> None:
     mock_docker.from_env.return_value.containers.create.return_value = container
 
     executor = DockerExecutor()
-    result = executor.execute(ExecutionRequest(code="import time; time.sleep(999)", timeout_seconds=1))
+    result = executor.execute(
+        ExecutionRequest(code="import time; time.sleep(999)", timeout_seconds=1)
+    )
 
     assert result.success is False
     assert result.exit_code == 137

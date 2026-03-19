@@ -1,4 +1,5 @@
 """FastAPI dependency injection: DB Session, JWT auth, Workspace checks."""
+
 import uuid
 from collections.abc import AsyncGenerator
 
@@ -19,6 +20,7 @@ logger = get_logger(__name__)
 # DB Session
 # ---------------------------------------------------------------------------
 
+
 async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
     """Yield an AsyncSession per request, auto-close on exit.
 
@@ -33,6 +35,7 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
 # Settings
 # ---------------------------------------------------------------------------
 
+
 def get_settings(request: Request) -> Settings:
     """Read Settings from app.state."""
     return request.app.state.settings
@@ -41,6 +44,7 @@ def get_settings(request: Request) -> Settings:
 # ---------------------------------------------------------------------------
 # JWT auth
 # ---------------------------------------------------------------------------
+
 
 async def get_current_user(
     *,
@@ -62,7 +66,9 @@ async def get_current_user(
 
     try:
         payload = jwt.decode(
-            token, settings.jwt_secret, algorithms=[settings.jwt_algorithm],
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
         )
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired") from None
@@ -91,6 +97,7 @@ async def get_current_user(
 # ---------------------------------------------------------------------------
 # Workspace ownership check
 # ---------------------------------------------------------------------------
+
 
 async def get_workspace(
     *,

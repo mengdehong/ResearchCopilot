@@ -1,4 +1,5 @@
 """Workspace CRUD API router."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response

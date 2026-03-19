@@ -1,4 +1,5 @@
 """容器化沙箱管理。CodeExecutor Protocol + DockerExecutor 实现。"""
+
 import contextlib
 import io
 import tarfile
@@ -18,6 +19,7 @@ logger = get_logger(__name__)
 @dataclass(frozen=True)
 class ExecutionRequest:
     """沙箱执行请求。"""
+
     code: str
     timeout_seconds: int = 600
     input_files: dict[str, bytes] = field(default_factory=dict)
@@ -26,6 +28,7 @@ class ExecutionRequest:
 @dataclass(frozen=True)
 class ExecutionResult:
     """沙箱执行结果。"""
+
     success: bool
     exit_code: int
     stdout: str
@@ -36,6 +39,7 @@ class ExecutionResult:
 
 class CodeExecutor(Protocol):
     """代码执行器抽象接口。"""
+
     def execute(self, request: ExecutionRequest) -> ExecutionResult: ...
 
 
@@ -97,12 +101,17 @@ class DockerExecutor:
         )
 
     def _inject_code(
-        self, container: Container, code: str, input_files: dict[str, bytes],
+        self,
+        container: Container,
+        code: str,
+        input_files: dict[str, bytes],
     ) -> None:
-        tar_buffer = self._build_tar({
-            "script.py": code.encode(),
-            **{f"data/{name}": content for name, content in input_files.items()},
-        })
+        tar_buffer = self._build_tar(
+            {
+                "script.py": code.encode(),
+                **{f"data/{name}": content for name, content in input_files.items()},
+            }
+        )
         container.put_archive("/workspace/", tar_buffer)
 
     def _run(self, container: Container, timeout: int) -> tuple[int, str, str]:
@@ -131,9 +140,7 @@ class DockerExecutor:
                         f = tar.extractfile(member)
                         if f:
                             name = (
-                                member.name.split("/", 1)[-1]
-                                if "/" in member.name
-                                else member.name
+                                member.name.split("/", 1)[-1] if "/" in member.name else member.name
                             )
                             result[name] = f.read()
             return result

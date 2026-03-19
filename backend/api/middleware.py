@@ -1,4 +1,5 @@
 """HTTP middleware: trace ID propagation + structured access logging."""
+
 import time
 import uuid
 
@@ -16,7 +17,9 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     """Generate or propagate X-Trace-ID for every request."""
 
     async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint,
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
     ) -> Response:
         trace_id = request.headers.get("x-trace-id", str(uuid.uuid4()))
         request.state.trace_id = trace_id
@@ -34,7 +37,9 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
     """Structured access log: method, path, status_code, duration_ms."""
 
     async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint,
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
     ) -> Response:
         start = time.monotonic()
         response = await call_next(request)

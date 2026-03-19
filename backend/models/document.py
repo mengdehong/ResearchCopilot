@@ -1,4 +1,5 @@
-"""文档元数据 ORM（BFF + RAG 共用）。"""
+"""文档元数据 ORM (BFF + RAG 共用)。"""
+
 import uuid
 
 from sqlalchemy import Boolean, ForeignKey, Integer, Text
@@ -12,7 +13,9 @@ class Document(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "documents"
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False,
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id"),
+        nullable=False,
     )
     title: Mapped[str] = mapped_column(Text, nullable=False)
     authors: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

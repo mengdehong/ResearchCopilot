@@ -1,4 +1,5 @@
 """Document API router tests."""
+
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -80,8 +81,10 @@ async def client(mock_user: User, mock_session: AsyncMock) -> AsyncClient:
 class TestDocumentRouter:
     @patch("backend.api.routers.document.base_repo")
     async def test_create_document(
-        self, mock_base: MagicMock,
-        client: AsyncClient, mock_user: User,
+        self,
+        mock_base: MagicMock,
+        client: AsyncClient,
+        mock_user: User,
     ) -> None:
         ws = _make_workspace(mock_user.id)
         doc = _make_document(ws.id)
@@ -103,7 +106,8 @@ class TestDocumentRouter:
 
     @patch("backend.api.routers.document.base_repo")
     async def test_create_document_workspace_not_found(
-        self, mock_base: MagicMock,
+        self,
+        mock_base: MagicMock,
         client: AsyncClient,
     ) -> None:
         mock_base.get_by_id = AsyncMock(return_value=None)
@@ -120,8 +124,10 @@ class TestDocumentRouter:
 
     @patch("backend.api.routers.document.base_repo")
     async def test_get_document(
-        self, mock_base: MagicMock,
-        client: AsyncClient, mock_user: User,
+        self,
+        mock_base: MagicMock,
+        client: AsyncClient,
+        mock_user: User,
     ) -> None:
         ws = _make_workspace(mock_user.id)
         doc = _make_document(ws.id)
@@ -135,7 +141,8 @@ class TestDocumentRouter:
 
     @patch("backend.api.routers.document.base_repo")
     async def test_get_document_not_found(
-        self, mock_base: MagicMock,
+        self,
+        mock_base: MagicMock,
         client: AsyncClient,
     ) -> None:
         mock_base.get_by_id = AsyncMock(return_value=None)
@@ -145,13 +152,29 @@ class TestDocumentRouter:
 
     @patch("backend.api.routers.document.base_repo")
     async def test_get_document_status(
-        self, mock_base: MagicMock,
-        client: AsyncClient, mock_user: User,
+        self,
+        mock_base: MagicMock,
+        client: AsyncClient,
+        mock_user: User,
     ) -> None:
         ws = _make_workspace(mock_user.id)
         doc = _make_document(ws.id)
-        mock_base.get_by_id = AsyncMock(return_value=doc)
+        mock_base.get_by_id = AsyncMock(side_effect=[doc, ws])
 
         response = await client.get(f"/api/v1/documents/{doc.id}/status")
         assert response.status_code == 200
         assert response.json()["parse_status"] == "pending"
+
+    @patch("backend.api.routers.document.base_repo")
+    async def test_get_document_status_wrong_owner_returns_403(
+        self,
+        mock_base: MagicMock,
+        client: AsyncClient,
+        mock_user: User,
+    ) -> None:
+        ws = _make_workspace(uuid.uuid4())  # different owner
+        doc = _make_document(ws.id)
+        mock_base.get_by_id = AsyncMock(side_effect=[doc, ws])
+
+        response = await client.get(f"/api/v1/documents/{doc.id}/status")
+        assert response.status_code == 403

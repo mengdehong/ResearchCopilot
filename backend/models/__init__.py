@@ -1,4 +1,5 @@
 """导出所有 ORM 模型。Alembic 自动发现 target_metadata 时需要此导入。"""
+
 from backend.models.base import Base
 from backend.models.doc_summary import DocSummary
 from backend.models.document import Document

@@ -1,4 +1,5 @@
 """Quota record repository — pure functions."""
+
 import uuid
 from datetime import UTC, datetime
 
@@ -9,7 +10,8 @@ from backend.models.quota_record import QuotaRecord
 
 
 async def get_monthly_usage(
-    session: AsyncSession, workspace_id: uuid.UUID,
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
 ) -> int:
     """Sum total tokens (input + output) for the current month."""
     now = datetime.now(tz=UTC)
@@ -17,7 +19,8 @@ async def get_monthly_usage(
 
     stmt = select(
         func.coalesce(
-            func.sum(QuotaRecord.input_tokens + QuotaRecord.output_tokens), 0,
+            func.sum(QuotaRecord.input_tokens + QuotaRecord.output_tokens),
+            0,
         ),
     ).where(
         QuotaRecord.workspace_id == workspace_id,

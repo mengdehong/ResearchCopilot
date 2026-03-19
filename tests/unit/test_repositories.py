@@ -1,4 +1,5 @@
 """Repository 层单元测试 -- mock AsyncSession 验证 CRUD 调用。"""
+
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
@@ -24,6 +25,7 @@ from backend.repositories.workspace_repo import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_workspace(owner_id: uuid.UUID) -> Workspace:
     ws = Workspace()
@@ -54,6 +56,7 @@ def _make_document(workspace_id: uuid.UUID) -> Document:
 # ---------------------------------------------------------------------------
 # base.py generic CRUD
 # ---------------------------------------------------------------------------
+
 
 class TestBaseCRUD:
     async def test_create_adds_and_flushes(self) -> None:
@@ -112,6 +115,7 @@ class TestBaseCRUD:
 # workspace_repo
 # ---------------------------------------------------------------------------
 
+
 class TestWorkspaceRepo:
     async def test_list_by_owner(self) -> None:
         session = AsyncMock()
@@ -138,6 +142,7 @@ class TestWorkspaceRepo:
 # document_repo
 # ---------------------------------------------------------------------------
 
+
 class TestDocumentRepo:
     async def test_list_by_workspace(self) -> None:
         session = AsyncMock()
@@ -163,6 +168,7 @@ class TestDocumentRepo:
 # ---------------------------------------------------------------------------
 # editor_repo
 # ---------------------------------------------------------------------------
+
 
 class TestEditorRepo:
     async def test_get_by_thread_id_returns_draft(self) -> None:

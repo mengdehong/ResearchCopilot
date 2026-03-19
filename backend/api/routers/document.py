@@ -1,4 +1,5 @@
 """Document API router."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -73,4 +74,10 @@ async def get_document_status(
     doc = await base_repo.get_by_id(session, Document, document_id)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
+
+    # Verify workspace ownership
+    ws = await base_repo.get_by_id(session, Workspace, doc.workspace_id)
+    if ws is None or ws.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     return DocumentStatus.model_validate(doc)

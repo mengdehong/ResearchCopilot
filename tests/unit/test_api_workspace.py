@@ -1,4 +1,5 @@
 """Workspace API router tests — httpx AsyncClient + dependency overrides."""
+
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -12,6 +13,7 @@ from backend.models.workspace import Workspace
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_user() -> User:
     user = User()
@@ -40,6 +42,7 @@ def _make_workspace(owner_id: uuid.UUID) -> Workspace:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def mock_user() -> User:
@@ -71,12 +74,17 @@ async def client(mock_user: User, mock_session: AsyncMock) -> AsyncClient:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 class TestWorkspaceRouter:
     @patch("backend.api.routers.workspace.workspace_repo")
     @patch("backend.api.routers.workspace.base_repo")
     async def test_create_workspace(
-        self, mock_base: MagicMock, mock_ws_repo: MagicMock,
-        client: AsyncClient, mock_user: User, mock_session: AsyncMock,
+        self,
+        mock_base: MagicMock,
+        mock_ws_repo: MagicMock,
+        client: AsyncClient,
+        mock_user: User,
+        mock_session: AsyncMock,
     ) -> None:
         ws = _make_workspace(mock_user.id)
         mock_base.create = AsyncMock(return_value=ws)
@@ -91,8 +99,10 @@ class TestWorkspaceRouter:
 
     @patch("backend.api.routers.workspace.workspace_repo")
     async def test_list_workspaces(
-        self, mock_ws_repo: MagicMock,
-        client: AsyncClient, mock_user: User,
+        self,
+        mock_ws_repo: MagicMock,
+        client: AsyncClient,
+        mock_user: User,
     ) -> None:
         ws1 = _make_workspace(mock_user.id)
         ws2 = _make_workspace(mock_user.id)
@@ -106,8 +116,10 @@ class TestWorkspaceRouter:
 
     @patch("backend.api.routers.workspace.base_repo")
     async def test_get_workspace_by_id(
-        self, mock_base: MagicMock,
-        client: AsyncClient, mock_user: User,
+        self,
+        mock_base: MagicMock,
+        client: AsyncClient,
+        mock_user: User,
     ) -> None:
         ws = _make_workspace(mock_user.id)
         mock_base.get_by_id = AsyncMock(return_value=ws)
@@ -118,7 +130,8 @@ class TestWorkspaceRouter:
 
     @patch("backend.api.routers.workspace.base_repo")
     async def test_get_workspace_not_found(
-        self, mock_base: MagicMock,
+        self,
+        mock_base: MagicMock,
         client: AsyncClient,
     ) -> None:
         mock_base.get_by_id = AsyncMock(return_value=None)
@@ -129,8 +142,12 @@ class TestWorkspaceRouter:
     @patch("backend.api.routers.workspace.workspace_repo")
     @patch("backend.api.routers.workspace.base_repo")
     async def test_delete_workspace(
-        self, mock_base: MagicMock, mock_ws_repo: MagicMock,
-        client: AsyncClient, mock_user: User, mock_session: AsyncMock,
+        self,
+        mock_base: MagicMock,
+        mock_ws_repo: MagicMock,
+        client: AsyncClient,
+        mock_user: User,
+        mock_session: AsyncMock,
     ) -> None:
         ws = _make_workspace(mock_user.id)
         mock_base.get_by_id = AsyncMock(return_value=ws)
@@ -141,7 +158,8 @@ class TestWorkspaceRouter:
 
     @patch("backend.api.routers.workspace.base_repo")
     async def test_delete_workspace_not_found(
-        self, mock_base: MagicMock,
+        self,
+        mock_base: MagicMock,
         client: AsyncClient,
     ) -> None:
         mock_base.get_by_id = AsyncMock(return_value=None)
@@ -151,8 +169,10 @@ class TestWorkspaceRouter:
 
     @patch("backend.api.routers.workspace.base_repo")
     async def test_delete_workspace_forbidden(
-        self, mock_base: MagicMock,
-        client: AsyncClient, mock_user: User,
+        self,
+        mock_base: MagicMock,
+        client: AsyncClient,
+        mock_user: User,
     ) -> None:
         ws = _make_workspace(uuid.uuid4())  # different owner
         mock_base.get_by_id = AsyncMock(return_value=ws)

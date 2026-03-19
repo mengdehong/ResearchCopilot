@@ -1,4 +1,5 @@
 """Run snapshot repository — pure functions."""
+
 import uuid
 
 from sqlalchemy import select
@@ -8,7 +9,8 @@ from backend.models.run_snapshot import RunSnapshot
 
 
 async def get_by_run_id(
-    session: AsyncSession, run_id: uuid.UUID,
+    session: AsyncSession,
+    run_id: uuid.UUID,
 ) -> RunSnapshot | None:
     """Get snapshot by run_id."""
     stmt = select(RunSnapshot).where(RunSnapshot.run_id == run_id)
@@ -17,7 +19,8 @@ async def get_by_run_id(
 
 
 async def list_by_thread(
-    session: AsyncSession, thread_id: uuid.UUID,
+    session: AsyncSession,
+    thread_id: uuid.UUID,
 ) -> list[RunSnapshot]:
     """List all snapshots for a thread, ordered by creation time."""
     stmt = (

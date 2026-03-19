@@ -1,4 +1,5 @@
 """Dependency injection tests — get_db / get_current_user / get_workspace."""
+
 import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
@@ -15,6 +16,7 @@ from backend.models.workspace import Workspace
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def settings() -> Settings:
@@ -61,6 +63,7 @@ def expired_token(settings: Settings, sample_user: User) -> str:
 # get_db
 # ---------------------------------------------------------------------------
 
+
 class TestGetDb:
     async def test_yields_session_and_closes(self) -> None:
         mock_session = AsyncMock()
@@ -89,9 +92,13 @@ class TestGetDb:
 # get_current_user
 # ---------------------------------------------------------------------------
 
+
 class TestGetCurrentUser:
     async def test_valid_token_returns_user(
-        self, settings: Settings, sample_user: User, valid_token: str,
+        self,
+        settings: Settings,
+        sample_user: User,
+        valid_token: str,
     ) -> None:
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -99,7 +106,9 @@ class TestGetCurrentUser:
         mock_session.execute.return_value = mock_result
 
         user = await get_current_user(
-            token=valid_token, session=mock_session, settings=settings,
+            token=valid_token,
+            session=mock_session,
+            settings=settings,
         )
         assert user.id == sample_user.id
 
@@ -110,17 +119,23 @@ class TestGetCurrentUser:
         assert exc_info.value.status_code == 401
 
     async def test_expired_token_raises_401(
-        self, settings: Settings, expired_token: str,
+        self,
+        settings: Settings,
+        expired_token: str,
     ) -> None:
         mock_session = AsyncMock()
         with pytest.raises(HTTPException) as exc_info:
             await get_current_user(
-                token=expired_token, session=mock_session, settings=settings,
+                token=expired_token,
+                session=mock_session,
+                settings=settings,
             )
         assert exc_info.value.status_code == 401
 
     async def test_user_not_found_raises_401(
-        self, settings: Settings, valid_token: str,
+        self,
+        settings: Settings,
+        valid_token: str,
     ) -> None:
         mock_session = AsyncMock()
         mock_result = MagicMock()
@@ -129,7 +144,9 @@ class TestGetCurrentUser:
 
         with pytest.raises(HTTPException) as exc_info:
             await get_current_user(
-                token=valid_token, session=mock_session, settings=settings,
+                token=valid_token,
+                session=mock_session,
+                settings=settings,
             )
         assert exc_info.value.status_code == 401
 
@@ -137,6 +154,7 @@ class TestGetCurrentUser:
 # ---------------------------------------------------------------------------
 # get_workspace
 # ---------------------------------------------------------------------------
+
 
 class TestGetWorkspace:
     async def test_valid_workspace_returns_it(self, sample_user: User) -> None:

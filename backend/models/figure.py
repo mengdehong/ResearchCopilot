@@ -1,4 +1,5 @@
 """图表 ORM。"""
+
 import uuid
 
 from pgvector.sqlalchemy import Vector
@@ -13,7 +14,9 @@ class Figure(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "figures"
 
     document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False,
+        UUID(as_uuid=True),
+        ForeignKey("documents.id"),
+        nullable=False,
     )
     section_path: Mapped[str] = mapped_column(Text, nullable=False)
     caption_text: Mapped[str] = mapped_column(Text, nullable=False)
