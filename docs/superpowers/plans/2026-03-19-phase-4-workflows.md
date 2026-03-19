@@ -40,7 +40,7 @@ backend/agent/workflows/
 │   └── graph.py       # Critique subgraph (并行 fan-out, 红蓝对抗)
 └── 6_publish/
     ├── __init__.py
-    ├── nodes.py       # assemble_outline, generate_markdown, request_finalization(HITL), render_pptx, package_zip
+    ├── nodes.py       # assemble_outline, generate_markdown, request_finalization(HITL), render_presentation, package_zip
     └── graph.py       # Publish subgraph (线性 + HITL)
 ```
 
@@ -116,16 +116,16 @@ backend/agent/workflows/
 
 ## Task 6: Publish WF — 报告交付（含 HITL + Canvas 回流）
 
-> 线性 + HITL 分支：`assemble_outline → generate_markdown → request_finalization(HITL) → render_pptx → package_zip → write_artifacts`
+> 线性 + HITL 分支：`assemble_outline → generate_markdown → request_finalization(HITL) → render_presentation → package_zip → write_artifacts`
 > HITL 分支：approve→继续 / reject→推送至 Canvas 编辑器用户手改→确认后回流（modified_markdown）
 
 关键设计点：
 - `request_finalization` 使用 `interrupt()` 展示 Markdown 预览
 - approve 直接继续；reject 时前端将 Markdown 推送到 Canvas，用户手改后确认定稿，将 `modified_markdown` 发送 resume
 - 收到 `modified_markdown` 后更新 `markdown_content` 再继续渲染
-- `render_pptx` 调用 PPT 生成 Skill（或 python-pptx 模板引擎）
+- `render_presentation` 调用 `ppt_generation` Skill（subgraph），输出 PDF（Typst 主推，Beamer 预留）
 
-- [ ] **Step 1: 实现 nodes.py** — 含 HITL interrupt（approve/reject 双路径）和 PPTX 渲染
+- [ ] **Step 1: 实现 nodes.py** — 含 HITL interrupt（approve/reject 双路径）和 ppt_generation Skill 调用
 - [ ] **Step 2: 实现 graph.py** — 线性编排 + HITL
 - [ ] **Step 3: 编写测试** — 测试 approve 和 reject+Canvas 回流两种路径
 - [ ] **Step 4: Commit**

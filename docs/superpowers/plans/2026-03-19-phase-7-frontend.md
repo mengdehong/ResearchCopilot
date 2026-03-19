@@ -16,20 +16,32 @@
 ## 文件结构
 
 ```
-frontend/
-├── src/
-│   ├── main.tsx
+frontend/src/
+├── app/                        # 应用入口 + 路由 + Provider + Layout
 │   ├── App.tsx
-│   ├── routes/
-│   ├── stores/                # Zustand stores
-│   ├── hooks/                 # React Query hooks
-│   ├── components/
-│   │   ├── chat/              # 对话面板
-│   │   ├── canvas/            # TipTap 编辑器
-│   │   ├── sidebar/           # 侧边栏（Workspace/Thread 列表）
-│   │   └── common/            # 通用组件
-│   ├── services/              # API 客户端
-│   └── types/                 # TypeScript 类型
+│   ├── router.tsx              # React Router 路由配置
+│   ├── RootLayout.tsx          # 全局 Provider 注入层
+│   └── AppLayout.tsx           # 认证守卫 + GlobalNav
+│
+├── components/                  # 通用 UI 组件
+│   ├── ui/                     # shadcn/ui 基础组件
+│   └── shared/                 # 跨 feature 复用（AcademicMarkdown、StatusBar、FileDropzone）
+│
+├── features/                    # 核心业务模块（Feature-Sliced）
+│   ├── auth/                   # 认证流程
+│   ├── workspace/              # 课题空间管理（Sidebar + Dashboard）
+│   ├── chat/                   # 左栏：对话控制区（ChatPanel、CoTTree、HITLCard）
+│   ├── canvas/                 # 右栏：多 Tab 工作区（editor/pdf/sandbox）
+│   ├── documents/              # 文献管理（上传、状态、解析产物）
+│   ├── settings/               # 设置（学科偏好、BYOK、用量统计）
+│   └── workbench/              # WorkbenchPage 组装层（组合 Chat + Canvas）
+│
+├── stores/                      # Zustand 状态管理
+│   ├── useAgentStore.ts        # SSE 实时状态（messages、cotTree、interrupt、generatedContent）
+│   └── useLayoutStore.ts       # UI 瞬态（sidebarCollapsed、splitRatio）
+│
+├── lib/                         # 工具函数（Axios、cn、polling）
+└── types/                       # 全局 TS 类型定义（对齐后端 schemas）
 ```
 
 ---
@@ -53,10 +65,9 @@ frontend/
 
 ## Task 3: Zustand 状态管理
 
-- [ ] **Step 1: workspaceStore** — 当前 workspace、thread 列表
-- [ ] **Step 2: chatStore** — 消息列表、发送状态
-- [ ] **Step 3: canvasStore** — 编辑器内容
-- [ ] **Step 4: Commit**
+- [ ] **Step 1: useAgentStore** — SSE 实时状态（messages、cotTree、interrupt、generatedContent）
+- [ ] **Step 2: useLayoutStore** — UI 瞬态（sidebarCollapsed、splitRatio）
+- [ ] **Step 3: Commit**
 
 ---
 

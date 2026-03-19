@@ -17,6 +17,7 @@ graph TD
     P0["Phase 0: 项目脚手架"] --> P1["Phase 1: 核心基础设施"]
     P1 --> P2["Phase 2: 服务层"]
     P1 --> P5["Phase 5: FastAPI BFF"]
+    P2 --> P5
     P2 --> P3["Phase 3: Agent 核心"]
     P2 --> P6["Phase 6: RAG Pipeline"]
     P3 --> P4["Phase 4: Agent Workflows"]
@@ -36,7 +37,7 @@ graph TD
 | **2** | 服务层          | P1          | LLM Gateway, Sandbox Manager, Parser Engine, RAG Engine   | ~12        | [plan-phase-2](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/plans/2026-03-19-phase-2-services.md)     |
 | **3** | Agent 核心      | P2          | SharedState, PromptLoader, SkillRegistry, Supervisor 主图 | ~15        | [plan-phase-3](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/plans/2026-03-19-phase-3-agent-core.md)   |
 | **4** | Agent Workflows | P3          | 6 个子图 (Discovery→Publish)                              | ~18        | [plan-phase-4](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/plans/2026-03-19-phase-4-workflows.md)    |
-| **5** | FastAPI BFF     | P1          | API 路由, SSE 翻译, 中间件, 依赖注入                      | ~14        | [plan-phase-5](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/plans/2026-03-19-phase-5-fastapi-bff.md)  |
+| **5** | FastAPI BFF     | P1,P2       | API 路由, SSE 翻译, 中间件, 依赖注入                      | ~14        | [plan-phase-5](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/plans/2026-03-19-phase-5-bff.md)          |
 | **6** | RAG Pipeline    | P2          | Celery Worker, PDF 解析任务, 向量化任务                   | ~10        | [plan-phase-6](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/plans/2026-03-19-phase-6-rag-pipeline.md) |
 | **7** | 前端            | P5          | React SPA, Chat/Canvas 双栏, SSE 流, HITL 交互            | ~20        | [plan-phase-7](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/plans/2026-03-19-phase-7-frontend.md)     |
 | **8** | 集成部署        | P4,P5,P6,P7 | docker-compose 全栈, E2E 冒烟测试, 健康检查               | ~8         | [plan-phase-8](file:///home/wenmou/Projects/ResearchCopilot/docs/superpowers/plans/2026-03-19-phase-8-integration.md)  |
