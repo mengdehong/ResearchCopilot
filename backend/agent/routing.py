@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from backend.agent.state import ExecutionPlan
 from backend.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -58,7 +59,7 @@ class RouteDecision(BaseModel):
     """LLM 路由决策输出。"""
     mode: Literal["single", "plan"]
     target_workflow: str | None = None
-    plan: list[dict] | None = None
+    plan: ExecutionPlan | None = None
     reasoning: str
 
 
