@@ -85,8 +85,8 @@ class MinerUParser:
             # MinerU API 调用(实际集成时填充)
             # from magic_pdf.pipe.UNIPipe import UNIPipe
             raise NotImplementedError("MinerU integration pending")
-        except Exception:
-            logger.warning("mineru_parse_failed_fallback", path=str(pdf_path))
+        except NotImplementedError:
+            logger.warning("mineru_not_implemented_fallback", path=str(pdf_path))
             return FallbackParser().parse(pdf_path)
 
 

@@ -138,13 +138,17 @@ class RAGEngine:
         sql = text("""
             SELECT id, document_id, content_text, section_path,
                    page_numbers,
-                   ts_rank(tsv, plainto_tsquery(:query)) AS score
+                   ts_rank(
+                       to_tsvector('english', content_text),
+                       plainto_tsquery('english', :query)
+                   ) AS score
             FROM paragraphs
             WHERE document_id IN (
                 SELECT id FROM documents
                 WHERE workspace_id = :workspace_id
             )
-            AND tsv @@ plainto_tsquery(:query)
+            AND to_tsvector('english', content_text)
+                @@ plainto_tsquery('english', :query)
             ORDER BY score DESC
             LIMIT :limit
         """)

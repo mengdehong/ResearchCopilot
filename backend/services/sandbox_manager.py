@@ -1,4 +1,5 @@
 """容器化沙箱管理。CodeExecutor Protocol + DockerExecutor 实现。"""
+import contextlib
 import io
 import tarfile
 import time
@@ -85,6 +86,7 @@ class DockerExecutor:
     def _create_container(self) -> Container:
         return self._client.containers.create(
             image=self._image,
+            command=["python", "/workspace/script.py"],
             network_disabled=True,
             mem_limit=self._memory_limit,
             nano_cpus=self._nano_cpus,
@@ -105,12 +107,18 @@ class DockerExecutor:
 
     def _run(self, container: Container, timeout: int) -> tuple[int, str, str]:
         container.start()
-        exit_code, output = container.exec_run(
-            "python /workspace/script.py", demux=True,
-        )
-        stdout = (output[0] or b"").decode(errors="replace")
-        stderr = (output[1] or b"").decode(errors="replace")
-        return exit_code, stdout, stderr
+        try:
+            result = container.wait(timeout=timeout)
+            exit_code: int = result.get("StatusCode", 1)
+        except Exception:
+            # Timeout or connection error: kill the container
+            with contextlib.suppress(docker.errors.DockerException):
+                container.kill()
+            return 137, "", f"Execution timed out after {timeout}s"
+
+        logs = container.logs(stdout=True, stderr=True, stream=False)
+        stdout = (logs or b"").decode(errors="replace")
+        return exit_code, stdout, ""
 
     def _extract_outputs(self, container: Container) -> dict[str, bytes]:
         try:
