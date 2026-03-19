@@ -50,3 +50,11 @@ app.include_router(workspace.router)
 app.include_router(document.router)
 app.include_router(editor.router)
 app.include_router(agent.router)
+
+# Prometheus metrics — auto-collect request latency/QPS/status codes
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+except ImportError:
+    logger.warning("prometheus_fastapi_instrumentator not installed, skipping metrics")
