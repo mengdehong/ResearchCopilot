@@ -1,11 +1,11 @@
-"""FastAPI 依赖注入：DB Session、JWT 认证、Workspace 权限校验。"""  # noqa: RUF002
+"""FastAPI dependency injection: DB Session, JWT auth, Workspace checks."""
 import uuid
 from collections.abc import AsyncGenerator
 
 import jwt
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import Settings
 from backend.core.logger import get_logger
@@ -19,41 +19,39 @@ logger = get_logger(__name__)
 # DB Session
 # ---------------------------------------------------------------------------
 
-async def get_session(
-    session_factory: async_sessionmaker[AsyncSession],
-) -> AsyncGenerator[AsyncSession, None]:
-    """每请求一个 session, 请求结束自动关闭。
+async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
+    """Yield an AsyncSession per request, auto-close on exit.
 
-    在 Router 中通过 Depends 链从 app.state.session_factory 获取。
+    Reads session_factory from app.state (set during lifespan).
     """
-    async with session_factory() as session:
+    factory = request.app.state.session_factory
+    async with factory() as session:
         yield session
 
 
-def _get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
-    """从 app.state 获取 session_factory。供 Depends 链使用。"""
-    return request.app.state.session_factory
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
 
-
-def _get_settings(request: Request) -> Settings:
-    """从 app.state 获取 Settings。供 Depends 链使用。"""
+def get_settings(request: Request) -> Settings:
+    """Read Settings from app.state."""
     return request.app.state.settings
 
 
 # ---------------------------------------------------------------------------
-# JWT 认证
+# JWT auth
 # ---------------------------------------------------------------------------
 
 async def get_current_user(
     *,
     token: str | None = Header(None, alias="Authorization"),
-    session: AsyncSession = Depends(_get_session_factory),
-    settings: Settings = Depends(_get_settings),
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> User:
-    """解析 JWT Bearer token, 查 DB 返回 User 实例。
+    """Decode JWT Bearer token and return User from DB.
 
     Raises:
-        HTTPException(401): token 缺失、过期或用户不存在。
+        HTTPException(401): token missing, expired, or user not found.
     """
     if token is None:
         raise HTTPException(status_code=401, detail="Missing authentication token")
@@ -91,7 +89,7 @@ async def get_current_user(
 
 
 # ---------------------------------------------------------------------------
-# Workspace 权限校验
+# Workspace ownership check
 # ---------------------------------------------------------------------------
 
 async def get_workspace(
@@ -100,11 +98,11 @@ async def get_workspace(
     session: AsyncSession,
     current_user: User,
 ) -> Workspace:
-    """查询 Workspace 并校验所有权。
+    """Query Workspace and verify ownership.
 
     Raises:
-        HTTPException(404): workspace 不存在或已删除。
-        HTTPException(403): 用户不是 workspace 所有者。
+        HTTPException(404): workspace not found or deleted.
+        HTTPException(403): user is not workspace owner.
     """
     stmt = select(Workspace).where(Workspace.id == workspace_id)
     result = await session.execute(stmt)

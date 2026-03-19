@@ -1,4 +1,4 @@
-"""依赖注入单元测试 — get_session / get_current_user / get_workspace。"""
+"""Dependency injection tests — get_db / get_current_user / get_workspace."""
 import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
@@ -7,7 +7,7 @@ import jwt
 import pytest
 from fastapi import HTTPException
 
-from backend.api.dependencies import get_current_user, get_session, get_workspace
+from backend.api.dependencies import get_current_user, get_db, get_workspace
 from backend.core.config import Settings
 from backend.models.user import User
 from backend.models.workspace import Workspace
@@ -21,7 +21,7 @@ def settings() -> Settings:
     return Settings(
         _env_file=None,
         database_url="postgresql+asyncpg://test:test@localhost/test",
-        jwt_secret="test-secret",
+        jwt_secret="test-secret-key-at-least-32-chars-long",
         jwt_algorithm="HS256",
     )
 
@@ -58,10 +58,10 @@ def expired_token(settings: Settings, sample_user: User) -> str:
 
 
 # ---------------------------------------------------------------------------
-# get_session
+# get_db
 # ---------------------------------------------------------------------------
 
-class TestGetSession:
+class TestGetDb:
     async def test_yields_session_and_closes(self) -> None:
         mock_session = AsyncMock()
 
@@ -73,8 +73,12 @@ class TestGetSession:
         mock_factory = MagicMock()
         mock_factory.return_value = mock_ctx
 
+        # Simulate request with app.state.session_factory
+        mock_request = MagicMock()
+        mock_request.app.state.session_factory = mock_factory
+
         sessions: list[AsyncMock] = []
-        async for session in get_session(mock_factory):
+        async for session in get_db(mock_request):
             sessions.append(session)
 
         assert len(sessions) == 1
