@@ -47,8 +47,8 @@ services:
   backend:
     build:
       context: ..
-      dockerfile: Dockerfile
-      target: backend
+      dockerfile: deployment/Dockerfile.backend
+      target: api
     container_name: rc-backend
     env_file: ../.env.production.example
     ports:
@@ -69,8 +69,8 @@ services:
   celery-worker:
     build:
       context: ..
-      dockerfile: Dockerfile
-      target: celery-worker
+      dockerfile: deployment/Dockerfile.backend
+      target: worker
     container_name: rc-celery-worker
     env_file: ../.env.production.example
     depends_on:
