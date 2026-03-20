@@ -1,0 +1,51 @@
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xs) var(--spacing-lg);
+    background: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.status-bar__left,
+.status-bar__right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.status-bar__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-bar__dot--active {
+    background: var(--color-success);
+    animation: pulse 1.5s ease infinite;
+}
+
+.status-bar__dot--idle {
+    background: var(--color-text-muted);
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
+}
+
+.status-bar__node {
+    font-family: var(--font-mono);
+    color: var(--color-accent);
+}
