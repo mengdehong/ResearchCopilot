@@ -11,6 +11,7 @@ from backend.models import (
     PromptOverride,
     QuotaRecord,
     Reference,
+    RefreshToken,
     RunSnapshot,
     SectionHeading,
     Table,
@@ -38,8 +39,9 @@ def test_all_models_importable() -> None:
         Equation,
         SectionHeading,
         Reference,
+        RefreshToken,
     ]
-    assert len(models) == 15
+    assert len(models) == 16
 
 
 def test_base_has_metadata() -> None:
@@ -61,5 +63,6 @@ def test_base_has_metadata() -> None:
         "equations",
         "section_headings",
         "references",
+        "refresh_tokens",
     }
     assert expected.issubset(table_names)
