@@ -16,7 +16,6 @@ from backend.agent.skills.ppt_generation.schema import (
     TwoColumnContent,
 )
 
-
 # ── PresentationMeta ──
 
 

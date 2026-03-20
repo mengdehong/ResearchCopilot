@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # ── 引用 ──
 
@@ -138,7 +138,7 @@ class SlideSchema(BaseModel):
     section: str | None = None
     notes: str | None = None
     citations: list[str] = []
-    content: SlideContent
+    content: Annotated[SlideContent, Field(discriminator="layout")]
 
 
 # ── 顶层 ──

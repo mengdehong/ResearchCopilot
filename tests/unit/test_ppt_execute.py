@@ -141,13 +141,15 @@ def test_render_node_generates_source(tmp_path: Path) -> None:
         "full_schema": schema,
         "rendered": None,
     }
-    with patch(
-        "backend.agent.skills.ppt_generation.execute.TEMPLATES_DIR",
-        Path(__file__).resolve().parents[2]
-        / "backend/agent/skills/ppt_generation/templates",
-    ), patch(
-        "backend.agent.skills.ppt_generation.execute.OUTPUT_DIR",
-        tmp_path,
+    with (
+        patch(
+            "backend.agent.skills.ppt_generation.execute.TEMPLATES_DIR",
+            Path(__file__).resolve().parents[2] / "backend/agent/skills/ppt_generation/templates",
+        ),
+        patch(
+            "backend.agent.skills.ppt_generation.execute.OUTPUT_DIR",
+            tmp_path,
+        ),
     ):
         result = render_node(state)
 

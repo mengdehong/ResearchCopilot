@@ -134,9 +134,14 @@ def render_node(state: PPTGenerationState) -> dict:
     backend = state.get("backend", "typst")
     template_name = state.get("template_name", "academic_blue")
 
+    # 动态生成隔离的输出目录以防并发冲突
+    workspace_id = state.get("workspace_id", "default_workspace")
+    import uuid
+    run_id = uuid.uuid4().hex[:8]
+    output_dir = Path(f"/tmp/research_copilot/{workspace_id}/ppt_{run_id}")
+
     renderer = create_renderer(backend)
     template_dir = TEMPLATES_DIR / backend / template_name
-    output_dir = OUTPUT_DIR
 
     result = renderer.render(full_schema, template_dir=template_dir, output_dir=output_dir)
     logger.info(
