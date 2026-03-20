@@ -1,4 +1,4 @@
-"""Agent API router — thread runs, SSE events, and HITL interrupts."""
+"""Agent API router — thread CRUD, runs, SSE events, HITL interrupts."""
 
 import uuid
 
@@ -8,31 +8,105 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_current_user, get_db
 from backend.api.schemas.agent import InterruptResponse, RunRequest
-from backend.models.thread import Thread
+from backend.clients.langgraph_client import LangGraphClient
 from backend.models.user import User
-from backend.models.workspace import Workspace
-from backend.repositories import base as base_repo
+from backend.services import agent_service
 
 router = APIRouter(prefix="/api/agent/threads", tags=["agent"])
 
 
-async def _verify_thread_ownership(
-    session: AsyncSession,
+def _get_lg_client() -> LangGraphClient:
+    return LangGraphClient()
+
+
+@router.post("", status_code=201)
+async def create_thread(
+    workspace_id: uuid.UUID,
+    title: str = "New Thread",
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    lg_client: LangGraphClient = Depends(_get_lg_client),
+) -> dict:
+    """Create a new agent thread."""
+    thread = await agent_service.create_thread(
+        session,
+        lg_client,
+        workspace_id=workspace_id,
+        title=title,
+        owner=current_user,
+    )
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    await session.commit()
+    return {
+        "thread_id": str(thread.id),
+        "workspace_id": str(thread.workspace_id),
+        "title": thread.title,
+        "status": thread.status,
+        "langgraph_thread_id": thread.langgraph_thread_id,
+    }
+
+
+@router.get("")
+async def list_threads(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    """List threads in a workspace."""
+    # Verify ownership
+    from backend.models.workspace import Workspace
+    from backend.repositories import base as base_repo
+    from backend.repositories import thread_repo
+
+    ws = await base_repo.get_by_id(session, Workspace, workspace_id)
+    if ws is None or ws.is_deleted or ws.owner_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    threads = await thread_repo.list_by_workspace(session, workspace_id)
+    return [
+        {
+            "thread_id": str(t.id),
+            "title": t.title,
+            "status": t.status,
+        }
+        for t in threads
+    ]
+
+
+@router.get("/{thread_id}")
+async def get_thread(
     thread_id: uuid.UUID,
-    current_user: User,
-) -> Thread:
-    """Verify that current_user owns the workspace containing the thread."""
-    thread = await base_repo.get_by_id(session, Thread, thread_id)
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Get thread details."""
+    from backend.repositories import thread_repo
+
+    thread = await thread_repo.get_by_id(session, thread_id)
     if thread is None:
         raise HTTPException(status_code=404, detail="Thread not found")
+    return {
+        "thread_id": str(thread.id),
+        "title": thread.title,
+        "status": thread.status,
+    }
 
-    ws = await base_repo.get_by_id(session, Workspace, thread.workspace_id)
-    if ws is None or ws.is_deleted:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-    if ws.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
 
-    return thread
+@router.delete("/{thread_id}", status_code=204)
+async def delete_thread(
+    thread_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Delete a thread."""
+    from backend.repositories import thread_repo
+
+    thread = await thread_repo.get_by_id(session, thread_id)
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    await session.delete(thread)
+    await session.commit()
 
 
 @router.post("/{thread_id}/runs", status_code=202)
@@ -41,56 +115,110 @@ async def create_run(
     body: RunRequest,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    lg_client: LangGraphClient = Depends(_get_lg_client),
+) -> dict:
+    """Trigger an agent run."""
+    result = await agent_service.trigger_run(
+        session,
+        lg_client,
+        thread_id=thread_id,
+        message=body.message,
+        owner=current_user,
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    await session.commit()
+    return {
+        "run_id": result.run_id,
+        "thread_id": result.thread_id,
+        "status": result.status,
+        "stream_url": result.stream_url,
+    }
+
+
+@router.get("/{thread_id}/runs")
+async def list_runs(
+    thread_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    """List runs for a thread."""
+    # TODO: implement via run_snapshot_repo
+    return []
+
+
+@router.get("/{thread_id}/runs/{run_id}")
+async def get_run(
+    thread_id: uuid.UUID,
+    run_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> JSONResponse:
-    """Trigger an agent run for the given thread.
-
-    Returns 202 Accepted with run_id. The run executes asynchronously.
-    TODO: integrate with agent_service to actually dispatch to LangGraph.
-    """
-    thread = await _verify_thread_ownership(session, thread_id, current_user)
-
-    # TODO: dispatch to agent_service.submit_run(thread, body)
+    """Get run details."""
+    # TODO: implement via run_snapshot_repo
     return JSONResponse(
         status_code=501,
-        content={
-            "detail": "Agent run dispatch not yet implemented",
-            "thread_id": str(thread.id),
-        },
+        content={"detail": "Run detail not yet implemented"},
     )
 
 
-@router.get("/{thread_id}/events")
-async def stream_events(
+@router.get("/{thread_id}/runs/{run_id}/stream")
+async def stream_run_events(
     thread_id: uuid.UUID,
+    run_id: str,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JSONResponse:
     """SSE event stream for agent run progress.
 
-    TODO: implement SSE streaming via agent_service.stream_events().
+    TODO: implement SSE streaming via event_translator.
     """
-    await _verify_thread_ownership(session, thread_id, current_user)
-
     return JSONResponse(
         status_code=501,
-        content={"detail": "SSE event streaming not yet implemented"},
+        content={"detail": "SSE streaming not yet implemented"},
     )
 
 
-@router.post("/{thread_id}/interrupt")
-async def respond_to_interrupt(
+@router.post("/{thread_id}/runs/{run_id}/resume")
+async def resume_run(
     thread_id: uuid.UUID,
+    run_id: str,
     body: InterruptResponse,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> JSONResponse:
-    """Human-in-the-loop: respond to an agent interrupt.
-
-    TODO: integrate with agent_service.resume_interrupt().
-    """
-    await _verify_thread_ownership(session, thread_id, current_user)
-
-    return JSONResponse(
-        status_code=501,
-        content={"detail": "HITL interrupt response not yet implemented"},
+    lg_client: LangGraphClient = Depends(_get_lg_client),
+) -> dict:
+    """Resume a paused run with HITL response."""
+    result = await agent_service.resume_run(
+        session,
+        lg_client,
+        thread_id=thread_id,
+        run_id=run_id,
+        action=body.action,
+        payload=body.payload,
+        owner=current_user,
     )
+    if result is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    await session.commit()
+    return {"run_id": result.run_id, "status": result.status}
+
+
+@router.post("/{thread_id}/runs/{run_id}/cancel", status_code=204)
+async def cancel_run(
+    thread_id: uuid.UUID,
+    run_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    lg_client: LangGraphClient = Depends(_get_lg_client),
+) -> None:
+    """Cancel a running run."""
+    ok = await agent_service.cancel_run(
+        session,
+        lg_client,
+        thread_id=thread_id,
+        run_id=run_id,
+        owner=current_user,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Thread not found")

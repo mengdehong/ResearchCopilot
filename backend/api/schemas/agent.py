@@ -34,3 +34,4 @@ class InterruptResponse(BaseModel):
 
     action: str
     feedback: str | None = None
+    payload: dict | None = None

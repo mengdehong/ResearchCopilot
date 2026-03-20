@@ -1,61 +1,76 @@
-"""Workspace CRUD API router."""
+"""Workspace API router — CRUD + summary."""
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_current_user, get_db
-from backend.api.schemas.workspace import WorkspaceCreate, WorkspaceDetail, WorkspaceList
+from backend.api.schemas.workspace import WorkspaceCreate, WorkspaceDetail
 from backend.models.user import User
-from backend.models.workspace import Workspace
-from backend.repositories import base as base_repo
-from backend.repositories import workspace_repo
+from backend.services import workspace_service
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
 
 
-@router.post("", status_code=201, response_model=WorkspaceDetail)
+@router.post("", response_model=WorkspaceDetail, status_code=201)
 async def create_workspace(
     body: WorkspaceCreate,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> WorkspaceDetail:
     """Create a new workspace."""
-    ws = Workspace()
-    ws.name = body.name
-    ws.discipline = body.discipline
-    ws.owner_id = current_user.id
-    ws.is_deleted = False
-
-    created = await base_repo.create(session, ws)
+    ws = await workspace_service.create_workspace(
+        session,
+        owner=current_user,
+        name=body.name,
+        discipline=body.discipline,
+    )
     await session.commit()
-    return WorkspaceDetail.model_validate(created)
+    return WorkspaceDetail.model_validate(ws)
 
 
-@router.get("", response_model=WorkspaceList)
+@router.get("", response_model=list[WorkspaceDetail])
 async def list_workspaces(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> WorkspaceList:
-    """List workspaces owned by the current user."""
-    items = await workspace_repo.list_by_owner(session, current_user.id)
-    details = [WorkspaceDetail.model_validate(ws) for ws in items]
-    return WorkspaceList(items=details, total=len(details))
+) -> list[WorkspaceDetail]:
+    """List all workspaces owned by the current user."""
+    items = await workspace_service.list_workspaces(session, current_user)
+    return [WorkspaceDetail.model_validate(ws) for ws in items]
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceDetail)
-async def get_workspace_detail(
+async def get_workspace(
     workspace_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> WorkspaceDetail:
     """Get workspace by ID."""
-    ws = await base_repo.get_by_id(session, Workspace, workspace_id)
-    if ws is None or ws.is_deleted:
+    ws = await workspace_service.get_workspace(session, workspace_id, current_user)
+    if ws is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
-    if ws.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    return WorkspaceDetail.model_validate(ws)
+
+
+@router.put("/{workspace_id}", response_model=WorkspaceDetail)
+async def update_workspace(
+    workspace_id: uuid.UUID,
+    body: WorkspaceCreate,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> WorkspaceDetail:
+    """Update workspace name/discipline."""
+    ws = await workspace_service.update_workspace(
+        session,
+        workspace_id,
+        current_user,
+        name=body.name,
+        discipline=body.discipline,
+    )
+    if ws is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    await session.commit()
     return WorkspaceDetail.model_validate(ws)
 
 
@@ -64,14 +79,33 @@ async def delete_workspace(
     workspace_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Response:
+) -> None:
     """Soft-delete a workspace."""
-    ws = await base_repo.get_by_id(session, Workspace, workspace_id)
-    if ws is None or ws.is_deleted:
+    ok = await workspace_service.delete_workspace(session, workspace_id, current_user)
+    if not ok:
         raise HTTPException(status_code=404, detail="Workspace not found")
-    if ws.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    await workspace_repo.soft_delete(session, ws)
     await session.commit()
-    return Response(status_code=204)
+
+
+@router.get("/{workspace_id}/summary")
+async def get_workspace_summary(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Get workspace summary with aggregated document stats."""
+    summary = await workspace_service.get_summary(session, workspace_id, current_user)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    return {
+        "workspace_id": str(summary.workspace_id),
+        "name": summary.name,
+        "document_count": summary.document_count,
+        "doc_status_counts": {
+            "uploading": summary.doc_status_counts.uploading,
+            "pending": summary.doc_status_counts.pending,
+            "parsing": summary.doc_status_counts.parsing,
+            "completed": summary.doc_status_counts.completed,
+            "failed": summary.doc_status_counts.failed,
+        },
+    }

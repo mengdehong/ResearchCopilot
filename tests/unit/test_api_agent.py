@@ -1,160 +1,84 @@
-"""Agent API router tests — endpoint signatures, ownership, and 501 responses."""
+"""Agent router tests — mock agent_service."""
 
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from backend.models.thread import Thread
+from backend.api.dependencies import get_current_user, get_db
+from backend.main import app
 from backend.models.user import User
-from backend.models.workspace import Workspace
 
 
-def _make_user() -> User:
-    user = User()
-    user.id = uuid.uuid4()
-    user.external_id = "ext-123"
-    user.email = "test@example.com"
-    user.display_name = "Test User"
-    user.settings = {}
-    user.created_at = datetime.now(tz=UTC)
-    user.updated_at = datetime.now(tz=UTC)
-    return user
+def _user() -> User:
+    u = User()
+    u.id = uuid.uuid4()
+    u.external_id = "ext"
+    u.email = "a@b.com"
+    u.display_name = "Test"
+    u.settings = {}
+    u.created_at = u.updated_at = datetime.now(tz=UTC)
+    return u
 
 
-def _make_workspace(owner_id: uuid.UUID) -> Workspace:
-    ws = Workspace()
-    ws.id = uuid.uuid4()
-    ws.owner_id = owner_id
-    ws.name = "Test WS"
-    ws.discipline = "cs"
-    ws.is_deleted = False
-    ws.created_at = datetime.now(tz=UTC)
-    ws.updated_at = datetime.now(tz=UTC)
-    return ws
+@pytest.fixture()
+def current_user() -> User:
+    return _user()
 
 
-def _make_thread(workspace_id: uuid.UUID) -> Thread:
-    thread = Thread()
-    thread.id = uuid.uuid4()
-    thread.workspace_id = workspace_id
-    thread.title = "Test Thread"
-    thread.status = "creating"
-    thread.langgraph_thread_id = None
-    thread.created_at = datetime.now(tz=UTC)
-    thread.updated_at = datetime.now(tz=UTC)
-    return thread
-
-
-@pytest.fixture
-def mock_user() -> User:
-    return _make_user()
-
-
-@pytest.fixture
-def mock_session() -> AsyncMock:
-    return AsyncMock()
-
-
-@pytest.fixture
-async def client(mock_user: User, mock_session: AsyncMock) -> AsyncClient:
-    from backend.api.dependencies import get_current_user, get_db
-    from backend.main import app
-
-    app.dependency_overrides[get_current_user] = lambda: mock_user
-    app.dependency_overrides[get_db] = lambda: mock_session
-
+@pytest.fixture()
+def client(current_user: User) -> AsyncClient:
+    session = AsyncMock()
+    session.commit = AsyncMock()
+    session.delete = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: session
+    app.dependency_overrides[get_current_user] = lambda: current_user
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
-
+    c = AsyncClient(transport=transport, base_url="http://test")
+    yield c
     app.dependency_overrides.clear()
 
 
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
-
-
 class TestAgentRouter:
-    @patch("backend.api.routers.agent.base_repo")
-    async def test_create_run_returns_501(
-        self,
-        mock_base: MagicMock,
-        client: AsyncClient,
-        mock_user: User,
-    ) -> None:
-        ws = _make_workspace(mock_user.id)
-        thread = _make_thread(ws.id)
-        mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
+    @patch("backend.api.routers.agent.agent_service")
+    async def test_create_run(self, mock_svc, client) -> None:
+        from backend.services.agent_service import RunResult
 
-        response = await client.post(
-            f"/api/agent/threads/{thread.id}/runs",
-            json={"message": "summarize this paper"},
+        tid = uuid.uuid4()
+        mock_svc.trigger_run = AsyncMock(
+            return_value=RunResult(
+                run_id="r1",
+                thread_id=str(tid),
+                status="running",
+                stream_url=f"/api/agent/threads/{tid}/runs/r1/stream",
+            ),
         )
-        assert response.status_code == 501
-        assert "not yet implemented" in response.json()["detail"]
-
-    @patch("backend.api.routers.agent.base_repo")
-    async def test_stream_events_returns_501(
-        self,
-        mock_base: MagicMock,
-        client: AsyncClient,
-        mock_user: User,
-    ) -> None:
-        ws = _make_workspace(mock_user.id)
-        thread = _make_thread(ws.id)
-        mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
-
-        response = await client.get(f"/api/agent/threads/{thread.id}/events")
-        assert response.status_code == 501
-
-    @patch("backend.api.routers.agent.base_repo")
-    async def test_interrupt_returns_501(
-        self,
-        mock_base: MagicMock,
-        client: AsyncClient,
-        mock_user: User,
-    ) -> None:
-        ws = _make_workspace(mock_user.id)
-        thread = _make_thread(ws.id)
-        mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
-
         response = await client.post(
-            f"/api/agent/threads/{thread.id}/interrupt",
-            json={"action": "approve"},
+            f"/api/agent/threads/{tid}/runs",
+            json={"message": "hello"},
         )
-        assert response.status_code == 501
+        assert response.status_code == 202
+        assert response.json()["status"] == "running"
 
-    @patch("backend.api.routers.agent.base_repo")
-    async def test_create_run_thread_not_found(
-        self,
-        mock_base: MagicMock,
-        client: AsyncClient,
-    ) -> None:
-        mock_base.get_by_id = AsyncMock(return_value=None)
-
+    @patch("backend.api.routers.agent.agent_service")
+    async def test_create_run_not_found(self, mock_svc, client) -> None:
+        mock_svc.trigger_run = AsyncMock(return_value=None)
         response = await client.post(
             f"/api/agent/threads/{uuid.uuid4()}/runs",
-            json={"message": "test"},
+            json={"message": "hello"},
         )
         assert response.status_code == 404
 
-    @patch("backend.api.routers.agent.base_repo")
-    async def test_create_run_wrong_owner(
-        self,
-        mock_base: MagicMock,
-        client: AsyncClient,
-        mock_user: User,
-    ) -> None:
-        ws = _make_workspace(uuid.uuid4())  # different owner
-        thread = _make_thread(ws.id)
-        mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
+    @patch("backend.api.routers.agent.agent_service")
+    async def test_cancel_run(self, mock_svc, client) -> None:
+        mock_svc.cancel_run = AsyncMock(return_value=True)
+        tid = uuid.uuid4()
+        response = await client.post(f"/api/agent/threads/{tid}/runs/r1/cancel")
+        assert response.status_code == 204
 
-        response = await client.post(
-            f"/api/agent/threads/{thread.id}/runs",
-            json={"message": "test"},
-        )
-        assert response.status_code == 403
+    async def test_stream_returns_501(self, client) -> None:
+        tid = uuid.uuid4()
+        response = await client.get(f"/api/agent/threads/{tid}/runs/r1/stream")
+        assert response.status_code == 501

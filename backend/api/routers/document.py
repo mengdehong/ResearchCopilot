@@ -1,4 +1,4 @@
-"""Document API router."""
+"""Document API router — upload, confirm, CRUD, retry, delete."""
 
 import uuid
 
@@ -7,42 +7,80 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_current_user, get_db
 from backend.api.schemas.document import DocumentCreate, DocumentMeta, DocumentStatus
-from backend.models.document import Document
+from backend.clients.storage_client import StorageClient
 from backend.models.user import User
-from backend.models.workspace import Workspace
-from backend.repositories import base as base_repo
+from backend.services import document_service
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
-@router.post("", status_code=201, response_model=DocumentMeta)
-async def create_document(
+def _get_storage() -> StorageClient:
+    return StorageClient()
+
+
+@router.post("/upload-url", status_code=201)
+async def initiate_upload(
     body: DocumentCreate,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> DocumentMeta:
-    """Create document metadata record."""
-    # Verify workspace ownership
-    ws = await base_repo.get_by_id(session, Workspace, body.workspace_id)
-    if ws is None or ws.is_deleted:
+    storage: StorageClient = Depends(_get_storage),
+) -> dict:
+    """Generate pre-signed upload URL and create document record."""
+    result = await document_service.initiate_upload(
+        session,
+        storage,
+        workspace_id=body.workspace_id,
+        title=body.title,
+        content_type=body.file_path,  # reuse field as content_type for now
+        owner=current_user,
+    )
+    if result is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
-    if ws.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    doc = Document()
-    doc.workspace_id = body.workspace_id
-    doc.title = body.title
-    doc.file_path = body.file_path
-    doc.doi = body.doi
-    doc.abstract_text = body.abstract_text
-    doc.year = body.year
-    doc.source = body.source
-    doc.include_appendix = body.include_appendix
-    doc.parse_status = "pending"
-
-    created = await base_repo.create(session, doc)
     await session.commit()
-    return DocumentMeta.model_validate(created)
+    return {
+        "document_id": str(result.document_id),
+        "upload_url": result.upload_url,
+        "storage_key": result.storage_key,
+    }
+
+
+@router.post("/confirm", response_model=DocumentMeta)
+async def confirm_upload(
+    document_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    storage: StorageClient = Depends(_get_storage),
+) -> DocumentMeta:
+    """Confirm upload completed, start parsing."""
+    doc = await document_service.confirm_upload(
+        session,
+        storage,
+        document_id=document_id,
+        owner=current_user,
+    )
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    await session.commit()
+    return DocumentMeta.model_validate(doc)
+
+
+@router.get("", response_model=list[DocumentMeta])
+async def list_documents(
+    workspace_id: uuid.UUID,
+    status_filter: str | None = None,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[DocumentMeta]:
+    """List documents in a workspace."""
+    docs = await document_service.list_documents(
+        session,
+        workspace_id,
+        current_user,
+        status_filter=status_filter,
+    )
+    if docs is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    return [DocumentMeta.model_validate(d) for d in docs]
 
 
 @router.get("/{document_id}", response_model=DocumentMeta)
@@ -51,16 +89,10 @@ async def get_document(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DocumentMeta:
-    """Get document metadata by ID."""
-    doc = await base_repo.get_by_id(session, Document, document_id)
+    """Get document by ID."""
+    doc = await document_service.get_document(session, document_id, current_user)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-
-    # Verify workspace ownership
-    ws = await base_repo.get_by_id(session, Workspace, doc.workspace_id)
-    if ws is None or ws.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
     return DocumentMeta.model_validate(doc)
 
 
@@ -71,13 +103,54 @@ async def get_document_status(
     current_user: User = Depends(get_current_user),
 ) -> DocumentStatus:
     """Get document parse status."""
-    doc = await base_repo.get_by_id(session, Document, document_id)
+    doc = await document_service.get_document(session, document_id, current_user)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-
-    # Verify workspace ownership
-    ws = await base_repo.get_by_id(session, Workspace, doc.workspace_id)
-    if ws is None or ws.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied")
-
     return DocumentStatus.model_validate(doc)
+
+
+@router.get("/{document_id}/artifacts")
+async def get_document_artifacts(
+    document_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Get parsed artifacts (paragraphs, figures, etc.) for a document."""
+    doc = await document_service.get_document(session, document_id, current_user)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    # TODO: query paragraph/figure/equation/reference repos
+    return {"document_id": str(doc.id), "artifacts": []}
+
+
+@router.post("/{document_id}/retry", response_model=DocumentMeta)
+async def retry_parse(
+    document_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentMeta:
+    """Retry parsing a failed document."""
+    doc = await document_service.retry_parse(session, document_id, current_user)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    await session.commit()
+    return DocumentMeta.model_validate(doc)
+
+
+@router.delete("/{document_id}", status_code=204)
+async def delete_document(
+    document_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    storage: StorageClient = Depends(_get_storage),
+) -> None:
+    """Delete a document and its storage object."""
+    ok = await document_service.delete_document(
+        session,
+        storage,
+        document_id=document_id,
+        owner=current_user,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Document not found")
+    await session.commit()
