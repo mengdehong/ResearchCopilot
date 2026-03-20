@@ -10,6 +10,9 @@ from backend.api.dependencies import get_current_user, get_db
 from backend.api.schemas.agent import InterruptResponse, RunRequest
 from backend.clients.langgraph_client import LangGraphClient
 from backend.models.user import User
+from backend.models.workspace import Workspace
+from backend.repositories import base as base_repo
+from backend.repositories import thread_repo
 from backend.services import agent_service
 
 router = APIRouter(prefix="/api/agent/threads", tags=["agent"])
@@ -17,6 +20,23 @@ router = APIRouter(prefix="/api/agent/threads", tags=["agent"])
 
 def _get_lg_client() -> LangGraphClient:
     return LangGraphClient()
+
+
+async def _verify_thread_ownership(
+    session: AsyncSession,
+    thread_id: uuid.UUID,
+    current_user: User,
+) -> None:
+    """Verify thread→workspace→owner chain. Raises 404/403 on failure."""
+    thread = await thread_repo.get_by_id(session, thread_id)
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    ws = await base_repo.get_by_id(session, Workspace, thread.workspace_id)
+    if ws is None or ws.is_deleted:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    if ws.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
 
 @router.post("", status_code=201)
@@ -54,11 +74,6 @@ async def list_threads(
     current_user: User = Depends(get_current_user),
 ) -> list[dict]:
     """List threads in a workspace."""
-    # Verify ownership
-    from backend.models.workspace import Workspace
-    from backend.repositories import base as base_repo
-    from backend.repositories import thread_repo
-
     ws = await base_repo.get_by_id(session, Workspace, workspace_id)
     if ws is None or ws.is_deleted or ws.owner_id != current_user.id:
         raise HTTPException(status_code=404, detail="Workspace not found")
@@ -81,11 +96,8 @@ async def get_thread(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Get thread details."""
-    from backend.repositories import thread_repo
-
+    await _verify_thread_ownership(session, thread_id, current_user)
     thread = await thread_repo.get_by_id(session, thread_id)
-    if thread is None:
-        raise HTTPException(status_code=404, detail="Thread not found")
     return {
         "thread_id": str(thread.id),
         "title": thread.title,
@@ -100,11 +112,8 @@ async def delete_thread(
     current_user: User = Depends(get_current_user),
 ) -> None:
     """Delete a thread."""
-    from backend.repositories import thread_repo
-
+    await _verify_thread_ownership(session, thread_id, current_user)
     thread = await thread_repo.get_by_id(session, thread_id)
-    if thread is None:
-        raise HTTPException(status_code=404, detail="Thread not found")
     await session.delete(thread)
     await session.commit()
 
