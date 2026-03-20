@@ -163,9 +163,7 @@ class LLMGateway:
         """调用 LLM，带 Fallback + 重试 + 结构化日志。"""
         # Tier 路由 + Fallback
         if tier is not None and self._config is not None:
-            return await self._invoke_with_fallback(
-                messages, tier=tier, temperature=temperature
-            )
+            return await self._invoke_with_fallback(messages, tier=tier, temperature=temperature)
 
         # 旧路径：无 Fallback 单次调用
         resolved_provider = provider or self._default_provider
@@ -217,9 +215,7 @@ class LLMGateway:
         for pc in tier_config.providers:
             for retry in range(self._config.max_retries):
                 try:
-                    llm = self._create_model(
-                        pc.provider, pc.model, pc.api_key, temperature
-                    )
+                    llm = self._create_model(pc.provider, pc.model, pc.api_key, temperature)
                     structured_llm = llm.with_structured_output(output_schema)
 
                     start = time.monotonic()
@@ -262,9 +258,7 @@ class LLMGateway:
                         )
                         break  # 跳到下一个 Provider
 
-                    delay = self._config.retry_base_seconds * (
-                        self._config.retry_multiplier ** retry
-                    )
+                    delay = self._config.retry_base_seconds * (self._config.retry_multiplier**retry)
                     logger.warning(
                         "llm_retry",
                         provider=pc.provider,
@@ -284,9 +278,7 @@ class LLMGateway:
                     error_type=type(last_error).__name__,
                 )
 
-        raise LLMUnavailableError(
-            f"All providers exhausted for tier={tier}: {last_error}"
-        )
+        raise LLMUnavailableError(f"All providers exhausted for tier={tier}: {last_error}")
 
     async def _invoke_with_fallback(
         self,
@@ -306,9 +298,7 @@ class LLMGateway:
         for pc in tier_config.providers:
             for retry in range(self._config.max_retries):
                 try:
-                    llm = self._create_model(
-                        pc.provider, pc.model, pc.api_key, temperature
-                    )
+                    llm = self._create_model(pc.provider, pc.model, pc.api_key, temperature)
                     start = time.monotonic()
                     response = await asyncio.to_thread(llm.invoke, messages)
                     latency_ms = round((time.monotonic() - start) * 1000)
@@ -338,9 +328,7 @@ class LLMGateway:
                         )
                         break
 
-                    delay = self._config.retry_base_seconds * (
-                        self._config.retry_multiplier ** retry
-                    )
+                    delay = self._config.retry_base_seconds * (self._config.retry_multiplier**retry)
                     logger.warning(
                         "llm_retry",
                         provider=pc.provider,
@@ -359,9 +347,7 @@ class LLMGateway:
                     error_type=type(last_error).__name__,
                 )
 
-        raise LLMUnavailableError(
-            f"All providers exhausted for tier={tier}: {last_error}"
-        )
+        raise LLMUnavailableError(f"All providers exhausted for tier={tier}: {last_error}")
 
     def _create_model(
         self,

@@ -23,11 +23,11 @@
 
 用途：Supervisor 路由、Critique 裁决、Gap 分析、跨文档对比
 
-| 优先级 | Provider  | 模型 ID             | 上下文窗口 | 
-| ------ | --------- | ------------------- | ---------- | 
-| 1      | OpenAI    | `gpt-5.4`           | 1M tokens  | 
-| 2      | Anthropic | `claude-sonnet-4.6` | 1M tokens  | 
-| 3      | Google    | `gemini-3.1-pro`    | 1M tokens  | 
+| 优先级 | Provider  | 模型 ID             | 上下文窗口 |
+| ------ | --------- | ------------------- | ---------- |
+| 1      | OpenAI    | `gpt-5.4`           | 1M tokens  |
+| 2      | Anthropic | `claude-sonnet-4.6` | 1M tokens  |
+| 3      | Google    | `gemini-3.1-pro`    | 1M tokens  |
 
 ### 2.2 Fast Tier（快速/低成本）
 

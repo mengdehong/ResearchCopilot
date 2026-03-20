@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from backend.agent.tools.arxiv_tool import search_arxiv
 from backend.agent.tools.sandbox_tool import execute_code
 

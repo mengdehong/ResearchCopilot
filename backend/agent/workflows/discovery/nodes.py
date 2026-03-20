@@ -6,12 +6,11 @@ import httpx
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.types import interrupt
-
-from backend.agent.tools.arxiv_tool import search_arxiv
 from pydantic import BaseModel
 
 from backend.agent.prompts.loader import load_prompt
 from backend.agent.state import DiscoveryState, PaperCard
+from backend.agent.tools.arxiv_tool import search_arxiv
 from backend.core.logger import get_logger
 
 logger = get_logger(__name__)

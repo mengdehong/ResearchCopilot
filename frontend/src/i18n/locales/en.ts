@@ -85,4 +85,3 @@ type Stringify<T> = T extends string
     : { [K in keyof T]: Stringify<T[K]> }
 
 export type TranslationDict = Stringify<typeof en>
-

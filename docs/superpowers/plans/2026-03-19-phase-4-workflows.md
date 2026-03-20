@@ -369,5 +369,3 @@ def checkpoint_eval_node(state: SupervisorState) -> dict:
 | Publish WF      | `uv run pytest tests/unit/test_wf_publish.py -v`    | passed   |
 | Supervisor 集成 | `uv run pytest tests/unit/test_graph.py -v`         | passed   |
 | 全量 lint       | `uv run ruff check backend/agent/workflows/`        | 0 errors |
-
-

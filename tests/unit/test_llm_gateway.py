@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
@@ -17,7 +17,6 @@ from backend.services.llm_gateway import (
     StructuredOutputError,
     TierConfig,
 )
-
 
 # ── Fixtures ──
 

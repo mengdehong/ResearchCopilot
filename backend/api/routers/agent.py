@@ -3,7 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_current_user, get_db
@@ -12,8 +12,7 @@ from backend.clients.langgraph_client import LangGraphClient
 from backend.models.user import User
 from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
-from backend.repositories import run_snapshot_repo
-from backend.repositories import thread_repo
+from backend.repositories import run_snapshot_repo, thread_repo
 from backend.services import agent_service
 from backend.services.event_translator import translate_sse_stream
 

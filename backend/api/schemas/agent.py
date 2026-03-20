@@ -1,7 +1,7 @@
 """Agent schemas — run request/event DTOs。"""
 
 import uuid
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, Field
 

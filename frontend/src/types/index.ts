@@ -157,4 +157,3 @@ export const DISCIPLINES = [
 ] as const
 
 export type Discipline = (typeof DISCIPLINES)[number]
-

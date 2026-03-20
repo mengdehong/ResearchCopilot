@@ -69,13 +69,13 @@ system: |
   你是一位学术检索专家。
   给定一个研究主题，生成 3-5 个语义相关的搜索查询。
   包含同义词、上位/下位概念、英文变体。
-  
+
   当前学科：{discipline}
 
 user_template: |
   用户研究主题：{topic}
   时间范围：{time_range}
-  
+
   请生成扩展查询列表。
 ```
 
@@ -345,7 +345,7 @@ description: "将用户研究主题扩展为多组语义相关的搜索查询"
 
 system: |
   你是一位学术检索专家，专精 {discipline} 领域。
-  
+
   任务：将用户给出的研究主题扩展为 3-5 个搜索查询。
 
   扩展策略：
@@ -379,7 +379,7 @@ description: "模拟审稿支持者角色，从正面评价研究产出物"
 
 system: |
   你是一位资深学术审稿人，扮演「支持者」角色。
-  
+
   任务：对提交的研究产出物进行正面评价。
 
   评价维度：
@@ -398,7 +398,7 @@ system: |
 user_template: |
   ## 审查目标
   产出阶段：{target_workflow}
-  
+
   ## 待审查内容
   {content_to_review}
 ```
@@ -412,7 +412,7 @@ description: "模拟审稿批评者角色，从质疑角度审查研究产出物
 
 system: |
   你是一位严格的学术审稿人，扮演「批评者」角色。
-  
+
   任务：对提交的研究产出物进行严格质疑和批判。
 
   审查清单：
@@ -541,7 +541,7 @@ system: |
   你是一位 {discipline} 领域的资深研究员。
 
   任务：对每个 Research Gap 候选进行深度评估：
-  
+
   评估维度：
   1. 学术影响力（potential_impact）：填补此 Gap 能产生多大贡献？
   2. 证据支撑（supporting_evidence）：有哪些具体证据表明此 Gap 存在？
@@ -690,7 +690,7 @@ import gepa
 # 阶段 1: 节点独立优化
 for prompt_name, evaluator_fn, dataset in NODE_OPTIMIZATION_TASKS:
     seed_prompt = load_yaml_prompt(prompt_name)
-    
+
     result = gepa.optimize(
         seed_candidate={"system_prompt": seed_prompt.system},
         trainset=dataset["train"],
@@ -699,7 +699,7 @@ for prompt_name, evaluator_fn, dataset in NODE_OPTIMIZATION_TASKS:
         reflection_lm="openai/gpt-5",       # 反思模型（更强）
         max_metric_calls=200,
     )
-    
+
     adapter = ResearchCopilotAdapter(prompt_name, evaluator_fn, db_session)
     await adapter.save_optimized(result.best_candidate["system_prompt"], result.best_score)
 
@@ -850,4 +850,3 @@ class IdeationState(SharedState):
 | 8   | GEPA 集成时机          | MVP 后独立分支                                              | 5.1  |
 | 9   | GEPA 优化粒度          | 分层混合（节点独立 → 端到端微调）                           | 5.1  |
 | 10  | GEPA 优化结果存储      | DB 覆盖层（source='gepa'）                                  | 5.4  |
-

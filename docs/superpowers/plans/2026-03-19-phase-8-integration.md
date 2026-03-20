@@ -259,6 +259,3 @@ scrape_configs:
 | 前端访问 | `curl localhost:80`           | 200 OK           |
 | Metrics  | `curl localhost:8000/metrics` | Prometheus 格式  |
 | Grafana  | `curl localhost:3000`         | 200 OK           |
-
-
-

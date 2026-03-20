@@ -182,6 +182,3 @@ async def confirm_upload(doc_id: UUID, trace_id: str) -> DocumentMeta:
 | 内容入库    | 查询 paragraphs 表                                            | 有记录       |
 | trace_id    | Worker 日志包含 trace_id                                      | ✅            |
 | Lint        | `uv run ruff check backend/workers/`                          | 0 errors     |
-
-
-

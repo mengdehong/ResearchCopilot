@@ -801,4 +801,3 @@ QuotaService
 | Metrics 暴露   | prometheus-fastapi-instrumentator | `/metrics` 端点自动暴露请求延迟/QPS/状态码                                             |
 | 限流           | Redis + 令牌桶                    | 粗粒度中间件 + 业务级 QuotaService                                                     |
 | SSE 事件缓冲   | Redis (TTL key)                   | 断线重连事件重播                                                                       |
-

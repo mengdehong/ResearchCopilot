@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-
 # ── 统一信封 ──
 
 

@@ -69,7 +69,14 @@ def test_expand_query_extracts_queries() -> None:
 @patch("backend.agent.workflows.discovery.nodes.search_arxiv")
 def test_search_apis_calls_arxiv_tool(mock_arxiv) -> None:
     mock_arxiv.invoke.return_value = [
-        {"arxiv_id": "2401.00001", "title": "Paper A", "authors": [], "abstract": "abs", "year": 2024, "source": "arxiv"}
+        {
+            "arxiv_id": "2401.00001",
+            "title": "Paper A",
+            "authors": [],
+            "abstract": "abs",
+            "year": 2024,
+            "source": "arxiv",
+        }
     ]
     state = {"search_queries": ["q1", "q2"]}
     result = search_apis(state)
