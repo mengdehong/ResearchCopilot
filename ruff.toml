@@ -18,6 +18,7 @@ select = [
 ignore = [
     "E501",   # line too long (format handles it)
     "B008",   # do not perform function calls in argument defaults (FastAPI Depends)
+    "RUF001", # ambiguous characters in strings (Chinese text)
     "RUF002", # ambiguous characters in docstrings (Chinese text)
     "RUF003", # ambiguous characters in comments (Chinese text)
 ]
