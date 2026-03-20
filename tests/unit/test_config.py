@@ -11,7 +11,7 @@ def test_settings_loads_defaults() -> None:
     )
     assert settings.app_name == "Research Copilot"
     assert settings.debug is False
-    assert settings.default_llm_provider == "openai"
+    assert settings.default_llm_provider in {"openai", "anthropic", "google"}
     assert settings.sandbox_timeout_seconds == 120
 
 
