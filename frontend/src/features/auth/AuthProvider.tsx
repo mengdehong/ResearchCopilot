@@ -60,8 +60,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             clearToken()
             setUser(null)
             setIsAuthenticated(false)
-            // Optional: redirect to login
-            window.location.href = '/login'
         }
     }, [])
 

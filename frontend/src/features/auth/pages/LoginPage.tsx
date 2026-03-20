@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from '@/i18n/useTranslation'
 import { useAuth } from '../useAuth'
 import { OAuthButtons } from '../components/OAuthButtons'
@@ -10,6 +10,7 @@ export default function LoginPage() {
     const { t } = useTranslation()
     const { login } = useAuth()
     const location = useLocation()
+    const navigate = useNavigate()
 
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -27,9 +28,7 @@ export default function LoginPage() {
             const res = await api.post('/auth/login', { email, password })
             const { access_token, user } = res.data
             login(access_token, user)
-            // Redirect will be handled by GuestGuard basically,
-            // but we can manually redirect to where they came from
-            window.location.href = from
+            navigate(from, { replace: true })
         } catch (err: any) {
             setError(err.response?.data?.detail || t('auth.login_error'))
         } finally {

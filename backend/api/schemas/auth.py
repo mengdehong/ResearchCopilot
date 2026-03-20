@@ -73,3 +73,9 @@ class MessageResponse(BaseModel):
     """通用消息响应。"""
 
     message: str
+
+
+class SettingsUpdate(BaseModel):
+    """用户设置更新请求。"""
+
+    settings: dict[str, str]

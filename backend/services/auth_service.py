@@ -53,11 +53,12 @@ def create_access_token(
     expire_minutes: int,
 ) -> str:
     """签发 access token (JWT)。"""
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "type": "access",
-        "exp": datetime.now(UTC) + timedelta(minutes=expire_minutes),
-        "iat": datetime.now(UTC),
+        "exp": now + timedelta(minutes=expire_minutes),
+        "iat": now,
     }
     return jwt.encode(payload, secret, algorithm=algorithm)
 
@@ -69,12 +70,13 @@ def create_refresh_token(
     expire_days: int,
 ) -> tuple[str, str]:
     """签发 refresh token，返回 (raw_token, sha256_hash)。"""
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "type": "refresh",
         "jti": str(uuid.uuid4()),
-        "exp": datetime.now(UTC) + timedelta(days=expire_days),
-        "iat": datetime.now(UTC),
+        "exp": now + timedelta(days=expire_days),
+        "iat": now,
     }
     raw_token = jwt.encode(payload, secret, algorithm=algorithm)
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
