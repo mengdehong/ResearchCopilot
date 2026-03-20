@@ -3,7 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_current_user, get_db
@@ -12,8 +12,10 @@ from backend.clients.langgraph_client import LangGraphClient
 from backend.models.user import User
 from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
+from backend.repositories import run_snapshot_repo
 from backend.repositories import thread_repo
 from backend.services import agent_service
+from backend.services.event_translator import translate_sse_stream
 
 router = APIRouter(prefix="/api/agent/threads", tags=["agent"])
 
@@ -152,8 +154,17 @@ async def list_runs(
     current_user: User = Depends(get_current_user),
 ) -> list[dict]:
     """List runs for a thread."""
-    # TODO: implement via run_snapshot_repo
-    return []
+    await _verify_thread_ownership(session, thread_id, current_user)
+    snapshots = await run_snapshot_repo.list_by_thread(session, thread_id)
+    return [
+        {
+            "run_id": str(s.run_id),
+            "status": s.status,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+        }
+        for s in snapshots
+    ]
 
 
 @router.get("/{thread_id}/runs/{run_id}")
@@ -162,13 +173,21 @@ async def get_run(
     run_id: str,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> JSONResponse:
+) -> dict:
     """Get run details."""
-    # TODO: implement via run_snapshot_repo
-    return JSONResponse(
-        status_code=501,
-        content={"detail": "Run detail not yet implemented"},
-    )
+    await _verify_thread_ownership(session, thread_id, current_user)
+    snapshot = await run_snapshot_repo.get_by_run_id(session, uuid.UUID(run_id))
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return {
+        "run_id": str(snapshot.run_id),
+        "thread_id": str(snapshot.thread_id),
+        "status": snapshot.status,
+        "user_message": snapshot.user_message,
+        "tokens_used": snapshot.tokens_used,
+        "created_at": snapshot.created_at.isoformat() if snapshot.created_at else None,
+        "completed_at": snapshot.completed_at.isoformat() if snapshot.completed_at else None,
+    }
 
 
 @router.get("/{thread_id}/runs/{run_id}/stream")
@@ -177,14 +196,27 @@ async def stream_run_events(
     run_id: str,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> JSONResponse:
-    """SSE event stream for agent run progress.
+    lg_client: LangGraphClient = Depends(_get_lg_client),
+) -> StreamingResponse:
+    """SSE event stream for agent run progress."""
+    await _verify_thread_ownership(session, thread_id, current_user)
+    thread = await thread_repo.get_by_id(session, thread_id)
+    langgraph_thread_id = thread.langgraph_thread_id or str(thread_id)
 
-    TODO: implement SSE streaming via event_translator.
-    """
-    return JSONResponse(
-        status_code=501,
-        content={"detail": "SSE streaming not yet implemented"},
+    async def event_generator():
+        raw_stream = lg_client.stream_run(langgraph_thread_id, run_id)
+        async for sse_event in translate_sse_stream(raw_stream):
+            data = sse_event.model_dump_json()
+            yield f"event: {sse_event.event_type}\ndata: {data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

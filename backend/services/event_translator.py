@@ -1,14 +1,31 @@
-"""SSE event translator — map LangGraph events to frontend-friendly SSE format."""
+"""SSE event translator — 将 LangGraph 内部事件翻译为 SSEEvent 信封格式。"""
 
 from __future__ import annotations
 
+import uuid
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+
+from backend.api.schemas.sse_events import SSEEvent
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 
-# Mapping from LangGraph internal event types to frontend event types.
+# LangGraph → SSE 事件类型映射
+_EVENT_MAPPING: dict[str, str] = {
+    "events/metadata": "run_start",
+    "events/on_chain_start": "node_enter",
+    "events/on_chain_end": "node_exit",
+    "events/on_chat_model_stream": "token_delta",
+    "events/on_tool_start": "node_enter",
+    "events/on_tool_end": "node_exit",
+    "events/updates": "content_generated",
+    "events/error": "run_error",
+    "__interrupt__": "interrupt",
+}
+
+# 兼容旧映射（保留给已存在测试）
 EVENT_MAPPING: dict[str, str] = {
     "events/metadata": "metadata",
     "events/on_chain_start": "chain_start",
@@ -23,7 +40,7 @@ EVENT_MAPPING: dict[str, str] = {
 
 
 def translate_event(raw_event: dict) -> dict | None:
-    """Translate a single LangGraph event to frontend format.
+    """将单个 LangGraph 事件翻译为前端格式（兼容旧接口）。
 
     Returns None if the event type is unknown (should be silently dropped).
     """
@@ -38,11 +55,94 @@ def translate_event(raw_event: dict) -> dict | None:
     }
 
 
+def translate_to_sse_event(raw_event: dict, *, seq: int) -> SSEEvent | None:
+    """将单个 LangGraph 事件翻译为 SSEEvent 信封格式。
+
+    Returns None if the event type is unknown.
+    """
+    raw_type = raw_event.get("event", "")
+    event_type = _EVENT_MAPPING.get(raw_type)
+    if event_type is None:
+        return None
+
+    data = raw_event.get("data", {})
+    payload: dict = {}
+
+    match event_type:
+        case "run_start":
+            payload = {
+                "run_id": data.get("run_id", ""),
+                "thread_id": data.get("thread_id", ""),
+                "workflow": data.get("workflow"),
+            }
+        case "node_enter":
+            payload = {
+                "node_id": data.get("run_id", str(uuid.uuid4())),
+                "node_name": data.get("name", raw_type),
+                "parent_node_id": data.get("parent_run_id"),
+            }
+        case "node_exit":
+            payload = {
+                "node_id": data.get("run_id", ""),
+                "node_name": data.get("name", raw_type),
+                "status": "completed",
+                "duration_ms": 0,
+            }
+        case "token_delta":
+            chunk = data.get("chunk", "")
+            if hasattr(chunk, "content"):
+                chunk = chunk.content
+            payload = {
+                "node_name": data.get("name", ""),
+                "delta": str(chunk),
+                "role": "assistant",
+            }
+        case "content_generated":
+            payload = {
+                "content_type": "markdown",
+                "content": str(data),
+                "target_tab": "editor",
+            }
+        case "run_error":
+            payload = {
+                "run_id": data.get("run_id", ""),
+                "error_type": "internal",
+                "message": str(data.get("error", "")),
+                "duration_ms": 0,
+            }
+        case "interrupt":
+            payload = {
+                "interrupt_type": data.get("action", "confirm_execute"),
+                "title": data.get("title", "Human Review Required"),
+                "description": data.get("description", ""),
+                "data": data,
+            }
+
+    return SSEEvent(
+        seq=seq,
+        event_type=event_type,
+        timestamp=datetime.now(UTC).isoformat(),
+        payload=payload,
+    )
+
+
 async def translate_stream(
     raw_stream: AsyncIterator[dict],
 ) -> AsyncIterator[dict]:
-    """Translate a full LangGraph event stream, dropping unknown events."""
+    """翻译完整 LangGraph 事件流（兼容旧接口），丢弃未知事件。"""
     async for raw_event in raw_stream:
         translated = translate_event(raw_event)
         if translated is not None:
+            yield translated
+
+
+async def translate_sse_stream(
+    raw_stream: AsyncIterator[dict],
+) -> AsyncIterator[SSEEvent]:
+    """翻译 LangGraph 事件流为 SSEEvent 信封流。"""
+    seq = 0
+    async for raw_event in raw_stream:
+        translated = translate_to_sse_event(raw_event, seq=seq + 1)
+        if translated is not None:
+            seq += 1
             yield translated
