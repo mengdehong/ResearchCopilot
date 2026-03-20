@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -11,8 +12,6 @@ from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
 
 if TYPE_CHECKING:
-    import uuid
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from backend.clients.langgraph_client import LangGraphClient, RunInfo
@@ -82,24 +81,20 @@ async def trigger_run(
     if thread is None:
         return None
 
-    # Store input snapshot
-    snapshot = RunSnapshot()
-    snapshot.thread_id = thread_id
-    snapshot.input_data = {"message": message}
-    snapshot.status = "pending"
-    await base_repo.create(session, snapshot)
-
-    # Forward to LangGraph
+    # Forward to LangGraph first to get run_id
     run_info: RunInfo = await lg_client.create_run(
         thread.langgraph_thread_id or str(thread_id),
         assistant_id="default",
         input_data={"message": message},
     )
 
-    # Update snapshot with run_id
-    snapshot.langgraph_run_id = run_info.run_id
+    # Store input snapshot with run_id
+    snapshot = RunSnapshot()
+    snapshot.thread_id = thread_id
+    snapshot.run_id = uuid.UUID(run_info.run_id)
+    snapshot.user_message = message
     snapshot.status = "running"
-    await session.flush()
+    await base_repo.create(session, snapshot)
 
     return RunResult(
         run_id=run_info.run_id,
