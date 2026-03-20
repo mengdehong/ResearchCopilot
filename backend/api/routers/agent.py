@@ -13,7 +13,7 @@ from backend.models.user import User
 from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
 
-router = APIRouter(prefix="/api/v1/threads", tags=["agent"])
+router = APIRouter(prefix="/api/agent/threads", tags=["agent"])
 
 
 async def _verify_thread_ownership(

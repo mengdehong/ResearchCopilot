@@ -12,7 +12,7 @@ from backend.models.user import User
 from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
 
-router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
 @router.post("", status_code=201, response_model=DocumentMeta)

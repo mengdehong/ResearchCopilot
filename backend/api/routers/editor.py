@@ -13,7 +13,7 @@ from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
 from backend.repositories import editor_repo
 
-router = APIRouter(prefix="/api/v1/drafts", tags=["editor"])
+router = APIRouter(prefix="/api/editor/draft", tags=["editor"])
 
 
 async def _verify_thread_ownership(

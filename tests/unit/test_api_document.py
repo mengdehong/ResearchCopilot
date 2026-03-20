@@ -94,7 +94,7 @@ class TestDocumentRouter:
         mock_base.create = AsyncMock(return_value=doc)
 
         response = await client.post(
-            "/api/v1/documents",
+            "/api/documents",
             json={
                 "title": "Test Paper",
                 "file_path": "/uploads/test.pdf",
@@ -113,7 +113,7 @@ class TestDocumentRouter:
         mock_base.get_by_id = AsyncMock(return_value=None)
 
         response = await client.post(
-            "/api/v1/documents",
+            "/api/documents",
             json={
                 "title": "Test",
                 "file_path": "/test.pdf",
@@ -135,7 +135,7 @@ class TestDocumentRouter:
         # Two get_by_id calls: first for doc, second for workspace
         mock_base.get_by_id = AsyncMock(side_effect=[doc, ws])
 
-        response = await client.get(f"/api/v1/documents/{doc.id}")
+        response = await client.get(f"/api/documents/{doc.id}")
         assert response.status_code == 200
         assert response.json()["id"] == str(doc.id)
 
@@ -147,7 +147,7 @@ class TestDocumentRouter:
     ) -> None:
         mock_base.get_by_id = AsyncMock(return_value=None)
 
-        response = await client.get(f"/api/v1/documents/{uuid.uuid4()}")
+        response = await client.get(f"/api/documents/{uuid.uuid4()}")
         assert response.status_code == 404
 
     @patch("backend.api.routers.document.base_repo")
@@ -161,7 +161,7 @@ class TestDocumentRouter:
         doc = _make_document(ws.id)
         mock_base.get_by_id = AsyncMock(side_effect=[doc, ws])
 
-        response = await client.get(f"/api/v1/documents/{doc.id}/status")
+        response = await client.get(f"/api/documents/{doc.id}/status")
         assert response.status_code == 200
         assert response.json()["parse_status"] == "pending"
 
@@ -176,5 +176,5 @@ class TestDocumentRouter:
         doc = _make_document(ws.id)
         mock_base.get_by_id = AsyncMock(side_effect=[doc, ws])
 
-        response = await client.get(f"/api/v1/documents/{doc.id}/status")
+        response = await client.get(f"/api/documents/{doc.id}/status")
         assert response.status_code == 403

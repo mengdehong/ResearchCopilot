@@ -90,7 +90,7 @@ class TestWorkspaceRouter:
         mock_base.create = AsyncMock(return_value=ws)
 
         response = await client.post(
-            "/api/v1/workspaces",
+            "/api/workspaces",
             json={"name": "My Research", "discipline": "physics"},
         )
         assert response.status_code == 201
@@ -108,7 +108,7 @@ class TestWorkspaceRouter:
         ws2 = _make_workspace(mock_user.id)
         mock_ws_repo.list_by_owner = AsyncMock(return_value=[ws1, ws2])
 
-        response = await client.get("/api/v1/workspaces")
+        response = await client.get("/api/workspaces")
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 2
@@ -124,7 +124,7 @@ class TestWorkspaceRouter:
         ws = _make_workspace(mock_user.id)
         mock_base.get_by_id = AsyncMock(return_value=ws)
 
-        response = await client.get(f"/api/v1/workspaces/{ws.id}")
+        response = await client.get(f"/api/workspaces/{ws.id}")
         assert response.status_code == 200
         assert response.json()["id"] == str(ws.id)
 
@@ -136,7 +136,7 @@ class TestWorkspaceRouter:
     ) -> None:
         mock_base.get_by_id = AsyncMock(return_value=None)
 
-        response = await client.get(f"/api/v1/workspaces/{uuid.uuid4()}")
+        response = await client.get(f"/api/workspaces/{uuid.uuid4()}")
         assert response.status_code == 404
 
     @patch("backend.api.routers.workspace.workspace_repo")
@@ -153,7 +153,7 @@ class TestWorkspaceRouter:
         mock_base.get_by_id = AsyncMock(return_value=ws)
         mock_ws_repo.soft_delete = AsyncMock()
 
-        response = await client.delete(f"/api/v1/workspaces/{ws.id}")
+        response = await client.delete(f"/api/workspaces/{ws.id}")
         assert response.status_code == 204
 
     @patch("backend.api.routers.workspace.base_repo")
@@ -164,7 +164,7 @@ class TestWorkspaceRouter:
     ) -> None:
         mock_base.get_by_id = AsyncMock(return_value=None)
 
-        response = await client.delete(f"/api/v1/workspaces/{uuid.uuid4()}")
+        response = await client.delete(f"/api/workspaces/{uuid.uuid4()}")
         assert response.status_code == 404
 
     @patch("backend.api.routers.workspace.base_repo")
@@ -177,5 +177,5 @@ class TestWorkspaceRouter:
         ws = _make_workspace(uuid.uuid4())  # different owner
         mock_base.get_by_id = AsyncMock(return_value=ws)
 
-        response = await client.delete(f"/api/v1/workspaces/{ws.id}")
+        response = await client.delete(f"/api/workspaces/{ws.id}")
         assert response.status_code == 403

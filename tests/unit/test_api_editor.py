@@ -102,7 +102,7 @@ class TestEditorRouter:
         mock_repo.upsert_draft = AsyncMock(return_value=draft)
 
         response = await client.put(
-            f"/api/v1/drafts/{thread.id}",
+            f"/api/editor/draft/{thread.id}",
             json={"content": "# My Draft"},
         )
         assert response.status_code == 200
@@ -124,7 +124,7 @@ class TestEditorRouter:
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
         mock_repo.get_by_thread_id = AsyncMock(return_value=draft)
 
-        response = await client.get(f"/api/v1/drafts/{thread.id}")
+        response = await client.get(f"/api/editor/draft/{thread.id}")
         assert response.status_code == 200
         assert response.json()["thread_id"] == str(thread.id)
 
@@ -143,7 +143,7 @@ class TestEditorRouter:
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
         mock_repo.get_by_thread_id = AsyncMock(return_value=None)
 
-        response = await client.get(f"/api/v1/drafts/{thread.id}")
+        response = await client.get(f"/api/editor/draft/{thread.id}")
         assert response.status_code == 404
 
     @patch("backend.api.routers.editor.base_repo")
@@ -155,7 +155,7 @@ class TestEditorRouter:
         mock_base.get_by_id = AsyncMock(return_value=None)
 
         response = await client.put(
-            f"/api/v1/drafts/{uuid.uuid4()}",
+            f"/api/editor/draft/{uuid.uuid4()}",
             json={"content": "test"},
         )
         assert response.status_code == 404
@@ -173,7 +173,7 @@ class TestEditorRouter:
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
 
         response = await client.put(
-            f"/api/v1/drafts/{thread.id}",
+            f"/api/editor/draft/{thread.id}",
             json={"content": "test"},
         )
         assert response.status_code == 403
@@ -190,5 +190,5 @@ class TestEditorRouter:
 
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
 
-        response = await client.get(f"/api/v1/drafts/{thread.id}")
+        response = await client.get(f"/api/editor/draft/{thread.id}")
         assert response.status_code == 403

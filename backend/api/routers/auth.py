@@ -6,7 +6,7 @@ from backend.api.dependencies import get_current_user
 from backend.api.schemas.auth import UserInfo
 from backend.models.user import User
 
-router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.get("/me", response_model=UserInfo)

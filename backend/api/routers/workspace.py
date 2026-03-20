@@ -12,7 +12,7 @@ from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
 from backend.repositories import workspace_repo
 
-router = APIRouter(prefix="/api/v1/workspaces", tags=["workspaces"])
+router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
 
 
 @router.post("", status_code=201, response_model=WorkspaceDetail)

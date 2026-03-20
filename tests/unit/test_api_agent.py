@@ -91,7 +91,7 @@ class TestAgentRouter:
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
 
         response = await client.post(
-            f"/api/v1/threads/{thread.id}/runs",
+            f"/api/agent/threads/{thread.id}/runs",
             json={"message": "summarize this paper"},
         )
         assert response.status_code == 501
@@ -108,7 +108,7 @@ class TestAgentRouter:
         thread = _make_thread(ws.id)
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
 
-        response = await client.get(f"/api/v1/threads/{thread.id}/events")
+        response = await client.get(f"/api/agent/threads/{thread.id}/events")
         assert response.status_code == 501
 
     @patch("backend.api.routers.agent.base_repo")
@@ -123,7 +123,7 @@ class TestAgentRouter:
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
 
         response = await client.post(
-            f"/api/v1/threads/{thread.id}/interrupt",
+            f"/api/agent/threads/{thread.id}/interrupt",
             json={"action": "approve"},
         )
         assert response.status_code == 501
@@ -137,7 +137,7 @@ class TestAgentRouter:
         mock_base.get_by_id = AsyncMock(return_value=None)
 
         response = await client.post(
-            f"/api/v1/threads/{uuid.uuid4()}/runs",
+            f"/api/agent/threads/{uuid.uuid4()}/runs",
             json={"message": "test"},
         )
         assert response.status_code == 404
@@ -154,7 +154,7 @@ class TestAgentRouter:
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
 
         response = await client.post(
-            f"/api/v1/threads/{thread.id}/runs",
+            f"/api/agent/threads/{thread.id}/runs",
             json={"message": "test"},
         )
         assert response.status_code == 403
