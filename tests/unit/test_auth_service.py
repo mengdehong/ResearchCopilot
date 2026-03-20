@@ -13,6 +13,8 @@ from backend.services.auth_service import (
     create_refresh_token,
     hash_password,
     login_user,
+    logout_user,
+    refresh_access_token,
     register_user,
     verify_email_token,
     verify_password,
@@ -62,6 +64,44 @@ class TestTokenCreation:
         )
         assert isinstance(raw_token, str)
         assert token_hash == hashlib.sha256(raw_token.encode()).hexdigest()
+
+    async def test_refresh_access_token_success(self) -> None:
+        user_id = uuid.uuid4()
+        raw_token, _ = create_refresh_token(
+            user_id=user_id, secret="secret", algorithm="HS256", expire_days=14
+        )
+
+        session = AsyncMock()
+        mock_rt = MagicMock()
+        mock_rt.expires_at = datetime.now(UTC) + timedelta(days=1)
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = mock_rt
+        session.execute.return_value = result
+
+        new_access = await refresh_access_token(
+            refresh_token=raw_token,
+            session=session,
+            jwt_secret="secret",
+            jwt_algorithm="HS256",
+            access_expire_minutes=30,
+        )
+        assert new_access is not None
+        payload = jwt.decode(new_access, "secret", algorithms=["HS256"])
+        assert payload["sub"] == str(user_id)
+        assert payload["type"] == "access"
+
+    async def test_logout_user(self) -> None:
+        raw_token = "some-refresh-token"
+        session = AsyncMock()
+        mock_rt = MagicMock()
+        mock_rt.revoked = False
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = mock_rt
+        session.execute.return_value = result
+
+        await logout_user(refresh_token=raw_token, session=session)
+        assert mock_rt.revoked is True
+        session.flush.assert_awaited_once()
 
 
 # ---- 注册 ----

@@ -2,7 +2,7 @@
 
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,7 @@ from backend.api.schemas.auth import (
     MessageResponse,
     RegisterRequest,
     ResetPasswordRequest,
+    TokenResponse,
     UserInfo,
     VerifyEmailRequest,
 )
@@ -25,7 +26,9 @@ from backend.core.config import Settings
 from backend.models.user import User
 from backend.services.auth_service import (
     login_user,
+    logout_user,
     oauth_login_or_register,
+    refresh_access_token,
     register_user,
     request_password_reset,
     reset_password,
@@ -124,6 +127,46 @@ async def login(
         msg = str(e)
         status = 403 if "未验证" in msg else 401
         raise HTTPException(status_code=status, detail=msg) from e
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    refresh_token: str | None = Cookie(default=None),
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> TokenResponse:
+    """使用 HttpOnly cookie 中的 refresh_token 获取新 access_token。"""
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="未提供刷新令牌")
+    try:
+        new_access = await refresh_access_token(
+            refresh_token=refresh_token,
+            session=session,
+            jwt_secret=settings.jwt_secret,
+            jwt_algorithm=settings.jwt_algorithm,
+            access_expire_minutes=settings.access_token_expire_minutes,
+        )
+        await session.commit()
+        return TokenResponse(access_token=new_access)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e)) from e
+
+
+@router.post("/logout", response_model=MessageResponse)
+async def logout(
+    response: Response,
+    refresh_token: str | None = Cookie(default=None),
+    session: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """登出并清理 cookie + 使 refresh token 失效。"""
+    if refresh_token:
+        await logout_user(refresh_token=refresh_token, session=session)
+        await session.commit()
+
+    response.delete_cookie(
+        key="refresh_token", path="/api/auth", httponly=True, secure=True, samesite="lax"
+    )
+    return MessageResponse(message="已登出")
 
 
 # ---------------------------------------------------------------------------

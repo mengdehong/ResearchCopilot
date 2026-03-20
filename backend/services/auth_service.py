@@ -222,6 +222,67 @@ async def login_user(
 
 
 # ---------------------------------------------------------------------------
+# Token Refresh & Logout
+# ---------------------------------------------------------------------------
+
+
+async def refresh_access_token(
+    *,
+    refresh_token: str,
+    session: AsyncSession,
+    jwt_secret: str,
+    jwt_algorithm: str,
+    access_expire_minutes: int,
+) -> str:
+    """使用 refresh token 换取新的 access token。"""
+    try:
+        payload = jwt.decode(refresh_token, jwt_secret, algorithms=[jwt_algorithm])
+    except jwt.InvalidTokenError:
+        raise ValueError("无效或过期的刷新令牌") from None
+
+    if payload.get("type") != "refresh":
+        raise ValueError("无效的令牌类型")
+
+    user_id = uuid.UUID(payload["sub"])
+    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+
+    # 查数据库
+    rt_stmt = select(RefreshToken).where(
+        RefreshToken.token_hash == token_hash,
+        RefreshToken.user_id == user_id,
+        RefreshToken.revoked.is_(False),
+    )
+    result = await session.execute(rt_stmt)
+    rt = result.scalar_one_or_none()
+
+    if not rt or rt.expires_at < datetime.now(UTC):
+        raise ValueError("刷新令牌已失效或过期")
+
+    return create_access_token(
+        user_id=user_id,
+        secret=jwt_secret,
+        algorithm=jwt_algorithm,
+        expire_minutes=access_expire_minutes,
+    )
+
+
+async def logout_user(
+    *,
+    refresh_token: str,
+    session: AsyncSession,
+) -> None:
+    """登出：吊销 refresh token。"""
+    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+    stmt = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+    result = await session.execute(stmt)
+    rt = result.scalar_one_or_none()
+    if rt:
+        rt.revoked = True
+        await session.flush()
+        logger.info("user_logout", user_id=str(rt.user_id))
+
+
+# ---------------------------------------------------------------------------
 # 密码重置
 # ---------------------------------------------------------------------------
 

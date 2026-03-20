@@ -134,3 +134,37 @@ class TestVerifyEmailEndpoint:
             json={"token": "bad-token"},
         )
         assert response.status_code == 400
+
+
+class TestTokenRefreshEndpoint:
+    """POST /api/auth/refresh"""
+
+    @patch("backend.api.routers.auth.refresh_access_token")
+    def test_refresh_success(self, mock_refresh: AsyncMock, test_client: TestClient) -> None:
+        mock_refresh.return_value = "new-access-token"
+
+        test_client.cookies.set("refresh_token", "valid-refresh-token")
+        response = test_client.post("/api/auth/refresh")
+
+        assert response.status_code == 200
+        assert response.json()["access_token"] == "new-access-token"
+        test_client.cookies.clear()
+
+    @patch("backend.api.routers.auth.refresh_access_token")
+    def test_refresh_no_cookie(self, mock_refresh: AsyncMock, test_client: TestClient) -> None:
+        response = test_client.post("/api/auth/refresh")
+        assert response.status_code == 401
+
+
+class TestLogoutEndpoint:
+    """POST /api/auth/logout"""
+
+    @patch("backend.api.routers.auth.logout_user")
+    def test_logout_success(self, mock_logout: AsyncMock, test_client: TestClient) -> None:
+        mock_logout.return_value = None
+
+        test_client.cookies.set("refresh_token", "valid-refresh-token")
+        response = test_client.post("/api/auth/logout")
+
+        assert response.status_code == 200
+        test_client.cookies.clear()
