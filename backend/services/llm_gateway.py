@@ -1,7 +1,13 @@
 """LLM 统一封装。多 Provider 适配, 上层只依赖 langchain-core 的 BaseChatModel。"""
+import time
 from enum import StrEnum
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
+
+from backend.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class LLMProvider(StrEnum):
@@ -45,7 +51,43 @@ class LLMGateway:
         if not api_key:
             raise ValueError(f"API key not configured for provider: {provider}")
 
+        logger.info(
+            "llm_model_created",
+            provider=provider,
+            model=model,
+            temperature=temperature,
+        )
         return self._create_model(provider, model, api_key, temperature)
+
+    def invoke(
+        self,
+        messages: list[BaseMessage],
+        *,
+        provider: LLMProvider | None = None,
+        model: str | None = None,
+        temperature: float = 0.0,
+    ) -> BaseMessage:
+        """调用 LLM 并记录结构化日志(model, tokens, latency)。"""
+        resolved_provider = provider or self._default_provider
+        resolved_model = model or self._default_model
+        llm = self.get_model(
+            provider=provider, model=model, temperature=temperature,
+        )
+
+        start = time.monotonic()
+        response = llm.invoke(messages)
+        latency_ms = round((time.monotonic() - start) * 1000)
+
+        usage = response.usage_metadata or {}
+        logger.info(
+            "llm_call_completed",
+            provider=resolved_provider,
+            model=resolved_model,
+            input_tokens=usage.get("input_tokens", 0),
+            output_tokens=usage.get("output_tokens", 0),
+            latency_ms=latency_ms,
+        )
+        return response
 
     def _create_model(
         self,

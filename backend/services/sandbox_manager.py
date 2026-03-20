@@ -61,13 +61,33 @@ class DockerExecutor:
         """创建容器→注入代码→执行→提取结果→强制销毁。"""
         container: Container | None = None
         start_time = time.monotonic()
+        logger.info(
+            "sandbox_execute_start",
+            image=self._image,
+            timeout=request.timeout_seconds,
+            input_files_count=len(request.input_files),
+        )
 
         try:
             container = self._create_container()
+            logger.info(
+                "sandbox_container_created",
+                container_id=container.short_id,
+            )
             self._inject_code(container, request.code, request.input_files)
             exit_code, stdout, stderr = self._run(container, request.timeout_seconds)
             output_files = self._extract_outputs(container) if exit_code == 0 else {}
             duration = time.monotonic() - start_time
+            is_timeout = exit_code == 137 and "timed out" in stderr
+
+            logger.info(
+                "sandbox_execute_complete",
+                container_id=container.short_id,
+                exit_code=exit_code,
+                duration_ms=round(duration * 1000),
+                timeout=is_timeout,
+                output_files_count=len(output_files),
+            )
 
             return ExecutionResult(
                 success=(exit_code == 0),

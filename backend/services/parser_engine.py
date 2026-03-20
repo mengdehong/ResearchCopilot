@@ -1,4 +1,5 @@
 """PDF 解析引擎。封装 MinerU 和 PyMuPDF fallback。"""
+import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -86,6 +87,7 @@ class MinerUParser:
 
     def parse(self, pdf_path: Path) -> ParsedDocument:
         """调用 MinerU HTTP API 解析 PDF 为结构化文档。"""
+        start = time.monotonic()
         logger.info("mineru_parse_start", path=str(pdf_path))
 
         if not self._api_key:
@@ -93,7 +95,6 @@ class MinerUParser:
             return FallbackParser().parse(pdf_path)
 
         import io
-        import time
         import zipfile
 
         import httpx
@@ -183,7 +184,13 @@ class MinerUParser:
                     md_bytes = zf.read(target)
                     md_text = md_bytes.decode("utf-8", errors="replace")
 
-                logger.info("mineru_parse_success", path=str(pdf_path))
+                duration_ms = round((time.monotonic() - start) * 1000)
+                logger.info(
+                    "mineru_parse_success",
+                    path=str(pdf_path),
+                    quality=ParseQuality.FULL,
+                    duration_ms=duration_ms,
+                )
                 return ParsedDocument(
                     title=pdf_path.stem,
                     abstract="",
@@ -194,7 +201,13 @@ class MinerUParser:
                 )
 
         except Exception as e:
-            logger.warning("mineru_api_error_fallback", path=str(pdf_path), error=str(e))
+            duration_ms = round((time.monotonic() - start) * 1000)
+            logger.warning(
+                "mineru_api_error_fallback",
+                path=str(pdf_path),
+                error=str(e),
+                duration_ms=duration_ms,
+            )
             return FallbackParser().parse(pdf_path)
 
 
@@ -206,6 +219,7 @@ class FallbackParser:
         if fitz is None:
             raise ImportError("PyMuPDF (fitz) is not installed")
 
+        start = time.monotonic()
         logger.info("fallback_parse_start", path=str(pdf_path))
         doc = fitz.open(str(pdf_path))
         text_parts: list[str] = []
@@ -214,6 +228,14 @@ class FallbackParser:
         doc.close()
 
         full_text = "\n".join(text_parts)
+        duration_ms = round((time.monotonic() - start) * 1000)
+        logger.info(
+            "fallback_parse_complete",
+            path=str(pdf_path),
+            quality=ParseQuality.DEGRADED,
+            pages=len(text_parts),
+            duration_ms=duration_ms,
+        )
         return ParsedDocument(
             title=pdf_path.stem,
             abstract="",
