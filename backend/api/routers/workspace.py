@@ -71,6 +71,7 @@ async def update_workspace(
     if ws is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
     await session.commit()
+    await session.refresh(ws)
     return WorkspaceDetail.model_validate(ws)
 
 

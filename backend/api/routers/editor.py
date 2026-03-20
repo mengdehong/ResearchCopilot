@@ -30,6 +30,7 @@ async def save_draft(
     if draft is None:
         raise HTTPException(status_code=404, detail="Thread not found or access denied")
     await session.commit()
+    await session.refresh(draft)
     return DraftLoad.model_validate(draft)
 
 
