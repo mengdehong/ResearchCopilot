@@ -252,3 +252,184 @@ class EmailService(Protocol):
     async def send_verification_email(self, to: str, token: str) -> None: ...
     async def send_password_reset_email(self, to: str, token: str) -> None: ...
 ```
+
+---
+
+## 六、前端设计
+
+### 6.1 页面结构
+
+```
+/login              → LoginPage（左右分栏：左品牌区 + 右表单区）
+/register           → RegisterPage（同上布局）
+/verify-email       → VerifyEmailPage（验证结果页）
+/forgot-password    → ForgotPasswordPage（输入邮箱表单）
+/reset-password     → ResetPasswordPage（输入新密码表单）
+```
+
+所有认证页面使用 **左右分栏** 布局：
+- **左侧**：品牌宣传区 — Logo + Slogan + 动态背景/插图
+- **右侧**：表单区 — 登录/注册表单 + OAuth 按钮
+
+### 6.2 文件组织
+
+```
+frontend/src/features/auth/
+├── components/
+│   ├── AuthLayout.tsx          # 左右分栏布局壳
+│   ├── OAuthButtons.tsx        # GitHub + Google 登录按钮组
+│   └── PasswordInput.tsx       # 带显示/隐藏切换的密码输入框
+├── pages/
+│   ├── LoginPage.tsx
+│   ├── RegisterPage.tsx
+│   ├── VerifyEmailPage.tsx
+│   ├── ForgotPasswordPage.tsx
+│   └── ResetPasswordPage.tsx
+├── AuthProvider.tsx             # Context Provider + Token 管理
+├── useAuth.ts                   # useAuth() hook（从 Context 取值）
+└── auth.css
+```
+
+### 6.3 Token 管理
+
+| Token         | 存储                               | 说明                                |
+| ------------- | ---------------------------------- | ----------------------------------- |
+| Access Token  | 内存 (AuthProvider state)          | 防 XSS，刷新页面后通过 refresh 恢复 |
+| Refresh Token | httpOnly cookie（后端 Set-Cookie） | 前端 JS 完全不可读                  |
+
+### 6.4 AuthProvider 核心逻辑
+
+```
+AuthProvider mount
+  → isLoading = true（全屏 loading spinner）
+  → POST /api/auth/refresh（cookie 自动带）
+  → 成功 → 存 access_token + GET /api/auth/me → isAuthenticated = true
+  → 失败 → isAuthenticated = false
+  → isLoading = false
+
+自动刷新定时器：
+  → access_token 过期前 2 分钟自动 POST /refresh
+  → 失败则标记 isAuthenticated = false → 路由守卫跳 /login
+```
+
+### 6.5 路由守卫
+
+```
+RootLayout               ← AuthProvider 在此注入
+├── /login                ← GuestGuard（已登录 → 跳 /workspaces）
+├── /register             ← GuestGuard
+├── /verify-email         ← 公开
+├── /forgot-password      ← 公开
+├── /reset-password       ← 公开
+└── AppLayout             ← AuthGuard（未登录 → 跳 /login）
+    ├── /workspaces
+    └── /workspaces/:id
+
+AuthGuard: isLoading ? <Spinner/> : !isAuthenticated ? <Navigate to="/login"/> : <Outlet/>
+GuestGuard: isAuthenticated ? <Navigate to="/workspaces"/> : <Outlet/>
+```
+
+### 6.6 API 层改造
+
+现有 `api.ts` 改造：
+- `accessToken` 从 AuthProvider 内存获取，不再用 localStorage
+- 401 拦截器改为：尝试 refresh → 成功则重试原请求 → 仍失败则跳 /login
+- 移除 `getToken()` / `setToken()` / `clearToken()`（localStorage 函数）
+
+---
+
+## 七、安全设计
+
+### 7.1 安全清单
+
+| 项目          | 措施                                                        |
+| ------------- | ----------------------------------------------------------- |
+| 密码存储      | bcrypt hash (cost=12)，不可逆                               |
+| Access Token  | 内存存储，30min 过期，HS256 签名                            |
+| Refresh Token | httpOnly + Secure + SameSite=Lax cookie，DB 存 SHA-256 hash |
+| 验证/重置令牌 | JWT 30min 有效期，payload 带 `purpose` 字段区分用途         |
+| OAuth state   | 随机 state 参数防 CSRF，存 cookie(5min) 校验                |
+| 登录防暴力    | 速率限制（同 IP 5 次/分钟）via FastAPI middleware           |
+| 密码要求      | 最少 8 位，至少包含字母和数字                               |
+| CORS          | 仅允许前端域名 origin                                       |
+
+### 7.2 OAuth 账号关联策略
+
+当 OAuth 登录时发现同 email 的本地账号：
+- **email_verified = true** → 自动关联，合并为同一用户，更新 `external_id`
+- **email_verified = false** → 拒绝关联，提示"此邮箱已注册但未验证，请先验证邮箱"
+
+当本地注册时发现同 email 的 OAuth 账号：
+- 返回 409 Conflict，提示"此邮箱已通过 {provider} 登录，请使用 {provider} 登录"
+
+---
+
+## 八、配置与依赖
+
+### 8.1 新增环境变量
+
+```env
+# --- Auth (现有) ---
+JWT_SECRET=change-me-in-production
+JWT_ALGORITHM=HS256
+
+# --- Auth (新增) ---
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=14
+
+# --- OAuth ---
+GITHUB_CLIENT_ID=xxx
+GITHUB_CLIENT_SECRET=xxx
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+OAUTH_REDIRECT_BASE_URL=http://localhost:5173
+
+# --- Email ---
+RESEND_API_KEY=re_xxx
+EMAIL_FROM=noreply@researchcopilot.com
+FRONTEND_URL=http://localhost:5173
+```
+
+### 8.2 新增 Python 依赖
+
+```
+bcrypt          # 密码哈希
+httpx           # OAuth API 调用（已存在则无需新增）
+resend          # 邮件发送
+```
+
+### 8.3 Settings 扩展
+
+在 `backend/core/config.py` 的 `Settings` 类中新增上述配置字段。
+
+---
+
+## 九、影响范围
+
+### 需修改的现有文件
+
+| 文件                              | 变更                                                         |
+| --------------------------------- | ------------------------------------------------------------ |
+| `backend/models/user.py`          | 新增 `password_hash`, `email_verified`, `auth_provider` 字段 |
+| `backend/api/routers/auth.py`     | 新增注册/登录/OAuth/密码重置等端点                           |
+| `backend/api/schemas/auth.py`     | 新增请求/响应 schemas                                        |
+| `backend/api/dependencies.py`     | token 提取逻辑适配（现有逻辑基本不变）                       |
+| `backend/core/config.py`          | 新增 OAuth/Email/Token 配置字段                              |
+| `frontend/src/lib/api.ts`         | 移除 localStorage，改为接受内存 token                        |
+| `frontend/src/app/AppLayout.tsx`  | 使用 AuthGuard 替代现有占位逻辑                              |
+| `frontend/src/app/router.tsx`     | 新增 auth 页面路由                                           |
+| `frontend/src/app/RootLayout.tsx` | 注入 AuthProvider                                            |
+
+### 需新建的文件
+
+| 文件                                     | 说明                             |
+| ---------------------------------------- | -------------------------------- |
+| `backend/models/refresh_token.py`        | RefreshToken ORM                 |
+| `backend/services/auth_service.py`       | 认证核心逻辑                     |
+| `backend/clients/oauth/base.py`          | OAuthProvider Protocol           |
+| `backend/clients/oauth/github.py`        | GitHub OAuth 实现                |
+| `backend/clients/oauth/google.py`        | Google OAuth 实现                |
+| `backend/clients/email/base.py`          | EmailService Protocol            |
+| `backend/clients/email/resend_client.py` | Resend 实现                      |
+| `alembic/versions/xxx_add_auth.py`       | 数据库迁移                       |
+| `frontend/src/features/auth/`            | 整个前端 auth 模块（~10 个文件） |
