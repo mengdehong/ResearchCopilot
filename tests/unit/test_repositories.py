@@ -4,6 +4,9 @@ import uuid
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from backend.core.exceptions import InvalidStateTransitionError
 from backend.models.document import Document
 from backend.models.editor_draft import EditorDraft
 from backend.models.workspace import Workspace
@@ -20,6 +23,9 @@ from backend.repositories.workspace_repo import (
 )
 from backend.repositories.workspace_repo import (
     soft_delete as ws_soft_delete,
+)
+from backend.repositories.workspace_repo import (
+    update as ws_update,
 )
 
 # ---------------------------------------------------------------------------
@@ -160,12 +166,43 @@ class TestDocumentRepo:
         doc = _make_document(uuid.uuid4())
         assert doc.parse_status == "pending"
 
-        await update_parse_status(session, doc, "completed")
-        assert doc.parse_status == "completed"
+        await update_parse_status(session, doc, "parsing")
+        assert doc.parse_status == "parsing"
         session.flush.assert_awaited_once()
+
+    async def test_update_parse_status_invalid_transition(self) -> None:
+        session = AsyncMock()
+        doc = _make_document(uuid.uuid4())
+        assert doc.parse_status == "pending"
+
+        with pytest.raises(InvalidStateTransitionError):
+            await update_parse_status(session, doc, "completed")
 
 
 # ---------------------------------------------------------------------------
+# workspace_repo update
+# ---------------------------------------------------------------------------
+
+
+class TestWorkspaceUpdate:
+    async def test_update_name(self) -> None:
+        session = AsyncMock()
+        ws = _make_workspace(uuid.uuid4())
+
+        result = await ws_update(session, ws, name="New Name")
+        assert result.name == "New Name"
+        session.flush.assert_awaited_once()
+
+    async def test_update_partial(self) -> None:
+        session = AsyncMock()
+        ws = _make_workspace(uuid.uuid4())
+        original_name = ws.name
+
+        result = await ws_update(session, ws, discipline="physics")
+        assert result.name == original_name
+        assert result.discipline == "physics"
+
+
 # editor_repo
 # ---------------------------------------------------------------------------
 

@@ -25,3 +25,19 @@ async def list_by_owner(
 async def soft_delete(session: AsyncSession, workspace: Workspace) -> None:
     """Soft-delete a workspace."""
     await _base_soft_delete(session, workspace)
+
+
+async def update(
+    session: AsyncSession,
+    workspace: Workspace,
+    *,
+    name: str | None = None,
+    discipline: str | None = None,
+) -> Workspace:
+    """Update workspace fields. Only provided values are changed."""
+    if name is not None:
+        workspace.name = name
+    if discipline is not None:
+        workspace.discipline = discipline
+    await session.flush()
+    return workspace
