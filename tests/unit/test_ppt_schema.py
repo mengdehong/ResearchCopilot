@@ -106,7 +106,7 @@ def test_figure_content_default_layout() -> None:
         caption="Model architecture",
         points=["Encoder-decoder"],
     )
-    assert content.layout == "left_img"
+    assert content.image_position == "left"
 
 
 def test_table_content() -> None:

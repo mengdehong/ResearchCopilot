@@ -12,14 +12,13 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from backend.agent.prompts.loader import load_prompt
+from backend.agent.skills.ppt_generation.renderer.base import RenderedPresentation  # noqa: TC001
 from backend.agent.skills.ppt_generation.renderer.factory import create_renderer
 from backend.agent.skills.ppt_generation.schema import PresentationSchema
 from backend.core.logger import get_logger
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
-
-    from backend.agent.skills.ppt_generation.renderer.base import RenderedPresentation
 
 logger = get_logger(__name__)
 
@@ -137,6 +136,7 @@ def render_node(state: PPTGenerationState) -> dict:
     # 动态生成隔离的输出目录以防并发冲突
     workspace_id = state.get("workspace_id", "default_workspace")
     import uuid
+
     run_id = uuid.uuid4().hex[:8]
     output_dir = Path(f"/tmp/research_copilot/{workspace_id}/ppt_{run_id}")
 

@@ -39,16 +39,20 @@ class PresentationMeta(BaseModel):
 class TitleContent(BaseModel):
     """标题页 — 从 Meta 自动填充。"""
 
+    layout: Literal["title"] = "title"
+
 
 class OutlineContent(BaseModel):
     """目录页 — 从 slides[].section 自动生成。"""
 
+    layout: Literal["outline"] = "outline"
     active_index: int | None = None
 
 
 class BulletsContent(BaseModel):
     """要点页。"""
 
+    layout: Literal["bullets"] = "bullets"
     heading: str
     points: list[str]
     note: str | None = None
@@ -57,6 +61,7 @@ class BulletsContent(BaseModel):
 class FormulaContent(BaseModel):
     """公式页。"""
 
+    layout: Literal["formula"] = "formula"
     heading: str
     formula: str
     explanation: list[str]
@@ -65,16 +70,18 @@ class FormulaContent(BaseModel):
 class FigureContent(BaseModel):
     """图文页。"""
 
+    layout: Literal["figure"] = "figure"
     heading: str
     image_ref: str
     caption: str
     points: list[str]
-    layout: Literal["left_img", "right_img"] = "left_img"
+    image_position: Literal["left", "right"] = "left"
 
 
 class TableContent(BaseModel):
     """表格对比页。"""
 
+    layout: Literal["table"] = "table"
     heading: str
     headers: list[str]
     rows: list[list[str]]
@@ -84,6 +91,7 @@ class TableContent(BaseModel):
 class TwoColumnContent(BaseModel):
     """双栏对比页。"""
 
+    layout: Literal["two_column"] = "two_column"
     heading: str
     left_title: str
     left_points: list[str]
@@ -96,12 +104,15 @@ class TwoColumnContent(BaseModel):
 class SummaryContent(BaseModel):
     """总结页。"""
 
+    layout: Literal["summary"] = "summary"
     heading: str
     takeaways: list[str]
 
 
 class ReferencesContent(BaseModel):
     """参考文献页 — 从 Meta.references 自动生成。"""
+
+    layout: Literal["references"] = "references"
 
 
 SlideContent = (
