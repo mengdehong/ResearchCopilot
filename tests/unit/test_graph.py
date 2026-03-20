@@ -1,5 +1,9 @@
 """Supervisor 主图构建测试。"""
-from backend.agent.graph import WORKFLOW_NAMES, build_supervisor_graph
+import pytest
+from pydantic import ValidationError
+
+from backend.agent.graph import WORKFLOW_NAMES, _checkpoint_eval_node, build_supervisor_graph
+from backend.agent.state import ExecutionPlan, PlannedStep
 
 
 def test_build_supervisor_graph_compiles() -> None:
@@ -27,3 +31,22 @@ def test_supervisor_default_routes_to_end() -> None:
     })
     # placeholder supervisor 默认路由到 __end__
     assert result["routing_decision"] == "__end__"
+
+
+def test_checkpoint_advances_index_on_completion() -> None:
+    """完成最后一步时 current_step_index 应前进。"""
+    plan = ExecutionPlan(
+        goal="test",
+        steps=[PlannedStep(workflow="discovery", objective="find", success_criteria="found")],
+    )
+    state = {"plan": plan, "current_step_index": 0}
+    result = _checkpoint_eval_node(state)
+    assert result["routing_decision"] == "__end__"
+    assert result["current_step_index"] == 1
+
+
+def test_planned_step_rejects_invalid_workflow() -> None:
+    """PlannedStep.workflow 应拒绝无效的 workflow 名称。"""
+    with pytest.raises(ValidationError):
+        PlannedStep(workflow="typo", objective="x", success_criteria="y")
+

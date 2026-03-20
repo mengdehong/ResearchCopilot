@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from backend.agent.state import ExecutionPlan
+from backend.agent.state import ExecutionPlan, WorkflowName
 from backend.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -58,7 +58,7 @@ def apply_hard_rules(messages: list) -> str | None:
 class RouteDecision(BaseModel):
     """LLM 路由决策输出。"""
     mode: Literal["single", "plan"]
-    target_workflow: str | None = None
+    target_workflow: WorkflowName | None = None
     plan: ExecutionPlan | None = None
     reasoning: str
 
@@ -71,17 +71,17 @@ class StepEvaluation(BaseModel):
 
 
 def route_to_workflow(state: dict) -> str:
-    """根据 routing_decision 路由到目标 WF。"""
+    """根据 routing_decision 路由到目标 WF。无效名称抛出 ValueError。"""
     decision = state.get("routing_decision")
     if decision is None or decision == "__end__":
         return "__end__"
     if decision in VALID_WORKFLOWS:
         return decision
-    return "__end__"
+    raise ValueError(f"Invalid routing_decision: {decision!r}, valid: {sorted(VALID_WORKFLOWS)}")
 
 
 def route_after_eval(state: dict) -> str:
-    """检查点回评后的路由。"""
+    """检查点回评后的路由。无效名称抛出 ValueError。"""
     decision = state.get("routing_decision")
     if decision == "__end__":
         return "__end__"
@@ -89,4 +89,4 @@ def route_after_eval(state: dict) -> str:
         return "supervisor"
     if decision in VALID_WORKFLOWS:
         return decision
-    return "__end__"
+    raise ValueError(f"Invalid routing_decision: {decision!r}, valid: {sorted(VALID_WORKFLOWS)}")

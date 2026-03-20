@@ -49,7 +49,7 @@ def _checkpoint_eval_node(state: dict) -> dict:
         passed=True,
         reason="plan complete",
     )
-    return {"routing_decision": "__end__"}
+    return {"routing_decision": "__end__", "current_step_index": step_index + 1}
 
 
 WORKFLOW_NAMES = ["discovery", "extraction", "ideation", "execution", "critique", "publish"]

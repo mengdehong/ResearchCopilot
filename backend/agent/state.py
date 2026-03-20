@@ -1,8 +1,13 @@
 """Agent State 定义。SharedState 共享基座 + 各 WF 私有扩展。"""
-from typing import Annotated, TypedDict
+from typing import Annotated, Literal, TypedDict
 
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
+
+WorkflowName = Literal[
+    "discovery", "extraction", "ideation",
+    "execution", "critique", "publish",
+]
 
 # ── Reducer ──
 
@@ -30,7 +35,7 @@ class SharedState(TypedDict):
 # ── Supervisor State ──
 
 class PlannedStep(BaseModel):
-    workflow: str
+    workflow: WorkflowName
     objective: str
     success_criteria: str
 
