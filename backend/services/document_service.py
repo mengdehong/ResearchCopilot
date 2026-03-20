@@ -94,7 +94,13 @@ async def confirm_upload(
         raise UploadNotFoundError()
 
     await document_repo.update_parse_status(session, doc, "pending")
-    # TODO: trigger Celery parse task here
+
+    from backend.workers.celery_app import celery_app
+
+    celery_app.send_task(
+        "backend.workers.tasks.parse_document.run_parse_pipeline",
+        kwargs={"doc_id": str(doc.id)},
+    )
     return doc
 
 
