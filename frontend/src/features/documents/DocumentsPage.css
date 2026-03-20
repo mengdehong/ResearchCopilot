@@ -1,0 +1,86 @@
+.documents-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: var(--spacing-3xl);
+}
+
+.documents-page__header {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.documents-page__header h1 {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-xs);
+}
+
+.documents-page__loading,
+.documents-page__empty {
+    text-align: center;
+    padding: var(--spacing-3xl);
+    color: var(--color-text-muted);
+}
+
+/* ─── Dropzone ─── */
+.file-dropzone {
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-3xl);
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    margin-bottom: var(--spacing-2xl);
+}
+
+.file-dropzone:hover,
+.file-dropzone--active {
+    border-color: var(--color-accent);
+    background: var(--color-accent-subtle);
+}
+
+.file-dropzone__icon {
+    font-size: 2.5rem;
+    margin-bottom: var(--spacing-md);
+}
+
+/* ─── Document List ─── */
+.documents-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.document-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-lg);
+}
+
+.document-item__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.document-item__title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--spacing-xs);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.document-item__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-xs);
+}
+
+.document-item__actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-shrink: 0;
+    margin-left: var(--spacing-md);
+}

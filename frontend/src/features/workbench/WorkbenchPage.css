@@ -1,0 +1,33 @@
+.workbench-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.workbench-page__panels {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.workbench-page__chat {
+    min-width: 320px;
+    overflow: hidden;
+}
+
+.workbench-page__divider {
+    width: 4px;
+    background: var(--color-border);
+    cursor: col-resize;
+    transition: background var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.workbench-page__divider:hover {
+    background: var(--color-accent);
+}
+
+.workbench-page__canvas {
+    min-width: 320px;
+    overflow: hidden;
+}

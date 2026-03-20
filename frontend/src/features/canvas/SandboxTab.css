@@ -1,0 +1,22 @@
+.sandbox-tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.sandbox-tab__empty {
+    text-align: center;
+    color: var(--color-text-secondary);
+}
+
+.sandbox-tab__icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.sandbox-tab__empty h3 {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-sm);
+}
