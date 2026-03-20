@@ -77,6 +77,58 @@ export const en = {
         processing: 'Processing...',
         idle: 'Idle',
     },
+    auth: {
+        brand: {
+            title: 'Research Copilot',
+            slogan: 'Accelerate your research with AI-powered intelligence and seamless collaboration.',
+        },
+        continue_with: 'Continue with {{provider}}',
+        login_error: 'Failed to sign in. Please check your credentials.',
+        login: {
+            title: 'Welcome back',
+            subtitle: 'Sign in to your account',
+            submit: 'Sign in',
+        },
+        email: 'Email',
+        password: 'Password',
+        forgot_password_link: 'Forgot password?',
+        signing_in: 'Signing in...',
+        or_continue_with: 'Or continue with',
+        no_account: "Don't have an account?",
+        register_link: 'Sign up',
+        register: {
+            title: 'Create an account',
+            subtitle: 'Start your research journey today',
+            submit: 'Sign up',
+        },
+        display_name: 'Display Name',
+        signing_up: 'Signing up...',
+        have_account: 'Already have an account?',
+        login_link: 'Sign in',
+        verify: {
+            title: 'Verify your email',
+            verifying: 'Verifying your email...',
+            success: 'Email verified successfully!',
+            error: 'Verification failed. The link might be invalid or expired.',
+            back_to_login: 'Back to login',
+        },
+        forgot: {
+            title: 'Reset your password',
+            subtitle: 'Enter your email address to receive a password reset link',
+            submit: 'Send reset link',
+            sending: 'Sending...',
+            success: 'If an account exists, a reset link has been sent.',
+            error: 'Failed to send reset link.',
+        },
+        reset: {
+            title: 'Set new password',
+            subtitle: 'Please enter your new password',
+            submit: 'Reset password',
+            resetting: 'Resetting...',
+            success: 'Password reset successfully!',
+            error: 'Failed to reset password. The link might be invalid or expired.',
+        },
+    },
 } as const
 
 /** 递归将对象中所有字面量字符串类型展宽为 string。 */
