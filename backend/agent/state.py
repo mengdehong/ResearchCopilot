@@ -176,3 +176,5 @@ class PublishState(SharedState):
     user_edited_markdown: str | None  # Canvas 手改后回流的 Markdown
     citation_map: dict[str, str]
     output_files: list[str]
+    presentation_schema: dict | None  # PresentationSchema 序列化后的 dict
+    rendered_presentation: dict | None  # RenderedPresentation 序列化后的 dict

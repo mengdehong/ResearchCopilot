@@ -3,6 +3,7 @@
 import io
 import json
 import zipfile
+from pathlib import Path
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -10,10 +11,20 @@ from langgraph.types import interrupt
 from pydantic import BaseModel
 
 from backend.agent.prompts.loader import load_prompt
+from backend.agent.skills.ppt_generation.renderer.factory import create_renderer
+from backend.agent.skills.ppt_generation.schema import (
+    BulletsContent,
+    PresentationMeta,
+    PresentationSchema,
+    SlideSchema,
+)
 from backend.agent.state import OutlineSection, PublishState
 from backend.core.logger import get_logger
 
 logger = get_logger(__name__)
+
+TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "skills/ppt_generation/templates"
+PPT_OUTPUT_DIR = Path("/tmp/ppt_output")
 
 
 # ── LLM 输出结构 ──
@@ -134,17 +145,57 @@ def request_finalization(state: PublishState) -> dict:
 
 
 def render_presentation(state: PublishState) -> dict:
-    """渲染演示文稿。MVP 阶段生成 Markdown 报告。"""
+    """渲染演示文稿。从 Markdown 报告内容构建 PresentationSchema 并通过 Typst 渲染。"""
     markdown = state.get("markdown_content", "")
     output_files = list(state.get("output_files", []))
 
     if markdown:
         output_files.append("report.md")
-        logger.info("render_presentation", status="markdown", length=len(markdown))
-    else:
-        logger.info("render_presentation", status="empty")
 
-    return {"output_files": output_files}
+    # 构建简化 PresentationSchema 用于 PPT 渲染
+    outline = state.get("outline", [])
+    slides = [
+        SlideSchema(
+            id=f"s{i}",
+            layout="bullets",
+            section=section.title,
+            content=BulletsContent(
+                heading=section.title,
+                points=[section.description],
+            ),
+        )
+        for i, section in enumerate(outline)
+    ]
+    schema = PresentationSchema(
+        meta=PresentationMeta(
+            scene="paper_presentation",
+            title=outline[0].title if outline else "Research Report",
+            authors=["Research Copilot"],
+        ),
+        slides=slides,
+    )
+
+    # 渲染
+    renderer = create_renderer("typst")
+    template_dir = TEMPLATES_DIR / "typst" / "academic_blue"
+    result = renderer.render(schema, template_dir=template_dir, output_dir=PPT_OUTPUT_DIR)
+
+    if result.source_path:
+        output_files.append("presentation.typ")
+    if result.pdf_path:
+        output_files.append("presentation.pdf")
+
+    logger.info(
+        "render_presentation",
+        status="typst",
+        slide_count=result.slide_count,
+        pdf_available=result.pdf_path is not None,
+    )
+    return {
+        "output_files": output_files,
+        "presentation_schema": schema.model_dump(),
+        "rendered_presentation": result.model_dump(),
+    }
 
 
 def package_zip(state: PublishState) -> dict:
@@ -178,6 +229,7 @@ def write_artifacts(state: PublishState) -> dict:
                 "outline": [s.model_dump() for s in state.get("outline", [])],
                 "citation_map": state.get("citation_map", {}),
                 "output_files": state.get("output_files", []),
+                "presentation": state.get("rendered_presentation"),
             },
         },
     }

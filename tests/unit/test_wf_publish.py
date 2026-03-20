@@ -89,10 +89,26 @@ def test_request_finalization_reject_with_edit() -> None:
 # ── render_presentation ──
 
 
-def test_render_presentation_placeholder() -> None:
-    state = {"output_files": ["existing.pdf"]}
-    result = render_presentation(state)
-    assert result["output_files"] == ["existing.pdf"]
+def test_render_presentation_generates_typst(tmp_path: object) -> None:
+    from pathlib import Path
+
+    state = {
+        "output_files": [],
+        "markdown_content": "# Report",
+        "outline": [_make_section()],
+    }
+    import backend.agent.workflows.publish.nodes as nodes_mod
+
+    original_output_dir = nodes_mod.PPT_OUTPUT_DIR
+    nodes_mod.PPT_OUTPUT_DIR = Path(str(tmp_path))
+    try:
+        result = render_presentation(state)
+    finally:
+        nodes_mod.PPT_OUTPUT_DIR = original_output_dir
+
+    assert "presentation.typ" in result["output_files"]
+    assert result["presentation_schema"] is not None
+    assert result["rendered_presentation"] is not None
 
 
 # ── package_zip ──
