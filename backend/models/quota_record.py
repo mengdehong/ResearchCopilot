@@ -1,4 +1,5 @@
 """Token 消耗记录 ORM。"""
+
 import uuid
 
 from sqlalchemy import ForeignKey, Integer, Text
@@ -12,7 +13,9 @@ class QuotaRecord(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "quota_records"
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False,
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id"),
+        nullable=False,
     )
     run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     model_name: Mapped[str] = mapped_column(Text, nullable=False)

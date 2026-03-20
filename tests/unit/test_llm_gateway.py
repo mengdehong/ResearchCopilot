@@ -1,4 +1,5 @@
 """LLM Gateway 测试。"""
+
 import pytest
 
 from backend.services.llm_gateway import LLMGateway, LLMProvider

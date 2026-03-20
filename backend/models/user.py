@@ -1,4 +1,5 @@
-"""用户 ORM（同步自第三方 Auth）。"""
+"""用户 ORM (同步自第三方 Auth)。"""
+
 from sqlalchemy import Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column

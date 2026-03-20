@@ -1,4 +1,5 @@
 """结构化日志配置。基于 structlog, 支持 trace_id 串联请求链路、敏感字段脱敏。"""
+
 import logging
 import re
 import sys

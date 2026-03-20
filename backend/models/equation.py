@@ -1,4 +1,5 @@
 """数学公式 ORM。"""
+
 import uuid
 
 from pgvector.sqlalchemy import Vector
@@ -13,7 +14,9 @@ class Equation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "equations"
 
     document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False,
+        UUID(as_uuid=True),
+        ForeignKey("documents.id"),
+        nullable=False,
     )
     section_path: Mapped[str] = mapped_column(Text, nullable=False)
     latex_text: Mapped[str] = mapped_column(Text, nullable=False)

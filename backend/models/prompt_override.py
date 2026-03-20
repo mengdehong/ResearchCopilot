@@ -1,4 +1,5 @@
 """Prompt 覆盖层 ORM。"""
+
 from sqlalchemy import Boolean, Text
 from sqlalchemy.orm import Mapped, mapped_column
 

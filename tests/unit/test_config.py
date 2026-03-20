@@ -1,4 +1,5 @@
 """配置加载测试。"""
+
 from backend.core.config import Settings
 
 
@@ -24,4 +25,3 @@ def test_settings_s3_fields() -> None:
         s3_endpoint_url="http://localhost:9000",
     )
     assert settings.s3_endpoint_url == "http://localhost:9000"
-

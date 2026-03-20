@@ -1,4 +1,5 @@
 """全局配置加载。基于 Pydantic BaseSettings, 支持 .env 文件和环境变量。"""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -6,7 +7,9 @@ class Settings(BaseSettings):
     """应用全局配置。"""
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     # --- App ---

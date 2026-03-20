@@ -1,4 +1,5 @@
 """异常体系测试。"""
+
 from backend.core.exceptions import (
     AppError,
     ForbiddenError,

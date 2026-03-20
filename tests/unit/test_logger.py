@@ -1,4 +1,5 @@
 """Logger 测试。"""
+
 import logging
 
 import backend.core.logger as logger_module

@@ -1,4 +1,5 @@
 """数据库连接集成测试(需要运行中的 PostgreSQL)。"""
+
 import pytest
 from sqlalchemy import text
 

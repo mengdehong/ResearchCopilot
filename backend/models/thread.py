@@ -1,4 +1,5 @@
-"""对话 Thread ORM（本地镜像）。"""
+"""对话 Thread ORM (本地镜像)。"""
+
 import uuid
 
 from sqlalchemy import ForeignKey, Text
@@ -12,7 +13,9 @@ class Thread(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "threads"
 
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=False,
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id"),
+        nullable=False,
     )
     title: Mapped[str] = mapped_column(Text, server_default="New Thread", nullable=False)
     status: Mapped[str] = mapped_column(Text, server_default="creating", nullable=False)

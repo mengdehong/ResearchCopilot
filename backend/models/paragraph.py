@@ -1,4 +1,5 @@
-"""正文段落 ORM（RAG 证据级检索主力）。"""
+"""正文段落 ORM (RAG 证据级检索主力)。"""
+
 import uuid
 
 from pgvector.sqlalchemy import Vector
@@ -13,7 +14,9 @@ class Paragraph(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "paragraphs"
 
     document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False,
+        UUID(as_uuid=True),
+        ForeignKey("documents.id"),
+        nullable=False,
     )
     section_path: Mapped[str] = mapped_column(Text, nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
