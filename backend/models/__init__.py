@@ -10,6 +10,7 @@ from backend.models.paragraph import Paragraph
 from backend.models.prompt_override import PromptOverride
 from backend.models.quota_record import QuotaRecord
 from backend.models.reference import Reference
+from backend.models.refresh_token import RefreshToken
 from backend.models.run_snapshot import RunSnapshot
 from backend.models.section_heading import SectionHeading
 from backend.models.table import Table
@@ -28,6 +29,7 @@ __all__ = [
     "PromptOverride",
     "QuotaRecord",
     "Reference",
+    "RefreshToken",
     "RunSnapshot",
     "SectionHeading",
     "Table",

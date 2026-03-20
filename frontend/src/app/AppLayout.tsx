@@ -1,19 +1,9 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { getToken } from '@/lib/api'
+import { Outlet, NavLink } from 'react-router-dom'
 import { useTranslation } from '@/i18n/useTranslation'
-import { useEffect } from 'react'
 import './AppLayout.css'
 
 export default function AppLayout() {
-    const navigate = useNavigate()
-    const token = getToken()
     const { t } = useTranslation()
-
-    useEffect(() => {
-        if (!token) {
-            // MVP: no login page, just stay. In production would redirect to /login
-        }
-    }, [token, navigate])
 
     return (
         <div className="app-layout">
