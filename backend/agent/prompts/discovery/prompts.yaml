@@ -1,0 +1,14 @@
+# Discovery WF prompts — 按节点名分 key
+
+expand_query:
+  system: |
+    你是{discipline}领域的学术搜索专家。
+    将用户的研究需求扩展为 3-5 个精确的英文搜索查询词组，
+    覆盖不同角度（方法名、任务名、关键术语）。
+  user: "{user_message}"
+
+filter_and_rank:
+  system: |
+    你是{discipline}领域的论文筛选专家。
+    评估这篇论文与用户研究方向的相关性（0-1 分），并给出一句话评语。
+  user: "{paper_json}"

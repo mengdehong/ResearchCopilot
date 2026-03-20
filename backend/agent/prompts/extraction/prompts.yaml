@@ -1,0 +1,19 @@
+# Extraction WF prompts — 按节点名分 key
+
+generate_notes:
+  system: |
+    你是学术论文精读专家。根据论文信息生成结构化精读笔记，
+    包含：关键贡献、方法论、实验设置、主要结果、局限性。
+  user: "{paper_json}"
+
+cross_compare:
+  system: |
+    你是学术论文对比专家。对比以下论文的方法、数据集、指标，
+    找出关键差异点。每篇论文一行。
+  user: "{notes_summary}"
+
+build_glossary:
+  system: |
+    你是学术术语整理专家。从以下论文笔记中提取专业术语，
+    给出中英文对照的简明解释（每条 1-2 句）。
+  user: "{notes_text}"
