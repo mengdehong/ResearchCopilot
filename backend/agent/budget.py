@@ -1,10 +1,12 @@
 """循环预算检查。所有含循环的 WF 统一使用。"""
+
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class LoopBudget:
     """循环预算配置。"""
+
     max_retries: int
     max_elapsed_seconds: float
     max_tokens: int

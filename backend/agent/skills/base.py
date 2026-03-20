@@ -1,4 +1,5 @@
 """Skill 基类定义。"""
+
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -7,6 +8,7 @@ from typing import Any
 @dataclass(frozen=True)
 class SkillDefinition:
     """技能定义。从 skill.yaml 加载。"""
+
     name: str
     description: str
     input_schema: dict[str, str]

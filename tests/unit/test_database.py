@@ -15,7 +15,9 @@ def test_normalize_postgres_dsn_for_langgraph() -> None:
 
 
 @pytest.mark.asyncio
-async def test_setup_checkpointer_calls_async_postgres_saver_setup(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_setup_checkpointer_calls_async_postgres_saver_setup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """应创建 AsyncPostgresSaver 并执行 setup。"""
     captured: dict[str, object] = {}
 

@@ -1,4 +1,5 @@
 """Discovery WF 节点函数。寻源初筛：扩展查询 → 搜索 → 筛选排序 → HITL 勾选 → 触发 ingestion → 写 artifacts。"""
+
 import json
 
 from langchain_core.language_models import BaseChatModel
@@ -15,18 +16,22 @@ logger = get_logger(__name__)
 
 # ── LLM 输出结构 ──
 
+
 class ExpandedQueries(BaseModel):
     """LLM 扩展后的搜索查询列表。"""
+
     queries: list[str]
 
 
 class RelevanceComment(BaseModel):
     """LLM 对单篇论文的相关性评语。"""
+
     relevance_score: float
     relevance_comment: str
 
 
 # ── 节点函数 ──
+
 
 def expand_query(state: DiscoveryState, *, llm: BaseChatModel) -> dict:
     """LLM 扩展用户查询为多个搜索关键词。"""
@@ -38,14 +43,20 @@ def expand_query(state: DiscoveryState, *, llm: BaseChatModel) -> dict:
             break
 
     discipline = state.get("discipline", "")
-    prompt = load_prompt("discovery/prompts", key="expand_query", variables={
-        "discipline": discipline,
-        "user_message": user_message,
-    })
-    result = llm.with_structured_output(ExpandedQueries).invoke([
-        SystemMessage(content=prompt["system"]),
-        HumanMessage(content=prompt["user"]),
-    ])
+    prompt = load_prompt(
+        "discovery/prompts",
+        key="expand_query",
+        variables={
+            "discipline": discipline,
+            "user_message": user_message,
+        },
+    )
+    result = llm.with_structured_output(ExpandedQueries).invoke(
+        [
+            SystemMessage(content=prompt["system"]),
+            HumanMessage(content=prompt["user"]),
+        ]
+    )
 
     logger.info("expand_query_done", query_count=len(result.queries))
     return {"search_queries": result.queries}
@@ -70,7 +81,9 @@ def search_apis(state: DiscoveryState) -> dict:
 
 
 def filter_and_rank(
-    state: DiscoveryState, *, llm: BaseChatModel,
+    state: DiscoveryState,
+    *,
+    llm: BaseChatModel,
 ) -> dict:
     """去重 + LLM 生成 relevance_comment 填充 PaperCard 列表。"""
     raw_results = state.get("raw_results", [])
@@ -89,28 +102,39 @@ def filter_and_rank(
     candidate_papers: list[PaperCard] = []
     for paper in unique:
         try:
-            prompt = load_prompt("discovery/prompts", key="filter_and_rank", variables={
-                "discipline": discipline,
-                "paper_json": json.dumps({
-                    "title": paper.get("title", ""),
-                    "abstract": paper.get("abstract", ""),
-                }, ensure_ascii=False),
-            })
-            evaluation = llm.with_structured_output(RelevanceComment).invoke([
-                SystemMessage(content=prompt["system"]),
-                HumanMessage(content=prompt["user"]),
-            ])
-            candidate_papers.append(PaperCard(
-                arxiv_id=paper.get("arxiv_id", ""),
-                title=paper.get("title", ""),
-                authors=paper.get("authors", []),
-                abstract=paper.get("abstract", ""),
-                year=paper.get("year", 0),
-                citation_count=paper.get("citation_count"),
-                relevance_score=evaluation.relevance_score,
-                relevance_comment=evaluation.relevance_comment,
-                source=paper.get("source", "unknown"),
-            ))
+            prompt = load_prompt(
+                "discovery/prompts",
+                key="filter_and_rank",
+                variables={
+                    "discipline": discipline,
+                    "paper_json": json.dumps(
+                        {
+                            "title": paper.get("title", ""),
+                            "abstract": paper.get("abstract", ""),
+                        },
+                        ensure_ascii=False,
+                    ),
+                },
+            )
+            evaluation = llm.with_structured_output(RelevanceComment).invoke(
+                [
+                    SystemMessage(content=prompt["system"]),
+                    HumanMessage(content=prompt["user"]),
+                ]
+            )
+            candidate_papers.append(
+                PaperCard(
+                    arxiv_id=paper.get("arxiv_id", ""),
+                    title=paper.get("title", ""),
+                    authors=paper.get("authors", []),
+                    abstract=paper.get("abstract", ""),
+                    year=paper.get("year", 0),
+                    citation_count=paper.get("citation_count"),
+                    relevance_score=evaluation.relevance_score,
+                    relevance_comment=evaluation.relevance_comment,
+                    source=paper.get("source", "unknown"),
+                )
+            )
         except Exception:
             logger.warning("filter_rank_skip_paper", arxiv_id=paper.get("arxiv_id"))
             raise
@@ -129,20 +153,22 @@ def filter_and_rank(
 def present_candidates(state: DiscoveryState) -> dict:
     """独立 HITL 节点：展示候选论文列表，用户勾选要深读的论文。"""
     candidates = state.get("candidate_papers", [])
-    response = interrupt({
-        "action": "select_papers",
-        "candidates": [
-            {
-                "id": p.arxiv_id,
-                "title": p.title,
-                "abstract": p.abstract,
-                "year": p.year,
-                "relevance_score": p.relevance_score,
-                "relevance_comment": p.relevance_comment,
-            }
-            for p in candidates
-        ],
-    })
+    response = interrupt(
+        {
+            "action": "select_papers",
+            "candidates": [
+                {
+                    "id": p.arxiv_id,
+                    "title": p.title,
+                    "abstract": p.abstract,
+                    "year": p.year,
+                    "relevance_score": p.relevance_score,
+                    "relevance_comment": p.relevance_comment,
+                }
+                for p in candidates
+            ],
+        }
+    )
     selected_ids: list[str] = response.get("selected_ids", [])
     logger.info("present_candidates_done", selected_count=len(selected_ids))
     return {"selected_paper_ids": selected_ids}

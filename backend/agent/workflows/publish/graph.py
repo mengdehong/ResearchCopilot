@@ -1,4 +1,5 @@
 """Publish WF 子图编排。线性 + HITL：assemble_outline → generate_markdown → request_finalization → render_presentation → package_zip → write_artifacts。"""
+
 from functools import partial
 
 from langchain_core.language_models import BaseChatModel

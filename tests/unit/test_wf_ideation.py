@@ -1,4 +1,5 @@
 """Ideation WF 单元测试。"""
+
 from unittest.mock import MagicMock
 
 from backend.agent.state import ExperimentDesign, ResearchGap
@@ -47,6 +48,7 @@ def _make_design(**overrides: object) -> ExperimentDesign:
 
 # ── analyze_gaps ──
 
+
 def test_analyze_gaps_returns_gaps() -> None:
     gap = _make_gap()
     llm = _make_mock_llm([GapAnalysisResult(gaps=[gap])])
@@ -56,6 +58,7 @@ def test_analyze_gaps_returns_gaps() -> None:
 
 
 # ── generate_designs ──
+
 
 def test_generate_designs_returns_designs() -> None:
     design = _make_design()
@@ -69,6 +72,7 @@ def test_generate_designs_returns_designs() -> None:
 
 
 # ── select_design ──
+
 
 def test_select_design_returns_index() -> None:
     llm = _make_mock_llm([DesignSelection(selected_index=0, reasoning="best")])
@@ -85,6 +89,7 @@ def test_select_design_no_designs() -> None:
 
 # ── write_artifacts ──
 
+
 def test_ideation_write_artifacts() -> None:
     design = _make_design()
     state = {
@@ -99,6 +104,7 @@ def test_ideation_write_artifacts() -> None:
 
 
 # ── Subgraph 编译 ──
+
 
 def test_ideation_graph_compiles() -> None:
     llm = MagicMock()

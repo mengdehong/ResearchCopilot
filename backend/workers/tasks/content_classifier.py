@@ -2,6 +2,7 @@
 
 纯函数，不依赖数据库或外部服务。
 """
+
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -12,10 +13,16 @@ from backend.services.parser_engine import ParsedDocument
 _MAX_CHUNK_TOKENS = 1024
 
 # doc_summary 章节标题关键词 (小写匹配)
-_SUMMARY_SECTION_KEYWORDS = frozenset({
-    "abstract", "conclusion", "conclusions",
-    "discussion", "limitations", "summary",
-})
+_SUMMARY_SECTION_KEYWORDS = frozenset(
+    {
+        "abstract",
+        "conclusion",
+        "conclusions",
+        "discussion",
+        "limitations",
+        "summary",
+    }
+)
 
 # 句子结尾正则: 句号/问号/叹号 后跟空白
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
@@ -43,86 +50,102 @@ def classify_content(
 
     # --- Abstract 始终作为 doc_summary ---
     if parsed.abstract:
-        result.doc_summaries.append({
-            "document_id": doc_id,
-            "content_type": "abstract",
-            "content_text": parsed.abstract,
-        })
+        result.doc_summaries.append(
+            {
+                "document_id": doc_id,
+                "content_type": "abstract",
+                "content_text": parsed.abstract,
+            }
+        )
 
     # --- 章节处理 ---
     for section in parsed.sections:
         # 提取 section_heading 记录
-        result.section_headings.append({
-            "document_id": doc_id,
-            "heading_text": section.heading,
-            "level": section.level,
-            "page_number": section.page_numbers[0] if section.page_numbers else 0,
-        })
+        result.section_headings.append(
+            {
+                "document_id": doc_id,
+                "heading_text": section.heading,
+                "level": section.level,
+                "page_number": section.page_numbers[0] if section.page_numbers else 0,
+            }
+        )
 
         # 判断是否为摘要类章节
         heading_lower = section.heading.lower()
         section_keyword = _match_summary_keyword(heading_lower)
 
         if section_keyword:
-            result.doc_summaries.append({
-                "document_id": doc_id,
-                "content_type": section_keyword,
-                "content_text": section.content,
-            })
+            result.doc_summaries.append(
+                {
+                    "document_id": doc_id,
+                    "content_type": section_keyword,
+                    "content_text": section.content,
+                }
+            )
         else:
             # 普通章节 → paragraphs (可能需要切分)
             chunks = _split_into_chunks(section.content)
             for idx, chunk_text in enumerate(chunks):
-                result.paragraphs.append({
-                    "document_id": doc_id,
-                    "section_path": section.heading,
-                    "chunk_index": idx,
-                    "content_text": chunk_text,
-                    "page_numbers": section.page_numbers,
-                })
+                result.paragraphs.append(
+                    {
+                        "document_id": doc_id,
+                        "section_path": section.heading,
+                        "chunk_index": idx,
+                        "content_text": chunk_text,
+                        "page_numbers": section.page_numbers,
+                    }
+                )
 
     # --- 表格 ---
     for table in parsed.tables:
-        result.tables.append({
-            "document_id": doc_id,
-            "section_path": table.section_path,
-            "table_title": table.title,
-            "page_number": table.page_number,
-            "raw_data": table.raw_data,
-        })
+        result.tables.append(
+            {
+                "document_id": doc_id,
+                "section_path": table.section_path,
+                "table_title": table.title,
+                "page_number": table.page_number,
+                "raw_data": table.raw_data,
+            }
+        )
 
     # --- 图表 ---
     for figure in parsed.figures:
-        result.figures.append({
-            "document_id": doc_id,
-            "section_path": figure.section_path,
-            "caption_text": figure.caption,
-            "context_text": figure.context,
-            "image_path": figure.image_path,
-            "page_number": figure.page_number,
-        })
+        result.figures.append(
+            {
+                "document_id": doc_id,
+                "section_path": figure.section_path,
+                "caption_text": figure.caption,
+                "context_text": figure.context,
+                "image_path": figure.image_path,
+                "page_number": figure.page_number,
+            }
+        )
 
     # --- 公式 ---
     for equation in parsed.equations:
-        result.equations.append({
-            "document_id": doc_id,
-            "section_path": equation.section_path,
-            "latex_text": equation.latex,
-            "context_text": equation.context,
-            "equation_label": equation.label,
-            "page_number": equation.page_number,
-        })
+        result.equations.append(
+            {
+                "document_id": doc_id,
+                "section_path": equation.section_path,
+                "latex_text": equation.latex,
+                "context_text": equation.context,
+                "equation_label": equation.label,
+                "page_number": equation.page_number,
+            }
+        )
 
     # --- 参考文献 ---
     for idx, ref in enumerate(parsed.references):
-        result.references.append({
-            "document_id": doc_id,
-            "ref_index": idx,
-            "ref_title": ref.get("title", ""),
-            "ref_authors": ref.get("authors"),
-            "ref_year": _safe_int(ref.get("year")),
-            "ref_doi": ref.get("doi"),
-        })
+        result.references.append(
+            {
+                "document_id": doc_id,
+                "ref_index": idx,
+                "ref_title": ref.get("title", ""),
+                "ref_authors": ref.get("authors"),
+                "ref_year": _safe_int(ref.get("year")),
+                "ref_doi": ref.get("doi"),
+            }
+        )
 
     return result
 

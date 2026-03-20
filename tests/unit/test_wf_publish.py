@@ -1,4 +1,5 @@
 """Publish WF 单元测试。"""
+
 from unittest.mock import MagicMock, patch
 
 from backend.agent.state import OutlineSection
@@ -35,6 +36,7 @@ def _make_section(**overrides: object) -> OutlineSection:
 
 # ── assemble_outline ──
 
+
 def test_assemble_outline_returns_sections() -> None:
     section = _make_section()
     llm = _make_mock_llm([OutlineResult(sections=[section])])
@@ -45,10 +47,13 @@ def test_assemble_outline_returns_sections() -> None:
 
 # ── generate_markdown ──
 
+
 def test_generate_markdown_returns_content() -> None:
-    llm = _make_mock_llm([
-        MarkdownReport(content="# Report\ncontent", citation_map={"1": "paper1"}),
-    ])
+    llm = _make_mock_llm(
+        [
+            MarkdownReport(content="# Report\ncontent", citation_map={"1": "paper1"}),
+        ]
+    )
     state = {
         "outline": [_make_section()],
         "artifacts": {"extraction": {}, "ideation": {}, "execution": {}},
@@ -59,6 +64,7 @@ def test_generate_markdown_returns_content() -> None:
 
 
 # ── request_finalization (HITL) ──
+
 
 def test_request_finalization_approve() -> None:
     state = {"markdown_content": "# Report", "outline": [_make_section()]}
@@ -82,6 +88,7 @@ def test_request_finalization_reject_with_edit() -> None:
 
 # ── render_presentation ──
 
+
 def test_render_presentation_placeholder() -> None:
     state = {"output_files": ["existing.pdf"]}
     result = render_presentation(state)
@@ -90,6 +97,7 @@ def test_render_presentation_placeholder() -> None:
 
 # ── package_zip ──
 
+
 def test_package_zip_adds_report() -> None:
     state = {"markdown_content": "# Report", "output_files": []}
     result = package_zip(state)
@@ -97,6 +105,7 @@ def test_package_zip_adds_report() -> None:
 
 
 # ── write_artifacts ──
+
 
 def test_publish_write_artifacts() -> None:
     state = {
@@ -112,6 +121,7 @@ def test_publish_write_artifacts() -> None:
 
 
 # ── Subgraph 编译 ──
+
 
 def test_publish_graph_compiles() -> None:
     llm = MagicMock()

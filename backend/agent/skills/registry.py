@@ -1,4 +1,5 @@
 """Skill 注册中心。发现、注册和调度技能。"""
+
 from backend.agent.skills.base import SkillDefinition
 from backend.core.logger import get_logger
 

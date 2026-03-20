@@ -62,6 +62,7 @@ asyncio_mode = "auto"
 markers = [
     "unit: Unit tests",
     "integration: Integration tests (require external services)",
+    "e2e: End-to-end tests (require full Docker Compose stack)",
 ]
 
 [tool.mypy]

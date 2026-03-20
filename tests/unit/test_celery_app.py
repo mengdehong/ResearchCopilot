@@ -1,4 +1,5 @@
 """Celery 应用配置单元测试。"""
+
 import structlog
 
 

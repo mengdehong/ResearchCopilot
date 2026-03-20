@@ -1,4 +1,5 @@
 """RAG 检索引擎。向量+关键词混合检索、RRF 融合、Reranker 精排。"""
+
 import asyncio
 import time
 import uuid
@@ -288,10 +289,7 @@ class RAGEngine:
                 "limit": query.top_k_coarse,
             },
         )
-        return [
-            self._map_row_to_chunk(row=row, target=target)
-            for row in result.fetchall()
-        ]
+        return [self._map_row_to_chunk(row=row, target=target) for row in result.fetchall()]
 
     async def _keyword_search_target(
         self,
@@ -332,10 +330,7 @@ class RAGEngine:
                 "limit": query.top_k_coarse,
             },
         )
-        return [
-            self._map_row_to_chunk(row=row, target=target)
-            for row in result.fetchall()
-        ]
+        return [self._map_row_to_chunk(row=row, target=target) for row in result.fetchall()]
 
     def _rerank(
         self,
@@ -347,11 +342,7 @@ class RAGEngine:
         if not chunks:
             return []
         reranker = self._get_reranker()
-        scores = list(
-            reranker.predict(
-                [(query_text, chunk.content_text) for chunk in chunks]
-            )
-        )
+        scores = list(reranker.predict([(query_text, chunk.content_text) for chunk in chunks]))
         reranked = sorted(
             [
                 replace(chunk, score=float(score))

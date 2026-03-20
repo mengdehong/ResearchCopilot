@@ -1,4 +1,5 @@
 """Critique WF 子图编排。Send() 并行 fan-out：supporter + critic → judge → write_artifacts。"""
+
 from functools import partial
 
 from langchain_core.language_models import BaseChatModel

@@ -1,4 +1,5 @@
 """Discovery WF 子图编排。线性 + HITL：expand_query → search_apis → filter_and_rank → present_candidates → trigger_ingestion → write_artifacts。"""
+
 from functools import partial
 
 from langchain_core.language_models import BaseChatModel

@@ -1,15 +1,21 @@
 """Agent State 定义。SharedState 共享基座 + 各 WF 私有扩展。"""
+
 from typing import Annotated, Literal, TypedDict
 
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
 WorkflowName = Literal[
-    "discovery", "extraction", "ideation",
-    "execution", "critique", "publish",
+    "discovery",
+    "extraction",
+    "ideation",
+    "execution",
+    "critique",
+    "publish",
 ]
 
 # ── Reducer ──
+
 
 def merge_dicts(left: dict, right: dict) -> dict:
     """深度合并字典，右侧覆盖同名 key。"""
@@ -24,8 +30,10 @@ def merge_dicts(left: dict, right: dict) -> dict:
 
 # ── SharedState ──
 
+
 class SharedState(TypedDict):
     """所有图的共享基座。只包含 4 个字段，永不扩充。"""
+
     messages: Annotated[list, add_messages]
     workspace_id: str
     discipline: str
@@ -33,6 +41,7 @@ class SharedState(TypedDict):
 
 
 # ── Supervisor State ──
+
 
 class PlannedStep(BaseModel):
     workflow: WorkflowName
@@ -52,6 +61,7 @@ class SupervisorState(SharedState):
 
 
 # ── Workflow States ──
+
 
 class PaperCard(BaseModel):
     arxiv_id: str

@@ -1,4 +1,5 @@
 """Supervisor 路由逻辑。硬规则门禁 + LLM 路由 + 检查点回评。"""
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
@@ -10,15 +11,22 @@ from backend.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-VALID_WORKFLOWS = frozenset({
-    "discovery", "extraction", "ideation",
-    "execution", "critique", "publish",
-})
+VALID_WORKFLOWS = frozenset(
+    {
+        "discovery",
+        "extraction",
+        "ideation",
+        "execution",
+        "critique",
+        "publish",
+    }
+)
 
 
 @dataclass(frozen=True)
 class HardRule:
     """硬规则：模式匹配 → 直达目标 WF。"""
+
     name: str
     match: Callable[[list], bool]
     target: str
@@ -57,6 +65,7 @@ def apply_hard_rules(messages: list) -> str | None:
 
 class RouteDecision(BaseModel):
     """LLM 路由决策输出。"""
+
     mode: Literal["single", "plan"]
     target_workflow: WorkflowName | None = None
     plan: ExecutionPlan | None = None
@@ -65,6 +74,7 @@ class RouteDecision(BaseModel):
 
 class StepEvaluation(BaseModel):
     """检查点回评结果。"""
+
     passed: bool
     reason: str
     suggestion: str | None = None

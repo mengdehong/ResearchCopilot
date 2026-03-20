@@ -1,4 +1,5 @@
 """Ideation WF 子图编排。线性：analyze_gaps → generate_designs → select_design → write_artifacts。"""
+
 from functools import partial
 
 from langchain_core.language_models import BaseChatModel

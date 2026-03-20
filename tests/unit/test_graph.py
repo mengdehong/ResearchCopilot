@@ -1,4 +1,5 @@
 """Supervisor 主图构建测试。"""
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,9 +17,14 @@ def _make_mock_llm(responses: list | None = None) -> MagicMock:
     if responses:
         structured.invoke = MagicMock(side_effect=responses)
     else:
-        structured.invoke = MagicMock(return_value=RouteDecision(
-            mode="single", target_workflow=None, plan=None, reasoning="end",
-        ))
+        structured.invoke = MagicMock(
+            return_value=RouteDecision(
+                mode="single",
+                target_workflow=None,
+                plan=None,
+                reasoning="end",
+            )
+        )
     llm.with_structured_output = MagicMock(return_value=structured)
     return llm
 
@@ -36,20 +42,24 @@ def test_build_supervisor_graph_compiles() -> None:
 
 def test_supervisor_routes_to_end_with_none_target() -> None:
     """Supervisor LLM 返回 mode=single target=None → 路由到 __end__。"""
-    llm = _make_mock_llm([
-        RouteDecision(mode="single", target_workflow=None, plan=None, reasoning="done"),
-    ])
+    llm = _make_mock_llm(
+        [
+            RouteDecision(mode="single", target_workflow=None, plan=None, reasoning="done"),
+        ]
+    )
     graph = build_supervisor_graph(llm=llm)
     compiled = graph.compile()
-    result = compiled.invoke({
-        "messages": [],
-        "workspace_id": "test",
-        "discipline": "cs",
-        "artifacts": {},
-        "plan": None,
-        "current_step_index": 0,
-        "routing_decision": None,
-    })
+    result = compiled.invoke(
+        {
+            "messages": [],
+            "workspace_id": "test",
+            "discipline": "cs",
+            "artifacts": {},
+            "plan": None,
+            "current_step_index": 0,
+            "routing_decision": None,
+        }
+    )
     assert result["routing_decision"] == "__end__"
 
 

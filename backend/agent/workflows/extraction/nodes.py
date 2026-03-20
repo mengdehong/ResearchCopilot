@@ -1,4 +1,5 @@
 """Extraction WF 节点函数。深度精读：等待 RAG → 增量检查 → 检索 → 生成笔记 → 跨文档对比 → 术语表 → 写 artifacts。"""
+
 import json
 
 from langchain_core.language_models import BaseChatModel
@@ -14,8 +15,10 @@ logger = get_logger(__name__)
 
 # ── LLM 输出结构 ──
 
+
 class GeneratedNote(BaseModel):
     """LLM 生成的单篇精读笔记。"""
+
     key_contributions: list[str]
     methodology: str
     experimental_setup: str
@@ -25,15 +28,18 @@ class GeneratedNote(BaseModel):
 
 class ComparisonResult(BaseModel):
     """LLM 跨文档对比结果。"""
+
     entries: list[ComparisonEntry]
 
 
 class GlossaryResult(BaseModel):
     """LLM 生成的术语表。"""
+
     terms: dict[str, str]
 
 
 # ── 节点函数 ──
+
 
 def wait_rag_ready(state: ExtractionState) -> dict:
     """检查上游 Discovery 产出是否就绪。
@@ -77,7 +83,9 @@ def retrieve_chunks(state: ExtractionState) -> dict:
 
 
 def generate_notes(
-    state: ExtractionState, *, llm: BaseChatModel,
+    state: ExtractionState,
+    *,
+    llm: BaseChatModel,
 ) -> dict:
     """LLM 为每篇论文生成结构化精读笔记。"""
     paper_ids = state.get("paper_ids", [])
@@ -90,33 +98,47 @@ def generate_notes(
     notes: list[ReadingNote] = list(state.get("reading_notes", []))
     for paper_id in paper_ids:
         paper_info = paper_map.get(paper_id, {})
-        note_data = llm.with_structured_output(GeneratedNote).invoke([
-            SystemMessage(content=load_prompt(
-                "extraction/prompts", key="generate_notes",
-                variables={"paper_json": ""},
-            )["system"]),
-            HumanMessage(content=json.dumps({
-                "paper_id": paper_id,
-                "title": paper_info.get("title", ""),
-                "abstract": paper_info.get("abstract", ""),
-            }, ensure_ascii=False)),
-        ])
-        notes.append(ReadingNote(
-            paper_id=paper_id,
-            key_contributions=note_data.key_contributions,
-            methodology=note_data.methodology,
-            experimental_setup=note_data.experimental_setup,
-            main_results=note_data.main_results,
-            limitations=note_data.limitations,
-            source_chunks=[],  # 占位，后续接入 RAG 填充
-        ))
+        note_data = llm.with_structured_output(GeneratedNote).invoke(
+            [
+                SystemMessage(
+                    content=load_prompt(
+                        "extraction/prompts",
+                        key="generate_notes",
+                        variables={"paper_json": ""},
+                    )["system"]
+                ),
+                HumanMessage(
+                    content=json.dumps(
+                        {
+                            "paper_id": paper_id,
+                            "title": paper_info.get("title", ""),
+                            "abstract": paper_info.get("abstract", ""),
+                        },
+                        ensure_ascii=False,
+                    )
+                ),
+            ]
+        )
+        notes.append(
+            ReadingNote(
+                paper_id=paper_id,
+                key_contributions=note_data.key_contributions,
+                methodology=note_data.methodology,
+                experimental_setup=note_data.experimental_setup,
+                main_results=note_data.main_results,
+                limitations=note_data.limitations,
+                source_chunks=[],  # 占位，后续接入 RAG 填充
+            )
+        )
 
     logger.info("generate_notes_done", note_count=len(notes))
     return {"reading_notes": notes}
 
 
 def cross_compare(
-    state: ExtractionState, *, llm: BaseChatModel,
+    state: ExtractionState,
+    *,
+    llm: BaseChatModel,
 ) -> dict:
     """LLM 跨文档对比，输出 ComparisonEntry 列表。"""
     notes = state.get("reading_notes", [])
@@ -125,39 +147,59 @@ def cross_compare(
         return {"comparison_matrix": []}
 
     notes_summary = json.dumps(
-        [{"paper_id": n.paper_id, "methodology": n.methodology,
-          "main_results": n.main_results} for n in notes],
+        [
+            {"paper_id": n.paper_id, "methodology": n.methodology, "main_results": n.main_results}
+            for n in notes
+        ],
         ensure_ascii=False,
     )
-    result = llm.with_structured_output(ComparisonResult).invoke([
-        SystemMessage(content=load_prompt(
-            "extraction/prompts", key="cross_compare",
-            variables={"notes_summary": ""},
-        )["system"]),
-        HumanMessage(content=notes_summary),
-    ])
+    result = llm.with_structured_output(ComparisonResult).invoke(
+        [
+            SystemMessage(
+                content=load_prompt(
+                    "extraction/prompts",
+                    key="cross_compare",
+                    variables={"notes_summary": ""},
+                )["system"]
+            ),
+            HumanMessage(content=notes_summary),
+        ]
+    )
 
     logger.info("cross_compare_done", entry_count=len(result.entries))
     return {"comparison_matrix": result.entries}
 
 
 def build_glossary(
-    state: ExtractionState, *, llm: BaseChatModel,
+    state: ExtractionState,
+    *,
+    llm: BaseChatModel,
 ) -> dict:
     """LLM 从精读笔记中构建术语表。"""
     notes = state.get("reading_notes", [])
     notes_text = json.dumps(
-        [{"paper_id": n.paper_id, "key_contributions": n.key_contributions,
-          "methodology": n.methodology} for n in notes],
+        [
+            {
+                "paper_id": n.paper_id,
+                "key_contributions": n.key_contributions,
+                "methodology": n.methodology,
+            }
+            for n in notes
+        ],
         ensure_ascii=False,
     )
-    result = llm.with_structured_output(GlossaryResult).invoke([
-        SystemMessage(content=load_prompt(
-            "extraction/prompts", key="build_glossary",
-            variables={"notes_text": ""},
-        )["system"]),
-        HumanMessage(content=notes_text),
-    ])
+    result = llm.with_structured_output(GlossaryResult).invoke(
+        [
+            SystemMessage(
+                content=load_prompt(
+                    "extraction/prompts",
+                    key="build_glossary",
+                    variables={"notes_text": ""},
+                )["system"]
+            ),
+            HumanMessage(content=notes_text),
+        ]
+    )
 
     logger.info("build_glossary_done", term_count=len(result.terms))
     return {"glossary": result.terms}

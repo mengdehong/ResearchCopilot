@@ -1,4 +1,5 @@
 """Routing 逻辑测试。"""
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -37,4 +38,3 @@ def test_route_after_eval_replan() -> None:
 def test_route_after_eval_invalid_raises() -> None:
     with pytest.raises(ValueError, match="Invalid routing_decision"):
         route_after_eval({"routing_decision": "typo"})
-

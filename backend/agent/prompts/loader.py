@@ -1,4 +1,5 @@
 """Prompt 加载器。YAML 基线 + DB 覆盖层。"""
+
 from pathlib import Path
 
 import yaml
@@ -47,4 +48,3 @@ def load_prompt(
         "system": system_template.format(**variables) if variables else system_template,
         "user": user_template.format(**variables) if variables else user_template,
     }
-

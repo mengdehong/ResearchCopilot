@@ -1,4 +1,5 @@
 """文档解析 Celery 任务。四阶段管道: 解析→分类→LLM增强→Embedding入库。"""
+
 import time
 import uuid
 from collections.abc import Awaitable, Callable

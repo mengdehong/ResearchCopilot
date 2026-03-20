@@ -1,4 +1,5 @@
 """PostgreSQL 异步数据库引擎、Session 工厂与 LangGraph checkpointer 支点。"""
+
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
@@ -18,7 +19,11 @@ if TYPE_CHECKING:
 def create_engine(database_url: str, *, echo: bool = False) -> AsyncEngine:
     """创建 SQLAlchemy 异步引擎。"""
     return create_async_engine(
-        database_url, echo=echo, pool_size=20, max_overflow=10, pool_pre_ping=True,
+        database_url,
+        echo=echo,
+        pool_size=20,
+        max_overflow=10,
+        pool_pre_ping=True,
     )
 
 

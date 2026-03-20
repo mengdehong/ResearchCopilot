@@ -1,4 +1,5 @@
 """Execution WF 单元测试。"""
+
 from unittest.mock import MagicMock, patch
 
 from backend.agent.state import SandboxExecutionResult
@@ -36,6 +37,7 @@ def _make_exec_result(exit_code: int = 0, **overrides: object) -> SandboxExecuti
 
 # ── generate_code ──
 
+
 def test_generate_code_returns_code() -> None:
     llm = _make_mock_llm([GeneratedCode(code="print('hi')", description="test")])
     state = {
@@ -49,6 +51,7 @@ def test_generate_code_returns_code() -> None:
 
 # ── execute_sandbox ──
 
+
 def test_execute_sandbox_returns_result() -> None:
     state = {"generated_code": "print('hi')", "elapsed_seconds": 0.0}
     result = execute_sandbox(state)
@@ -56,6 +59,7 @@ def test_execute_sandbox_returns_result() -> None:
 
 
 # ── route_execution_result ──
+
 
 def test_route_success() -> None:
     state = {"execution_result": _make_exec_result(exit_code=0)}
@@ -89,14 +93,17 @@ def test_route_no_result() -> None:
 
 # ── reflect_and_retry ──
 
+
 def test_reflect_and_retry_increments_count() -> None:
-    llm = _make_mock_llm([
-        ReflectionResult(
-            root_cause="syntax error",
-            fix_strategy="fix syntax",
-            revised_code="print('fixed')",
-        ),
-    ])
+    llm = _make_mock_llm(
+        [
+            ReflectionResult(
+                root_cause="syntax error",
+                fix_strategy="fix syntax",
+                revised_code="print('fixed')",
+            ),
+        ]
+    )
     state = {
         "execution_result": _make_exec_result(exit_code=1, stderr="SyntaxError"),
         "generated_code": "broken code",
@@ -108,6 +115,7 @@ def test_reflect_and_retry_increments_count() -> None:
 
 
 # ── write_artifacts ──
+
 
 def test_execution_write_artifacts_success() -> None:
     state = {
@@ -131,6 +139,7 @@ def test_execution_write_artifacts_failure() -> None:
 
 # ── request_confirmation (HITL) ──
 
+
 def test_request_confirmation_calls_interrupt() -> None:
     state = {"generated_code": "code", "task_description": "task"}
     with patch(
@@ -138,11 +147,13 @@ def test_request_confirmation_calls_interrupt() -> None:
         return_value=None,
     ):
         from backend.agent.workflows.execution.nodes import request_confirmation
+
         result = request_confirmation(state)
         assert result == {}
 
 
 # ── Subgraph 编译 ──
+
 
 def test_execution_graph_compiles() -> None:
     llm = MagicMock()

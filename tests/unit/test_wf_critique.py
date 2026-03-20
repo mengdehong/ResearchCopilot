@@ -1,4 +1,5 @@
 """Critique WF 单元测试。"""
+
 from unittest.mock import MagicMock
 
 from backend.agent.state import CritiqueFeedback
@@ -24,10 +25,13 @@ def _make_mock_llm(responses: list) -> MagicMock:
 
 # ── supporter_review ──
 
+
 def test_supporter_review_returns_opinion() -> None:
-    llm = _make_mock_llm([
-        SupporterReview(opinion="Strong methodology", strengths=["s1"]),
-    ])
+    llm = _make_mock_llm(
+        [
+            SupporterReview(opinion="Strong methodology", strengths=["s1"]),
+        ]
+    )
     state = {
         "target_workflow": "extraction",
         "artifacts": {"extraction": {"notes": "good notes"}},
@@ -38,10 +42,13 @@ def test_supporter_review_returns_opinion() -> None:
 
 # ── critic_review ──
 
+
 def test_critic_review_returns_opinion() -> None:
-    llm = _make_mock_llm([
-        CriticReview(opinion="Missing ablation study", weaknesses=["w1"]),
-    ])
+    llm = _make_mock_llm(
+        [
+            CriticReview(opinion="Missing ablation study", weaknesses=["w1"]),
+        ]
+    )
     state = {
         "target_workflow": "extraction",
         "artifacts": {"extraction": {"notes": "notes"}},
@@ -52,10 +59,13 @@ def test_critic_review_returns_opinion() -> None:
 
 # ── judge_verdict ──
 
+
 def test_judge_verdict_pass() -> None:
-    llm = _make_mock_llm([
-        JudgeVerdict(verdict="pass", feedbacks=[], summary="All good"),
-    ])
+    llm = _make_mock_llm(
+        [
+            JudgeVerdict(verdict="pass", feedbacks=[], summary="All good"),
+        ]
+    )
     state = {
         "target_workflow": "extraction",
         "supporter_opinion": "good",
@@ -68,13 +78,16 @@ def test_judge_verdict_pass() -> None:
 
 def test_judge_verdict_revise() -> None:
     feedback = CritiqueFeedback(
-        category="methodology", severity="major",
+        category="methodology",
+        severity="major",
         description="Missing baseline comparison",
         suggestion="Add ablation study",
     )
-    llm = _make_mock_llm([
-        JudgeVerdict(verdict="revise", feedbacks=[feedback], summary="Needs work"),
-    ])
+    llm = _make_mock_llm(
+        [
+            JudgeVerdict(verdict="revise", feedbacks=[feedback], summary="Needs work"),
+        ]
+    )
     state = {
         "target_workflow": "ideation",
         "supporter_opinion": "ok",
@@ -87,10 +100,13 @@ def test_judge_verdict_revise() -> None:
 
 # ── write_artifacts ──
 
+
 def test_critique_write_artifacts_structure() -> None:
     feedback = CritiqueFeedback(
-        category="logic", severity="minor",
-        description="test", suggestion="fix",
+        category="logic",
+        severity="minor",
+        description="test",
+        suggestion="fix",
     )
     state = {
         "target_workflow": "extraction",
@@ -107,6 +123,7 @@ def test_critique_write_artifacts_structure() -> None:
 
 
 # ── Subgraph 编译 ──
+
 
 def test_critique_graph_compiles() -> None:
     llm = MagicMock()

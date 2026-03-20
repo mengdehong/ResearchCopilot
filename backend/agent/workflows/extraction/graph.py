@@ -1,4 +1,5 @@
 """Extraction WF 子图编排。线性：wait_rag_ready → check_existing_notes → retrieve_chunks → generate_notes → cross_compare → build_glossary → write_artifacts。"""
+
 from functools import partial
 
 from langchain_core.language_models import BaseChatModel

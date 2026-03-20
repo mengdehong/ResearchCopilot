@@ -1,7 +1,6 @@
 """内容分类器单元测试。将 ParsedDocument 拆分为按 ORM 类型分类的记录列表。"""
-import uuid
 
-import pytest
+import uuid
 
 from backend.services.parser_engine import (
     ParsedDocument,
@@ -36,6 +35,7 @@ def _make_parsed_doc(
 
 # --- 导入测试目标 ---
 
+
 def test_classify_returns_classified_content() -> None:
     """classify_content 应返回 ClassifiedContent dataclass。"""
     from backend.workers.tasks.content_classifier import (
@@ -66,9 +66,13 @@ def test_conclusion_section_classified_as_doc_summary() -> None:
     """标题含 'conclusion' 的章节应归入 doc_summary。"""
     from backend.workers.tasks.content_classifier import classify_content
 
-    parsed = _make_parsed_doc(sections=[
-        ParsedSection(heading="5. Conclusion", level=1, content="We showed that...", page_numbers=[10]),
-    ])
+    parsed = _make_parsed_doc(
+        sections=[
+            ParsedSection(
+                heading="5. Conclusion", level=1, content="We showed that...", page_numbers=[10]
+            ),
+        ]
+    )
     result = classify_content(parsed, DOC_ID)
 
     conclusions = [s for s in result.doc_summaries if s["content_type"] == "conclusion"]
@@ -80,9 +84,13 @@ def test_discussion_section_classified_as_doc_summary() -> None:
     """标题含 'discussion' 的章节应归入 doc_summary。"""
     from backend.workers.tasks.content_classifier import classify_content
 
-    parsed = _make_parsed_doc(sections=[
-        ParsedSection(heading="Discussion", level=1, content="Our results...", page_numbers=[8]),
-    ])
+    parsed = _make_parsed_doc(
+        sections=[
+            ParsedSection(
+                heading="Discussion", level=1, content="Our results...", page_numbers=[8]
+            ),
+        ]
+    )
     result = classify_content(parsed, DOC_ID)
 
     discussions = [s for s in result.doc_summaries if s["content_type"] == "discussion"]
@@ -93,9 +101,13 @@ def test_regular_section_classified_as_paragraph() -> None:
     """普通章节应被切分为 paragraphs。"""
     from backend.workers.tasks.content_classifier import classify_content
 
-    parsed = _make_parsed_doc(sections=[
-        ParsedSection(heading="3. Methods", level=1, content="We used method A.", page_numbers=[5]),
-    ])
+    parsed = _make_parsed_doc(
+        sections=[
+            ParsedSection(
+                heading="3. Methods", level=1, content="We used method A.", page_numbers=[5]
+            ),
+        ]
+    )
     result = classify_content(parsed, DOC_ID)
 
     assert len(result.paragraphs) >= 1
@@ -112,9 +124,13 @@ def test_long_paragraph_split_at_sentence_boundary() -> None:
     sentences = [f"This is sentence number {i} with some extra words." for i in range(200)]
     long_content = " ".join(sentences)
 
-    parsed = _make_parsed_doc(sections=[
-        ParsedSection(heading="Long Section", level=1, content=long_content, page_numbers=[1, 2]),
-    ])
+    parsed = _make_parsed_doc(
+        sections=[
+            ParsedSection(
+                heading="Long Section", level=1, content=long_content, page_numbers=[1, 2]
+            ),
+        ]
+    )
     result = classify_content(parsed, DOC_ID)
 
     # 应被分成多个 chunk
@@ -131,9 +147,13 @@ def test_tables_classified() -> None:
     """tables 应被正确映射为表格记录。"""
     from backend.workers.tasks.content_classifier import classify_content
 
-    parsed = _make_parsed_doc(tables=[
-        ParsedTable(title="Table 1", raw_data={"rows": [["a"]]}, page_number=3, section_path="Results"),
-    ])
+    parsed = _make_parsed_doc(
+        tables=[
+            ParsedTable(
+                title="Table 1", raw_data={"rows": [["a"]]}, page_number=3, section_path="Results"
+            ),
+        ]
+    )
     result = classify_content(parsed, DOC_ID)
 
     assert len(result.tables) == 1
@@ -146,9 +166,17 @@ def test_figures_classified() -> None:
     """figures 应被正确映射为图表记录。"""
     from backend.workers.tasks.content_classifier import classify_content
 
-    parsed = _make_parsed_doc(figures=[
-        ParsedFigure(caption="Figure 1", image_path="/img/1.png", context="Shows X", page_number=4, section_path="Results"),
-    ])
+    parsed = _make_parsed_doc(
+        figures=[
+            ParsedFigure(
+                caption="Figure 1",
+                image_path="/img/1.png",
+                context="Shows X",
+                page_number=4,
+                section_path="Results",
+            ),
+        ]
+    )
     result = classify_content(parsed, DOC_ID)
 
     assert len(result.figures) == 1
@@ -160,9 +188,13 @@ def test_equations_classified() -> None:
     """equations 应被正确映射为公式记录。"""
     from backend.workers.tasks.content_classifier import classify_content
 
-    parsed = _make_parsed_doc(equations=[
-        ParsedEquation(latex="E=mc^2", context="energy", label="eq1", page_number=2, section_path="Theory"),
-    ])
+    parsed = _make_parsed_doc(
+        equations=[
+            ParsedEquation(
+                latex="E=mc^2", context="energy", label="eq1", page_number=2, section_path="Theory"
+            ),
+        ]
+    )
     result = classify_content(parsed, DOC_ID)
 
     assert len(result.equations) == 1
@@ -174,9 +206,11 @@ def test_references_classified() -> None:
     """references 应被映射为引用记录列表。"""
     from backend.workers.tasks.content_classifier import classify_content
 
-    parsed = _make_parsed_doc(references=[
-        {"title": "Paper A", "authors": "Smith et al.", "year": "2024", "doi": "10.1234/a"},
-    ])
+    parsed = _make_parsed_doc(
+        references=[
+            {"title": "Paper A", "authors": "Smith et al.", "year": "2024", "doi": "10.1234/a"},
+        ]
+    )
     result = classify_content(parsed, DOC_ID)
 
     assert len(result.references) == 1
@@ -188,10 +222,16 @@ def test_section_headings_classified() -> None:
     """section 标题应被提取为 section_headings 记录。"""
     from backend.workers.tasks.content_classifier import classify_content
 
-    parsed = _make_parsed_doc(sections=[
-        ParsedSection(heading="1. Introduction", level=1, content="Intro text.", page_numbers=[1]),
-        ParsedSection(heading="1.1 Background", level=2, content="Background text.", page_numbers=[1]),
-    ])
+    parsed = _make_parsed_doc(
+        sections=[
+            ParsedSection(
+                heading="1. Introduction", level=1, content="Intro text.", page_numbers=[1]
+            ),
+            ParsedSection(
+                heading="1.1 Background", level=2, content="Background text.", page_numbers=[1]
+            ),
+        ]
+    )
     result = classify_content(parsed, DOC_ID)
 
     assert len(result.section_headings) == 2

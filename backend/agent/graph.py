@@ -1,4 +1,5 @@
 """Supervisor 主图编排。连接硬规则路由、LLM 路由、检查点回评和 6 个 WF subgraph。"""
+
 import json
 
 from langchain_core.language_models import BaseChatModel
@@ -39,7 +40,6 @@ def _infer_critique_target(state: dict) -> str:
     return "execution"  # 安全回退
 
 
-
 def _build_supervisor_node(llm: BaseChatModel):
     """构建 Supervisor 主控节点闭包。"""
 
@@ -70,21 +70,28 @@ def _build_supervisor_node(llm: BaseChatModel):
                 break
 
         artifacts_summary = json.dumps(
-            {k: list(v.keys()) if isinstance(v, dict) else str(v)
-             for k, v in state.get("artifacts", {}).items()},
+            {
+                k: list(v.keys()) if isinstance(v, dict) else str(v)
+                for k, v in state.get("artifacts", {}).items()
+            },
             ensure_ascii=False,
         )
 
-        prompt = load_prompt("supervisor", variables={
-            "discipline": discipline,
-            "user_message": user_message,
-            "artifacts_summary": artifacts_summary,
-        })
+        prompt = load_prompt(
+            "supervisor",
+            variables={
+                "discipline": discipline,
+                "user_message": user_message,
+                "artifacts_summary": artifacts_summary,
+            },
+        )
 
-        decision = llm.with_structured_output(RouteDecision).invoke([
-            SystemMessage(content=prompt["system"]),
-            HumanMessage(content=prompt["user"]),
-        ])
+        decision = llm.with_structured_output(RouteDecision).invoke(
+            [
+                SystemMessage(content=prompt["system"]),
+                HumanMessage(content=prompt["user"]),
+            ]
+        )
 
         logger.info(
             "routing_decision",
@@ -148,11 +155,13 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
                     f"{fb.get('description', '')} → {fb.get('suggestion', '')}"
                     for fb in feedbacks
                 )
-                revision_message = HumanMessage(content=(
-                    f"根据模拟审稿意见，请修改 {target_wf} 阶段的产出物。"
-                    f"需要修正的问题：\n{feedback_text}\n"
-                    f"请基于以上反馈重新执行 {target_wf} 阶段。"
-                ))
+                revision_message = HumanMessage(
+                    content=(
+                        f"根据模拟审稿意见，请修改 {target_wf} 阶段的产出物。"
+                        f"需要修正的问题：\n{feedback_text}\n"
+                        f"请基于以上反馈重新执行 {target_wf} 阶段。"
+                    )
+                )
                 logger.info(
                     "checkpoint_eval",
                     step_index=step_index,
@@ -183,21 +192,28 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
             return {"routing_decision": "__end__", "current_step_index": step_index + 1}
 
         artifacts_summary = json.dumps(
-            {k: list(v.keys()) if isinstance(v, dict) else str(v)
-             for k, v in state.get("artifacts", {}).items()},
+            {
+                k: list(v.keys()) if isinstance(v, dict) else str(v)
+                for k, v in state.get("artifacts", {}).items()
+            },
             ensure_ascii=False,
         )
 
-        prompt = load_prompt("checkpoint_eval", variables={
-            "objective": current_step.objective,
-            "success_criteria": current_step.success_criteria,
-            "artifacts_summary": artifacts_summary,
-        })
+        prompt = load_prompt(
+            "checkpoint_eval",
+            variables={
+                "objective": current_step.objective,
+                "success_criteria": current_step.success_criteria,
+                "artifacts_summary": artifacts_summary,
+            },
+        )
 
-        evaluation = llm.with_structured_output(StepEvaluation).invoke([
-            SystemMessage(content=prompt["system"]),
-            HumanMessage(content=prompt["user"]),
-        ])
+        evaluation = llm.with_structured_output(StepEvaluation).invoke(
+            [
+                SystemMessage(content=prompt["system"]),
+                HumanMessage(content=prompt["user"]),
+            ]
+        )
 
         if evaluation.passed:
             next_index = step_index + 1
@@ -263,7 +279,8 @@ def build_supervisor_graph(*, llm: BaseChatModel) -> StateGraph:
     graph.add_edge(START, "supervisor")
 
     graph.add_conditional_edges(
-        "supervisor", route_to_workflow,
+        "supervisor",
+        route_to_workflow,
         {wf: wf for wf in WORKFLOW_NAMES} | {"__end__": END},
     )
 
@@ -271,7 +288,8 @@ def build_supervisor_graph(*, llm: BaseChatModel) -> StateGraph:
         graph.add_edge(wf, "checkpoint_eval")
 
     graph.add_conditional_edges(
-        "checkpoint_eval", route_after_eval,
+        "checkpoint_eval",
+        route_after_eval,
         {wf: wf for wf in WORKFLOW_NAMES} | {"supervisor": "supervisor", "__end__": END},
     )
 

@@ -22,14 +22,17 @@ logger = get_logger(__name__)
 
 # ── LLM 输出结构 ──
 
+
 class GeneratedCode(BaseModel):
     """LLM 生成的实验代码。"""
+
     code: str
     description: str
 
 
 class ReflectionResult(BaseModel):
     """LLM 反思分析结果。"""
+
     root_cause: str
     fix_strategy: str
     revised_code: str
@@ -37,8 +40,11 @@ class ReflectionResult(BaseModel):
 
 # ── 节点函数 ──
 
+
 def generate_code(
-    state: ExecutionState, *, llm: BaseChatModel,
+    state: ExecutionState,
+    *,
+    llm: BaseChatModel,
 ) -> dict:
     """LLM 生成实验代码。"""
     task_desc = state.get("task_description", "")
@@ -53,13 +59,18 @@ def generate_code(
     if reflection:
         prompt_parts.append(f"上次执行失败原因及修正策略:\n{reflection}")
 
-    result = llm.with_structured_output(GeneratedCode).invoke([
-        SystemMessage(content=load_prompt(
-            "execution/prompts", key="generate_code",
-            variables={"prompt_parts": ""},
-        )["system"]),
-        HumanMessage(content="\n".join(prompt_parts)),
-    ])
+    result = llm.with_structured_output(GeneratedCode).invoke(
+        [
+            SystemMessage(
+                content=load_prompt(
+                    "execution/prompts",
+                    key="generate_code",
+                    variables={"prompt_parts": ""},
+                )["system"]
+            ),
+            HumanMessage(content="\n".join(prompt_parts)),
+        ]
+    )
 
     logger.info("generate_code_done", code_length=len(result.code))
     return {"generated_code": result.code}
@@ -67,11 +78,13 @@ def generate_code(
 
 def request_confirmation(state: ExecutionState) -> dict:
     """独立 HITL 节点：展示代码，等待用户确认执行。"""
-    interrupt({
-        "action": "confirm_execute",
-        "code": state.get("generated_code", ""),
-        "task": state.get("task_description", ""),
-    })
+    interrupt(
+        {
+            "action": "confirm_execute",
+            "code": state.get("generated_code", ""),
+            "task": state.get("task_description", ""),
+        }
+    )
     return {}
 
 
@@ -89,6 +102,7 @@ def execute_sandbox(
 
     if executor is not None:
         from backend.services.sandbox_manager import ExecutionRequest
+
         exec_result = executor.execute(ExecutionRequest(code=code))
         elapsed = time.monotonic() - start
         result = SandboxExecutionResult(
@@ -121,7 +135,6 @@ def execute_sandbox(
     }
 
 
-
 def route_execution_result(state: ExecutionState) -> str:
     """确定性路由：检查执行结果和预算。"""
     result = state.get("execution_result")
@@ -145,24 +158,36 @@ def route_execution_result(state: ExecutionState) -> str:
 
 
 def reflect_and_retry(
-    state: ExecutionState, *, llm: BaseChatModel,
+    state: ExecutionState,
+    *,
+    llm: BaseChatModel,
 ) -> dict:
     """LLM 分析失败原因，生成修正代码。"""
     result = state.get("execution_result")
     code = state.get("generated_code", "")
 
-    reflection = llm.with_structured_output(ReflectionResult).invoke([
-        SystemMessage(content=load_prompt(
-            "execution/prompts", key="reflect_and_retry",
-            variables={"error_context": ""},
-        )["system"]),
-        HumanMessage(content=json.dumps({
-            "code": code,
-            "exit_code": result.exit_code if result else -1,
-            "stdout": result.stdout if result else "",
-            "stderr": result.stderr if result else "",
-        }, ensure_ascii=False)),
-    ])
+    reflection = llm.with_structured_output(ReflectionResult).invoke(
+        [
+            SystemMessage(
+                content=load_prompt(
+                    "execution/prompts",
+                    key="reflect_and_retry",
+                    variables={"error_context": ""},
+                )["system"]
+            ),
+            HumanMessage(
+                content=json.dumps(
+                    {
+                        "code": code,
+                        "exit_code": result.exit_code if result else -1,
+                        "stdout": result.stdout if result else "",
+                        "stderr": result.stderr if result else "",
+                    },
+                    ensure_ascii=False,
+                )
+            ),
+        ]
+    )
 
     logger.info("reflect_and_retry", root_cause=reflection.root_cause)
     return {

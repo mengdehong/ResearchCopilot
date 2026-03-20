@@ -1,4 +1,5 @@
 """Discovery WF 单元测试。"""
+
 from unittest.mock import MagicMock, patch
 
 from backend.agent.state import PaperCard
@@ -15,6 +16,7 @@ from backend.agent.workflows.discovery.nodes import (
 )
 
 # ── Fixtures ──
+
 
 def _make_mock_llm(responses: list) -> MagicMock:
     """创建 mock LLM，按序返回结构化输出。"""
@@ -49,6 +51,7 @@ def _make_paper_card(**overrides: object) -> PaperCard:
 
 # ── expand_query ──
 
+
 def test_expand_query_extracts_queries() -> None:
     llm = _make_mock_llm([ExpandedQueries(queries=["q1", "q2", "q3"])])
     state = {
@@ -62,6 +65,7 @@ def test_expand_query_extracts_queries() -> None:
 
 # ── search_apis ──
 
+
 def test_search_apis_returns_empty_placeholder() -> None:
     state = {"search_queries": ["q1", "q2"]}
     result = search_apis(state)
@@ -70,17 +74,32 @@ def test_search_apis_returns_empty_placeholder() -> None:
 
 # ── filter_and_rank ──
 
+
 def test_filter_and_rank_deduplicates() -> None:
     """重复 arxiv_id 应去重。"""
-    llm = _make_mock_llm([
-        RelevanceComment(relevance_score=0.8, relevance_comment="Good"),
-    ])
+    llm = _make_mock_llm(
+        [
+            RelevanceComment(relevance_score=0.8, relevance_comment="Good"),
+        ]
+    )
     state = {
         "raw_results": [
-            {"arxiv_id": "2401.00001", "title": "Paper A", "authors": [],
-             "abstract": "abs", "year": 2024, "source": "arxiv"},
-            {"arxiv_id": "2401.00001", "title": "Paper A dup", "authors": [],
-             "abstract": "abs", "year": 2024, "source": "arxiv"},
+            {
+                "arxiv_id": "2401.00001",
+                "title": "Paper A",
+                "authors": [],
+                "abstract": "abs",
+                "year": 2024,
+                "source": "arxiv",
+            },
+            {
+                "arxiv_id": "2401.00001",
+                "title": "Paper A dup",
+                "authors": [],
+                "abstract": "abs",
+                "year": 2024,
+                "source": "arxiv",
+            },
         ],
         "discipline": "cs",
     }
@@ -90,16 +109,30 @@ def test_filter_and_rank_deduplicates() -> None:
 
 def test_filter_and_rank_sorts_by_relevance() -> None:
     """应按 relevance_score 降序排列。"""
-    llm = _make_mock_llm([
-        RelevanceComment(relevance_score=0.3, relevance_comment="Low"),
-        RelevanceComment(relevance_score=0.9, relevance_comment="High"),
-    ])
+    llm = _make_mock_llm(
+        [
+            RelevanceComment(relevance_score=0.3, relevance_comment="Low"),
+            RelevanceComment(relevance_score=0.9, relevance_comment="High"),
+        ]
+    )
     state = {
         "raw_results": [
-            {"arxiv_id": "2401.00001", "title": "Low", "authors": [],
-             "abstract": "a", "year": 2024, "source": "arxiv"},
-            {"arxiv_id": "2401.00002", "title": "High", "authors": [],
-             "abstract": "b", "year": 2024, "source": "arxiv"},
+            {
+                "arxiv_id": "2401.00001",
+                "title": "Low",
+                "authors": [],
+                "abstract": "a",
+                "year": 2024,
+                "source": "arxiv",
+            },
+            {
+                "arxiv_id": "2401.00002",
+                "title": "High",
+                "authors": [],
+                "abstract": "b",
+                "year": 2024,
+                "source": "arxiv",
+            },
         ],
         "discipline": "cs",
     }
@@ -109,6 +142,7 @@ def test_filter_and_rank_sorts_by_relevance() -> None:
 
 
 # ── present_candidates (HITL) ──
+
 
 def test_present_candidates_returns_selected_ids() -> None:
     papers = [_make_paper_card(arxiv_id="p1"), _make_paper_card(arxiv_id="p2")]
@@ -123,6 +157,7 @@ def test_present_candidates_returns_selected_ids() -> None:
 
 # ── trigger_ingestion ──
 
+
 def test_trigger_ingestion_creates_task_ids() -> None:
     state = {"selected_paper_ids": ["p1", "p2"]}
     result = trigger_ingestion(state)
@@ -131,6 +166,7 @@ def test_trigger_ingestion_creates_task_ids() -> None:
 
 
 # ── write_artifacts ──
+
 
 def test_write_artifacts_structure() -> None:
     papers = [_make_paper_card()]
@@ -150,6 +186,7 @@ def test_write_artifacts_structure() -> None:
 
 
 # ── Subgraph 编译 ──
+
 
 def test_discovery_graph_compiles() -> None:
     llm = MagicMock()

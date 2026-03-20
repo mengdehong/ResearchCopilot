@@ -1,4 +1,5 @@
 """LLM 统一封装。多 Provider 适配, 上层只依赖 langchain-core 的 BaseChatModel。"""
+
 import time
 from enum import StrEnum
 
@@ -71,7 +72,9 @@ class LLMGateway:
         resolved_provider = provider or self._default_provider
         resolved_model = model or self._default_model
         llm = self.get_model(
-            provider=provider, model=model, temperature=temperature,
+            provider=provider,
+            model=model,
+            temperature=temperature,
         )
 
         start = time.monotonic()
@@ -100,14 +103,19 @@ class LLMGateway:
         match provider:
             case LLMProvider.OPENAI:
                 from langchain_openai import ChatOpenAI
+
                 return ChatOpenAI(model=model, api_key=api_key, temperature=temperature)
             case LLMProvider.ANTHROPIC:
                 from langchain_anthropic import ChatAnthropic
+
                 return ChatAnthropic(model=model, api_key=api_key, temperature=temperature)
             case LLMProvider.GOOGLE:
                 from langchain_google_genai import ChatGoogleGenerativeAI
+
                 return ChatGoogleGenerativeAI(
-                    model=model, google_api_key=api_key, temperature=temperature,
+                    model=model,
+                    google_api_key=api_key,
+                    temperature=temperature,
                 )
             case _:
                 raise ValueError(f"Unsupported provider: {provider}")

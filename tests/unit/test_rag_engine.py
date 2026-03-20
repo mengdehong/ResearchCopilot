@@ -89,9 +89,7 @@ async def test_retrieve_cross_doc_uses_doc_summary_candidates_before_evidence() 
         query_embedding: list[float],
     ) -> list[RetrievedChunk]:
         del session, query_embedding
-        document_ids = (
-            None if query.document_ids is None else list(query.document_ids)
-        )
+        document_ids = None if query.document_ids is None else list(query.document_ids)
         call_sequence.append((target.name, document_ids))
         if target.name == "doc_summaries":
             return [

@@ -1,4 +1,5 @@
 services:
+  # ---- Infrastructure ----
   postgres:
     image: pgvector/pgvector:pg16
     container_name: rc-postgres
@@ -42,21 +43,67 @@ services:
     volumes:
       - miniodata:/data
 
+  # ---- Backend API ----
+  backend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: backend
+    container_name: rc-backend
+    env_file: ../.env.production
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-sf", "http://localhost:8000/api/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ---- Celery Worker ----
   celery-worker:
-    build: .
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: celery-worker
     container_name: rc-celery-worker
-    command: celery -A backend.workers.celery_app worker --loglevel=info --concurrency=2
+    env_file: ../.env.production
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/research_copilot
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
-      JWT_SECRET: dev-secret
+
+  # ---- Frontend ----
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: rc-frontend
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:80" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ---- Nginx Reverse Proxy ----
+  nginx:
+    image: nginx:alpine
+    container_name: rc-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
 
 volumes:
   pgdata:

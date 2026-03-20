@@ -1,4 +1,5 @@
 """Publish WF 节点函数。报告交付：大纲组装 → Markdown 生成 → HITL 定稿 → 渲染 → 打包 → 写 artifacts。"""
+
 import json
 
 from langchain_core.language_models import BaseChatModel
@@ -15,63 +16,89 @@ logger = get_logger(__name__)
 
 # ── LLM 输出结构 ──
 
+
 class OutlineResult(BaseModel):
     """LLM 生成的报告大纲。"""
+
     sections: list[OutlineSection]
 
 
 class MarkdownReport(BaseModel):
     """LLM 生成的 Markdown 报告。"""
+
     content: str
     citation_map: dict[str, str]
 
 
 # ── 节点函数 ──
 
+
 def assemble_outline(
-    state: PublishState, *, llm: BaseChatModel,
+    state: PublishState,
+    *,
+    llm: BaseChatModel,
 ) -> dict:
     """LLM 从 artifacts 组装报告大纲。"""
     artifacts = state.get("artifacts", {})
-    context = json.dumps({
-        k: v for k, v in artifacts.items()
-        if k in ("discovery", "extraction", "ideation", "execution", "critique")
-    }, ensure_ascii=False, default=str)
+    context = json.dumps(
+        {
+            k: v
+            for k, v in artifacts.items()
+            if k in ("discovery", "extraction", "ideation", "execution", "critique")
+        },
+        ensure_ascii=False,
+        default=str,
+    )
 
-    result = llm.with_structured_output(OutlineResult).invoke([
-        SystemMessage(content=load_prompt(
-            "publish/prompts", key="assemble_outline",
-            variables={"context": ""},
-        )["system"]),
-        HumanMessage(content=context),
-    ])
+    result = llm.with_structured_output(OutlineResult).invoke(
+        [
+            SystemMessage(
+                content=load_prompt(
+                    "publish/prompts",
+                    key="assemble_outline",
+                    variables={"context": ""},
+                )["system"]
+            ),
+            HumanMessage(content=context),
+        ]
+    )
 
     logger.info("assemble_outline_done", section_count=len(result.sections))
     return {"outline": result.sections}
 
 
 def generate_markdown(
-    state: PublishState, *, llm: BaseChatModel,
+    state: PublishState,
+    *,
+    llm: BaseChatModel,
 ) -> dict:
     """LLM 根据大纲和 artifacts 生成完整 Markdown 报告。"""
     outline = state.get("outline", [])
     artifacts = state.get("artifacts", {})
 
-    context = json.dumps({
-        "outline": [s.model_dump() for s in outline],
-        "artifacts": {
-            k: v for k, v in artifacts.items()
-            if k in ("extraction", "ideation", "execution")
+    context = json.dumps(
+        {
+            "outline": [s.model_dump() for s in outline],
+            "artifacts": {
+                k: v for k, v in artifacts.items() if k in ("extraction", "ideation", "execution")
+            },
         },
-    }, ensure_ascii=False, default=str)
+        ensure_ascii=False,
+        default=str,
+    )
 
-    result = llm.with_structured_output(MarkdownReport).invoke([
-        SystemMessage(content=load_prompt(
-            "publish/prompts", key="generate_markdown",
-            variables={"context": ""},
-        )["system"]),
-        HumanMessage(content=context),
-    ])
+    result = llm.with_structured_output(MarkdownReport).invoke(
+        [
+            SystemMessage(
+                content=load_prompt(
+                    "publish/prompts",
+                    key="generate_markdown",
+                    variables={"context": ""},
+                )["system"]
+            ),
+            HumanMessage(content=context),
+        ]
+    )
 
     logger.info("generate_markdown_done", content_length=len(result.content))
     return {
@@ -85,11 +112,13 @@ def request_finalization(state: PublishState) -> dict:
 
     reject 时 Markdown 推送至 Canvas，用户手改完确认后回流 modified_markdown。
     """
-    response = interrupt({
-        "action": "confirm_finalize",
-        "markdown_preview": state.get("markdown_content", "")[:2000],
-        "outline": [s.title for s in state.get("outline", [])],
-    })
+    response = interrupt(
+        {
+            "action": "confirm_finalize",
+            "markdown_preview": state.get("markdown_content", "")[:2000],
+            "outline": [s.title for s in state.get("outline", [])],
+        }
+    )
 
     # approve: {} 或 {"decision": "approve"}
     # reject→Canvas→手改→回流: {"modified_markdown": "..."}

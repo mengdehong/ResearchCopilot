@@ -1,4 +1,5 @@
 """文档解析任务单元测试。四阶段管道: 解析→分类→LLM增强→Embedding入库。"""
+
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
@@ -10,7 +11,6 @@ from backend.services.parser_engine import (
     ParsedTable,
     ParseQuality,
 )
-
 
 DOC_ID = uuid.uuid4()
 

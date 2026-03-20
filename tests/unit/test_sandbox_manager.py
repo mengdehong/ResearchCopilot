@@ -1,4 +1,5 @@
 """Sandbox Manager 单元测试(mock Docker SDK)。"""
+
 from unittest.mock import MagicMock, patch
 
 import docker.errors
@@ -15,9 +16,7 @@ def test_execute_success(mock_docker: MagicMock) -> None:
 
     container = MagicMock()
     container.wait.return_value = {"StatusCode": 0}
-    container.logs.side_effect = lambda stdout, stderr, stream: (
-        b"result\n" if stdout else b""
-    )
+    container.logs.side_effect = lambda stdout, stderr, stream: b"result\n" if stdout else b""
     container.get_archive.side_effect = docker.errors.NotFound("no output dir")
     mock_docker.from_env.return_value.containers.create.return_value = container
 

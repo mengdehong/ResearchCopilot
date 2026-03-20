@@ -1,4 +1,5 @@
 """Extraction WF 单元测试。"""
+
 from unittest.mock import MagicMock
 
 from backend.agent.state import ComparisonEntry, ReadingNote
@@ -40,6 +41,7 @@ def _make_reading_note(**overrides: object) -> ReadingNote:
 
 # ── wait_rag_ready ──
 
+
 def test_wait_rag_ready_extracts_paper_ids() -> None:
     state = {"artifacts": {"discovery": {"selected_paper_ids": ["p1", "p2"]}}}
     result = wait_rag_ready(state)
@@ -54,6 +56,7 @@ def test_wait_rag_ready_empty_artifacts() -> None:
 
 # ── check_existing_notes ──
 
+
 def test_check_existing_notes_skips_existing() -> None:
     state = {
         "paper_ids": ["p1", "p2", "p3"],
@@ -65,13 +68,19 @@ def test_check_existing_notes_skips_existing() -> None:
 
 # ── generate_notes ──
 
+
 def test_generate_notes_creates_notes() -> None:
-    llm = _make_mock_llm([
-        GeneratedNote(
-            key_contributions=["c1"], methodology="m1",
-            experimental_setup="s1", main_results="r1", limitations=["l1"],
-        ),
-    ])
+    llm = _make_mock_llm(
+        [
+            GeneratedNote(
+                key_contributions=["c1"],
+                methodology="m1",
+                experimental_setup="s1",
+                main_results="r1",
+                limitations=["l1"],
+            ),
+        ]
+    )
     state = {
         "paper_ids": ["p1"],
         "reading_notes": [],
@@ -84,6 +93,7 @@ def test_generate_notes_creates_notes() -> None:
 
 # ── cross_compare ──
 
+
 def test_cross_compare_skips_single_paper() -> None:
     state = {"reading_notes": [_make_reading_note()]}
     result = cross_compare(state, llm=MagicMock())
@@ -91,14 +101,21 @@ def test_cross_compare_skips_single_paper() -> None:
 
 
 def test_cross_compare_produces_entries() -> None:
-    llm = _make_mock_llm([
-        ComparisonResult(entries=[
-            ComparisonEntry(
-                paper_id="p1", method="m", dataset="d",
-                metric_values={"acc": 0.9}, key_difference="diff",
+    llm = _make_mock_llm(
+        [
+            ComparisonResult(
+                entries=[
+                    ComparisonEntry(
+                        paper_id="p1",
+                        method="m",
+                        dataset="d",
+                        metric_values={"acc": 0.9},
+                        key_difference="diff",
+                    ),
+                ]
             ),
-        ]),
-    ])
+        ]
+    )
     state = {
         "reading_notes": [
             _make_reading_note(paper_id="p1"),
@@ -111,16 +128,20 @@ def test_cross_compare_produces_entries() -> None:
 
 # ── build_glossary ──
 
+
 def test_build_glossary_returns_terms() -> None:
-    llm = _make_mock_llm([
-        GlossaryResult(terms={"term1": "definition1"}),
-    ])
+    llm = _make_mock_llm(
+        [
+            GlossaryResult(terms={"term1": "definition1"}),
+        ]
+    )
     state = {"reading_notes": [_make_reading_note()]}
     result = build_glossary(state, llm=llm)
     assert "term1" in result["glossary"]
 
 
 # ── write_artifacts ──
+
 
 def test_extraction_write_artifacts() -> None:
     state = {
@@ -135,6 +156,7 @@ def test_extraction_write_artifacts() -> None:
 
 
 # ── Subgraph 编译 ──
+
 
 def test_extraction_graph_compiles() -> None:
     llm = MagicMock()
