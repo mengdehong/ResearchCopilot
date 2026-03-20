@@ -34,6 +34,8 @@ dependencies = [
     "httpx>=0.28.0",
     # --- Auth ---
     "pyjwt[crypto]>=2.10.0",
+    "bcrypt>=4.2.0",
+    "resend>=2.0.0",
     # --- Storage ---
     "boto3>=1.35.0",
     "prometheus-fastapi-instrumentator>=7.1.0",

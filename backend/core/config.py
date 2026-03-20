@@ -21,6 +21,18 @@ class Settings(BaseSettings):
     # --- Auth ---
     jwt_secret: str
     jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 14
+    # --- OAuth ---
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    oauth_redirect_base_url: str = "http://localhost:5173"
+    # --- Email ---
+    resend_api_key: str | None = None
+    email_from: str = "noreply@researchcopilot.com"
+    frontend_url: str = "http://localhost:5173"
     # --- LLM ---
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
