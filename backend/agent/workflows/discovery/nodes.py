@@ -2,9 +2,12 @@
 
 import json
 
+import httpx
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.types import interrupt
+
+from backend.agent.tools.arxiv_tool import search_arxiv
 from pydantic import BaseModel
 
 from backend.agent.prompts.loader import load_prompt
@@ -63,18 +66,18 @@ def expand_query(state: DiscoveryState, *, llm: BaseChatModel) -> dict:
 
 
 def search_apis(state: DiscoveryState) -> dict:
-    """调 ArXiv + Semantic Scholar API 搜索论文。
-
-    当前为占位实现，返回空结果列表。
-    后续 Phase 替换为真实 API 调用。
-    """
+    """调 ArXiv API 搜索论文。"""
     queries = state.get("search_queries", [])
     raw_results: list[dict] = []
 
-    # TODO(phase-4): 接入 ArXiv API + Semantic Scholar API
-    # 每个 query 调一次 API，合并去重
     for query in queries:
-        logger.info("search_api_call", query=query, source="placeholder")
+        try:
+            papers = search_arxiv.invoke({"query": query, "max_results": 10})
+            raw_results.extend(papers)
+            logger.info("search_api_call", query=query, source="arxiv", count=len(papers))
+        except Exception:
+            logger.warning("search_api_failed", query=query, source="arxiv")
+            raise
 
     logger.info("search_apis_done", total_raw=len(raw_results))
     return {"raw_results": raw_results}
@@ -177,12 +180,26 @@ def present_candidates(state: DiscoveryState) -> dict:
 def trigger_ingestion(state: DiscoveryState) -> dict:
     """对选中论文触发 ingestion pipeline。
 
-    当前为占位实现，记录任务 ID 占位。
-    后续 Phase 替换为 BFF document service 调用。
+    通过 httpx 调用 BFF document confirm 端点触发 Celery 解析。
     """
     selected_ids = state.get("selected_paper_ids", [])
-    # TODO(phase-5): 调 BFF document service 创建 ingestion 任务
-    task_ids = [f"task_{paper_id}" for paper_id in selected_ids]
+    bff_base_url = state.get("bff_base_url", "http://localhost:8000")
+    task_ids: list[str] = []
+
+    for paper_id in selected_ids:
+        try:
+            resp = httpx.post(
+                f"{bff_base_url}/api/documents/confirm",
+                params={"document_id": paper_id},
+                timeout=10.0,
+            )
+            resp.raise_for_status()
+            task_ids.append(paper_id)
+            logger.info("trigger_ingestion_paper", paper_id=paper_id, status="ok")
+        except httpx.HTTPError:
+            logger.warning("trigger_ingestion_failed", paper_id=paper_id)
+            task_ids.append(f"failed_{paper_id}")
+
     logger.info("trigger_ingestion_done", task_count=len(task_ids))
     return {"ingestion_task_ids": task_ids}
 

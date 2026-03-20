@@ -66,10 +66,15 @@ def test_expand_query_extracts_queries() -> None:
 # ── search_apis ──
 
 
-def test_search_apis_returns_empty_placeholder() -> None:
+@patch("backend.agent.workflows.discovery.nodes.search_arxiv")
+def test_search_apis_calls_arxiv_tool(mock_arxiv) -> None:
+    mock_arxiv.invoke.return_value = [
+        {"arxiv_id": "2401.00001", "title": "Paper A", "authors": [], "abstract": "abs", "year": 2024, "source": "arxiv"}
+    ]
     state = {"search_queries": ["q1", "q2"]}
     result = search_apis(state)
-    assert result["raw_results"] == []
+    assert len(result["raw_results"]) == 2
+    assert mock_arxiv.invoke.call_count == 2
 
 
 # ── filter_and_rank ──
@@ -158,11 +163,15 @@ def test_present_candidates_returns_selected_ids() -> None:
 # ── trigger_ingestion ──
 
 
-def test_trigger_ingestion_creates_task_ids() -> None:
+@patch("backend.agent.workflows.discovery.nodes.httpx")
+def test_trigger_ingestion_creates_task_ids(mock_httpx) -> None:
+    mock_response = MagicMock()
+    mock_response.raise_for_status = MagicMock()
+    mock_httpx.post.return_value = mock_response
     state = {"selected_paper_ids": ["p1", "p2"]}
     result = trigger_ingestion(state)
     assert len(result["ingestion_task_ids"]) == 2
-    assert all(tid.startswith("task_") for tid in result["ingestion_task_ids"])
+    assert result["ingestion_task_ids"] == ["p1", "p2"]
 
 
 # ── write_artifacts ──

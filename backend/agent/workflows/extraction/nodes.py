@@ -73,13 +73,25 @@ def check_existing_notes(state: ExtractionState) -> dict:
 def retrieve_chunks(state: ExtractionState) -> dict:
     """调 RAG Engine 检索相关段落。
 
-    当前为占位实现，返回空 chunks。
-    后续 Phase 接入真实 RAGEngine.retrieve()。
+    MVP 阶段返回空 chunks，有 RAG engine 实例时调用 retrieve()。
     """
     paper_ids = state.get("paper_ids", [])
-    # TODO(phase-4): 接入 RAGEngine.retrieve()
-    logger.info("retrieve_chunks", paper_count=len(paper_ids))
-    return {}
+    rag_engine = state.get("rag_engine")
+
+    chunks: list[dict] = []
+    if rag_engine is not None:
+        for paper_id in paper_ids:
+            try:
+                paper_chunks = rag_engine.retrieve(paper_id)
+                chunks.extend(paper_chunks)
+            except Exception:
+                logger.warning("retrieve_chunks_failed", paper_id=paper_id)
+                raise
+    else:
+        logger.info("retrieve_chunks_no_engine", paper_count=len(paper_ids))
+
+    logger.info("retrieve_chunks_done", chunk_count=len(chunks))
+    return {"retrieved_chunks": chunks}
 
 
 def generate_notes(

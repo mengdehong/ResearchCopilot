@@ -1,6 +1,8 @@
 """Publish WF 节点函数。报告交付：大纲组装 → Markdown 生成 → HITL 定稿 → 渲染 → 打包 → 写 artifacts。"""
 
+import io
 import json
+import zipfile
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -132,29 +134,39 @@ def request_finalization(state: PublishState) -> dict:
 
 
 def render_presentation(state: PublishState) -> dict:
-    """渲染演示文稿。
-
-    当前为占位实现。后续 Phase 7 接入 Typst/Beamer 渲染。
-    """
-    # TODO(phase-7): 接入 ppt_generation Skill（Typst 主推）
-    logger.info("render_presentation", status="placeholder")
-    return {"output_files": state.get("output_files", [])}
-
-
-def package_zip(state: PublishState) -> dict:
-    """将产出文件打包为 ZIP。
-
-    当前为占位实现，记录文件列表。
-    """
+    """渲染演示文稿。MVP 阶段生成 Markdown 报告。"""
     markdown = state.get("markdown_content", "")
     output_files = list(state.get("output_files", []))
 
     if markdown:
         output_files.append("report.md")
+        logger.info("render_presentation", status="markdown", length=len(markdown))
+    else:
+        logger.info("render_presentation", status="empty")
 
-    # TODO(phase-7): 真实 ZIP 打包
-    logger.info("package_zip_done", file_count=len(output_files))
     return {"output_files": output_files}
+
+
+def package_zip(state: PublishState) -> dict:
+    """将产出文件打包为 ZIP。"""
+    markdown = state.get("markdown_content", "")
+    output_files = list(state.get("output_files", []))
+    citation_map = state.get("citation_map", {})
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        if markdown:
+            zf.writestr("report.md", markdown)
+            if "report.md" not in output_files:
+                output_files.append("report.md")
+        if citation_map:
+            zf.writestr("citations.json", json.dumps(citation_map, ensure_ascii=False, indent=2))
+            if "citations.json" not in output_files:
+                output_files.append("citations.json")
+
+    zip_bytes = buf.getvalue()
+    logger.info("package_zip_done", file_count=len(output_files), zip_size=len(zip_bytes))
+    return {"output_files": output_files, "zip_bytes": zip_bytes}
 
 
 def write_artifacts(state: PublishState) -> dict:
