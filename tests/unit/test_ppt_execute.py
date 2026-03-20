@@ -141,14 +141,16 @@ def test_render_node_generates_source(tmp_path: Path) -> None:
         "full_schema": schema,
         "rendered": None,
     }
+    mock_uuid = MagicMock()
+    mock_uuid.hex = "12345678abcdefab"
     with (
         patch(
             "backend.agent.skills.ppt_generation.execute.TEMPLATES_DIR",
             Path(__file__).resolve().parents[2] / "backend/agent/skills/ppt_generation/templates",
         ),
         patch(
-            "backend.agent.skills.ppt_generation.execute.OUTPUT_DIR",
-            tmp_path,
+            "backend.agent.skills.ppt_generation.execute.uuid.uuid4",
+            return_value=mock_uuid,
         ),
     ):
         result = render_node(state)

@@ -158,7 +158,7 @@ def _render_figure(content: FigureContent) -> str:
     text_col_lines.append("    ]")
     text_col = "\n".join(text_col_lines)
 
-    if content.layout == "left_img":
+    if content.image_position == "left":
         lines.append(img_col + ",")
         lines.append(text_col + ",")
     else:

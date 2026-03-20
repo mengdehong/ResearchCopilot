@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
@@ -24,7 +25,6 @@ logger = get_logger(__name__)
 
 # 默认路径（可被测试 patch）
 TEMPLATES_DIR = Path(__file__).parent / "templates"
-OUTPUT_DIR = Path("/tmp/ppt_output")
 
 
 # ── State ──
@@ -135,8 +135,6 @@ def render_node(state: PPTGenerationState) -> dict:
 
     # 动态生成隔离的输出目录以防并发冲突
     workspace_id = state.get("workspace_id", "default_workspace")
-    import uuid
-
     run_id = uuid.uuid4().hex[:8]
     output_dir = Path(f"/tmp/research_copilot/{workspace_id}/ppt_{run_id}")
 
