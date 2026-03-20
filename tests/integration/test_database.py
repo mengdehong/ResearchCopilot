@@ -2,7 +2,11 @@
 import pytest
 from sqlalchemy import text
 
-from backend.core.database import create_engine, create_session_factory
+from backend.core.database import (
+    create_checkpointer,
+    create_engine,
+    create_session_factory,
+)
 
 DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/research_copilot"
 
@@ -29,3 +33,11 @@ async def test_pgvector_extension(session) -> None:
         text("SELECT extname FROM pg_extension WHERE extname = 'vector'")
     )
     assert result.scalar() == "vector"
+
+
+@pytest.mark.integration
+async def test_langgraph_checkpointer_setup() -> None:
+    async with create_checkpointer(DATABASE_URL) as saver:
+        await saver.setup()
+
+    assert True
