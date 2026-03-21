@@ -4,7 +4,6 @@ import MessageList from './MessageList'
 import InputArea from './InputArea'
 import CoTTree from './CoTTree'
 import HITLCard from './HITLCard'
-import './ChatPanel.css'
 
 interface ChatPanelProps {
     threadId: string
@@ -25,13 +24,17 @@ export default function ChatPanel({
     const { t } = useTranslation()
 
     return (
-        <div className="chat-panel">
-            <div className="chat-panel__header">
-                <h3 className="chat-panel__title">{t('chat.title')}</h3>
-                {isStreaming && <span className="badge badge--accent">{t('chat.streaming')}</span>}
+        <div className="flex flex-col h-full bg-[var(--background)]">
+            {/* Header with Agent Status */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)]">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                    {t('chat.title')}
+                </h3>
+                <AgentStatusIndicator isStreaming={isStreaming} />
             </div>
 
-            <div className="chat-panel__body">
+            {/* Message Area */}
+            <div className="flex-1 overflow-auto">
                 <MessageList
                     messages={messages}
                     streamingContent={isStreaming ? generatedContent : undefined}
@@ -47,11 +50,37 @@ export default function ChatPanel({
                 )}
             </div>
 
+            {/* Input */}
             <InputArea
                 onSend={onSendMessage}
                 disabled={isStreaming}
                 threadId={threadId}
             />
+        </div>
+    )
+}
+
+/* ─── Agent Status ─── */
+interface AgentStatusIndicatorProps {
+    readonly isStreaming: boolean
+}
+
+function AgentStatusIndicator({ isStreaming }: AgentStatusIndicatorProps) {
+    const { t } = useTranslation()
+
+    if (!isStreaming) {
+        return (
+            <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                <span className="size-2 rounded-full bg-[var(--success)]" />
+                {t('chat.idle')}
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex items-center gap-1.5 text-xs text-[var(--accent)]">
+            <span className="size-2 rounded-full bg-[var(--accent)] animate-[pulse-glow_2s_ease-in-out_infinite]" />
+            {t('chat.streaming')}
         </div>
     )
 }
