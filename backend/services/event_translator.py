@@ -164,6 +164,7 @@ def translate_to_run_event(raw_event: dict) -> dict | None:
                 "thread_id": raw_data.get("thread_id", ""),
                 "title": raw_data.get("title", "Human Review Required"),
                 "description": raw_data.get("description", ""),
+                "papers": raw_data.get("candidates", []),
             }
         case "error":
             data = {

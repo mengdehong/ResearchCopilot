@@ -210,6 +210,7 @@ async def stream_run_events(
         seq = 0
         completed_nodes: list[str] = []
         last_ai_content: str | None = None
+        was_interrupted = False
         async for raw_event in raw_stream:
             # 检查 on_chain_end 的 output 中是否有新增 AI 消息
             # 仅限 supervisor 节点产出的 AIMessage（chat 模式），
@@ -236,6 +237,8 @@ async def stream_run_events(
                 node_name = run_event["data"].get("node_name", "")
                 if node_name:
                     completed_nodes.append(node_name)
+            if event_type == "interrupt":
+                was_interrupted = True
             logger.debug(
                 "sse_event_yielded",
                 run_id=run_id,
@@ -244,26 +247,26 @@ async def stream_run_events(
             )
             yield f"id: {seq}\ndata: {json.dumps(run_event)}\n\n"
 
-        # 发送 assistant_message：
-        # 优先使用图执行产生的 AI 消息（supervisor chat 模式），
-        # 否则回退到节点完成摘要
-        seq += 1
-        if last_ai_content:
-            msg_event = {
-                "event_type": "assistant_message",
-                "data": {"content": last_ai_content},
-            }
-        elif completed_nodes:
-            summary = " → ".join(completed_nodes)
-            msg_event = {
-                "event_type": "assistant_message",
-                "data": {"content": f"已完成工作流：{summary}"},
-            }
-        else:
-            msg_event = None
+        # 发送 assistant_message（仅在非 interrupt 时）：
+        # interrupt 时不发 assistant_message，前端会显示 HITL 卡片
+        if not was_interrupted:
+            seq += 1
+            if last_ai_content:
+                msg_event = {
+                    "event_type": "assistant_message",
+                    "data": {"content": last_ai_content},
+                }
+            elif completed_nodes:
+                summary = " → ".join(completed_nodes)
+                msg_event = {
+                    "event_type": "assistant_message",
+                    "data": {"content": f"已完成工作流：{summary}"},
+                }
+            else:
+                msg_event = None
 
-        if msg_event:
-            yield f"id: {seq}\ndata: {json.dumps(msg_event)}\n\n"
+            if msg_event:
+                yield f"id: {seq}\ndata: {json.dumps(msg_event)}\n\n"
 
         # 发送 run_end 信号让前端关闭连接
         seq += 1
@@ -289,10 +292,32 @@ async def resume_run(
     body: InterruptResponse,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    runner: LangGraphRunner = Depends(get_lg_runner),
 ) -> dict:
-    """Resume a paused run with HITL response (placeholder)."""
+    """Resume a paused run with HITL response."""
     await _verify_thread_ownership(session, thread_id, current_user)
-    return {"run_id": run_id, "status": "not_implemented"}
+
+    # 构建 interrupt resume payload（传给 interrupt() 的返回值）
+    resume_payload: dict = {"action": body.action}
+    if body.selected_ids is not None:
+        resume_payload["selected_ids"] = body.selected_ids
+    if body.payload is not None:
+        resume_payload.update(body.payload)
+    if body.feedback is not None:
+        resume_payload["feedback"] = body.feedback
+
+    new_run_id = str(uuid.uuid4())
+    await runner.resume_run(
+        run_id=new_run_id,
+        thread_id=str(thread_id),
+        resume_payload=resume_payload,
+    )
+    return {
+        "run_id": new_run_id,
+        "thread_id": str(thread_id),
+        "status": "running",
+        "stream_url": f"/api/agent/threads/{thread_id}/runs/{new_run_id}/stream",
+    }
 
 
 @router.post("/{thread_id}/runs/{run_id}/cancel", status_code=204)
