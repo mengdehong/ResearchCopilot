@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.types import interrupt
 from pydantic import BaseModel
 
+from backend.agent.dspy_modules import registry as dspy_registry
 from backend.agent.prompts.loader import load_prompt
 from backend.agent.state import DiscoveryState, PaperCard
 from backend.agent.tools.arxiv_tool import search_arxiv
@@ -91,6 +92,8 @@ async def filter_and_rank(
     """去重 + LLM 并发生成 relevance_comment 填充 PaperCard 列表。"""
     raw_results = state.get("raw_results", [])
     discipline = state.get("discipline", "")
+    # 提取用户搜索意图（DSPy 路径需要）
+    user_message = _get_last_user_message(state.get("messages", []))
 
     # 去重（按 arxiv_id）
     seen: set[str] = set()
@@ -107,26 +110,40 @@ async def filter_and_rank(
     async def _evaluate_paper(paper: dict) -> PaperCard | None:
         async with sem:
             try:
-                prompt = load_prompt(
-                    "discovery/prompts",
-                    key="filter_and_rank",
-                    variables={
-                        "discipline": discipline,
-                        "paper_json": json.dumps(
-                            {
-                                "title": paper.get("title", ""),
-                                "abstract": paper.get("abstract", ""),
-                            },
-                            ensure_ascii=False,
-                        ),
-                    },
-                )
-                evaluation = await llm.with_structured_output(RelevanceComment).ainvoke(
-                    [
-                        SystemMessage(content=prompt["system"]),
-                        HumanMessage(content=prompt["user"]),
-                    ]
-                )
+                dspy_module = dspy_registry.get("filter_rank")
+                if dspy_module is not None:
+                    result = await asyncio.to_thread(
+                        dspy_module,
+                        discipline=discipline,
+                        user_search_intent=user_message,
+                        paper_title=paper.get("title", ""),
+                        paper_abstract=paper.get("abstract", ""),
+                    )
+                    evaluation_score = result.relevance_score
+                    evaluation_comment = result.relevance_comment
+                else:
+                    prompt = load_prompt(
+                        "discovery/prompts",
+                        key="filter_and_rank",
+                        variables={
+                            "discipline": discipline,
+                            "paper_json": json.dumps(
+                                {
+                                    "title": paper.get("title", ""),
+                                    "abstract": paper.get("abstract", ""),
+                                },
+                                ensure_ascii=False,
+                            ),
+                        },
+                    )
+                    evaluation = await llm.with_structured_output(RelevanceComment).ainvoke(
+                        [
+                            SystemMessage(content=prompt["system"]),
+                            HumanMessage(content=prompt["user"]),
+                        ]
+                    )
+                    evaluation_score = evaluation.relevance_score
+                    evaluation_comment = evaluation.relevance_comment
                 return PaperCard(
                     arxiv_id=paper.get("arxiv_id", ""),
                     title=paper.get("title", ""),
@@ -134,8 +151,8 @@ async def filter_and_rank(
                     abstract=paper.get("abstract", ""),
                     year=int(paper.get("year", 0) or 0),
                     citation_count=paper.get("citation_count"),
-                    relevance_score=evaluation.relevance_score,
-                    relevance_comment=evaluation.relevance_comment,
+                    relevance_score=evaluation_score,
+                    relevance_comment=evaluation_comment,
                     source=paper.get("source", "unknown"),
                 )
             except Exception:
@@ -176,8 +193,89 @@ def present_candidates(state: DiscoveryState) -> dict:
         }
     )
     selected_ids: list[str] = response.get("selected_ids", [])
+
+    # HITL 反馈采集：写入业务表供 DSPy 离线训练
+    _save_discovery_feedback(
+        workspace_id=state.get("workspace_id", ""),
+        thread_id=state.get("thread_id", ""),
+        user_query=_get_last_user_message(state.get("messages", [])),
+        discipline=state.get("discipline", ""),
+        candidates=candidates,
+        selected_ids=selected_ids,
+    )
+
     logger.info("present_candidates_done", selected_count=len(selected_ids))
     return {"selected_paper_ids": selected_ids}
+
+
+def _get_last_user_message(messages: list) -> str:
+    """提取最后一条用户消息文本。"""
+    for msg in reversed(messages):
+        if hasattr(msg, "type") and msg.type == "human":
+            return msg.content or ""
+    return ""
+
+
+def _save_discovery_feedback(
+    workspace_id: str,
+    thread_id: str,
+    user_query: str,
+    discipline: str,
+    candidates: list[PaperCard],
+    selected_ids: list[str],
+) -> None:
+    """将 HITL 选择写入 discovery_feedback 业务表。
+
+    使用 fire-and-forget 模式，写入失败仅记录警告，不影响主流程。
+    """
+    try:
+        # 延迟导入避免循环依赖和运行时 DB session 创建
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session
+
+        from backend.core.config import get_settings
+        from backend.models.discovery_feedback import DiscoveryFeedback
+
+        settings = get_settings()
+        sync_url = str(settings.database_url).replace("postgresql+asyncpg", "postgresql+psycopg")
+        engine = create_engine(sync_url)
+
+        candidates_json = json.dumps(
+            [
+                {
+                    "arxiv_id": p.arxiv_id,
+                    "title": p.title,
+                    "abstract": p.abstract,
+                }
+                for p in candidates
+            ],
+            ensure_ascii=False,
+        )
+
+        with Session(engine) as session:
+            feedback = DiscoveryFeedback(
+                workspace_id=workspace_id,
+                thread_id=thread_id,
+                user_query=user_query,
+                discipline=discipline,
+                candidates_json=candidates_json,
+                selected_paper_ids=json.dumps(selected_ids),
+            )
+            session.add(feedback)
+            session.commit()
+
+        engine.dispose()
+
+        logger.info(
+            "discovery_feedback_saved",
+            workspace_id=workspace_id,
+            selected_count=len(selected_ids),
+        )
+    except Exception:
+        logger.warning(
+            "discovery_feedback_save_failed",
+            workspace_id=workspace_id,
+        )
 
 
 def trigger_ingestion(state: DiscoveryState) -> dict:
