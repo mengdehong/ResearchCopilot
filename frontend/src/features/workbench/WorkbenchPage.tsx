@@ -147,7 +147,11 @@ export default function WorkbenchPage() {
                     minSize={30}
                     className="h-full"
                 >
-                    <CanvasPanel threadId={threadId} />
+                    <CanvasPanel
+                        threadId={threadId}
+                        interrupt={interrupt}
+                        onResumeInterrupt={handleResumeInterrupt}
+                    />
                 </Panel>
             </Group>
         </div>

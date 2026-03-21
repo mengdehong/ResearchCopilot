@@ -77,6 +77,11 @@ export const en = {
         noContent: 'No content to preview.',
         editInCanvas: 'Edit in Canvas',
         unknownAction: 'Unknown action: {{action}}',
+        papersFound: '{{count}} papers',
+        selectAll: 'Select All',
+        selectedCount: '{{count}} selected',
+        score: 'Score',
+        paperListOnRight: 'Paper list is shown on the right panel. Please select papers there.',
     },
     status: {
         processing: 'Processing...',

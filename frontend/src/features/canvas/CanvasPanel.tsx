@@ -1,9 +1,10 @@
 import { useLayoutStore } from '@/stores/useLayoutStore'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import EditorTab from './EditorTab'
 import PDFTab from './PDFTab'
 import SandboxTab from './SandboxTab'
-import type { CanvasTab } from '@/types'
+import PaperSelectOverlay from './PaperSelectOverlay'
+import type { CanvasTab, InterruptData } from '@/types'
 import { FileText, FileImage, FlaskConical } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -15,11 +16,15 @@ const TABS: { key: CanvasTab; label: string; icon: ReactNode }[] = [
 
 interface CanvasPanelProps {
     threadId: string
+    interrupt: InterruptData | null
+    onResumeInterrupt: (action: string, payload?: Record<string, unknown>) => void
 }
 
-export default function CanvasPanel({ threadId }: CanvasPanelProps) {
+export default function CanvasPanel({ threadId, interrupt, onResumeInterrupt }: CanvasPanelProps) {
     const activeTab = useLayoutStore((s) => s.activeCanvasTab)
     const setActiveTab = useLayoutStore((s) => s.setActiveCanvasTab)
+
+    const showPaperOverlay = interrupt?.action === 'select_papers'
 
     return (
         <div className="flex flex-col h-full bg-[var(--surface)]">
@@ -52,10 +57,21 @@ export default function CanvasPanel({ threadId }: CanvasPanelProps) {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-auto">
+            <div className="relative flex-1 overflow-auto">
                 {activeTab === 'editor' && <EditorTab threadId={threadId} />}
                 {activeTab === 'pdf' && <PDFTab />}
                 {activeTab === 'sandbox' && <SandboxTab />}
+
+                {/* Paper Select Overlay */}
+                <AnimatePresence>
+                    {showPaperOverlay && interrupt && (
+                        <PaperSelectOverlay
+                            interrupt={interrupt}
+                            onResume={onResumeInterrupt}
+                            onClose={() => onResumeInterrupt('approve', { selected_ids: [] })}
+                        />
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     )

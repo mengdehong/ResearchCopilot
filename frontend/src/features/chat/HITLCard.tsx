@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type { InterruptData } from '@/types'
 import { useTranslation } from '@/i18n/useTranslation'
 import type { LocaleContextValue } from '@/i18n/LocaleContext'
@@ -15,70 +14,13 @@ interface HITLInternalProps extends HITLCardProps {
     t: LocaleContextValue['t']
 }
 
-function SelectPapersCard({ interrupt, onResume, t }: HITLInternalProps) {
-    const papers = (interrupt.payload.papers ?? []) as Array<{
-        id: string
-        title: string
-        abstract?: string
-        relevance_comment?: string
-    }>
-    const [selected, setSelected] = useState<Set<string>>(new Set())
-
-    const togglePaper = (id: string) => {
-        setSelected((prev) => {
-            const next = new Set(prev)
-            if (next.has(id)) next.delete(id)
-            else next.add(id)
-            return next
-        })
-    }
-
+function SelectPapersCard({ t }: HITLInternalProps) {
     return (
-        <div className="mx-6 my-3 rounded-[var(--radius-md)] border-2 border-[var(--accent)] bg-[var(--surface)] overflow-hidden animate-[pulse-glow_2s_ease-in-out_2]">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)] bg-[var(--accent-subtle)]">
-                <FileText className="size-4 text-[var(--accent)]" />
-                <h4 className="text-sm font-semibold text-[var(--text-primary)]">
-                    {t('hitl.selectPapers')}
-                </h4>
-            </div>
-            <div className="p-4 space-y-2 max-h-60 overflow-y-auto">
-                {papers.map((p) => (
-                    <label
-                        key={p.id}
-                        className="flex items-start gap-3 p-2 rounded-[var(--radius-sm)] hover:bg-[var(--surface-raised)] transition-colors cursor-pointer"
-                    >
-                        <input
-                            type="checkbox"
-                            checked={selected.has(p.id)}
-                            onChange={() => togglePaper(p.id)}
-                            className="mt-1 accent-[var(--accent)]"
-                        />
-                        <div className="min-w-0">
-                            <div className="text-sm text-[var(--text-primary)] line-clamp-2">
-                                {p.title}
-                            </div>
-                            {p.relevance_comment && (
-                                <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                                    {p.relevance_comment}
-                                </div>
-                            )}
-                        </div>
-                    </label>
-                ))}
-                {papers.length === 0 && (
-                    <p className="text-sm text-[var(--text-muted)]">{t('hitl.noPapers')}</p>
-                )}
-            </div>
-            <div className="flex justify-end gap-2 px-4 py-3 border-t border-[var(--border)]">
-                <Button
-                    onClick={() =>
-                        onResume('approve', { selected_ids: Array.from(selected) })
-                    }
-                    disabled={selected.size === 0}
-                >
-                    {t('hitl.confirmSelection', { count: String(selected.size) })}
-                </Button>
-            </div>
+        <div className="mx-6 my-3 rounded-[var(--radius-md)] border border-[var(--accent)]/40 bg-[var(--accent-subtle)] px-4 py-3 flex items-center gap-2.5 animate-[pulse-glow_2s_ease-in-out_2]">
+            <FileText className="size-4 text-[var(--accent)] shrink-0" />
+            <p className="text-sm text-[var(--text-secondary)]">
+                {t('hitl.paperListOnRight')}
+            </p>
         </div>
     )
 }

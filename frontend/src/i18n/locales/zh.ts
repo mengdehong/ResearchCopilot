@@ -79,6 +79,11 @@ export const zh: TranslationDict = {
         noContent: '暂无内容可预览。',
         editInCanvas: '在画布中编辑',
         unknownAction: '未知操作: {{action}}',
+        papersFound: '共 {{count}} 篇',
+        selectAll: '全选',
+        selectedCount: '已选 {{count}} 篇',
+        score: '评分',
+        paperListOnRight: '论文列表已在右侧面板展示，请在右侧勾选。',
     },
     status: {
         processing: '处理中...',
