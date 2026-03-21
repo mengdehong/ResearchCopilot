@@ -1,0 +1,104 @@
+/* ─── Tiptap Editor Typography ─── */
+/* Restores semantic element styles stripped by Tailwind Preflight */
+
+.tiptap {
+    font-size: 0.875rem;
+    line-height: 1.8;
+    color: var(--text-primary);
+}
+
+/* ─── Headings ─── */
+.tiptap h1,
+.tiptap h2,
+.tiptap h3 {
+    font-weight: 600;
+    margin: 1.5rem 0 0.75rem;
+    line-height: 1.3;
+    color: var(--text-primary);
+}
+
+.tiptap h1 {
+    font-size: 1.5rem;
+}
+
+.tiptap h2 {
+    font-size: 1.25rem;
+}
+
+.tiptap h3 {
+    font-size: 1.125rem;
+}
+
+/* ─── Paragraph ─── */
+.tiptap p {
+    margin-bottom: 0.75rem;
+}
+
+/* ─── Lists ─── */
+.tiptap ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.tiptap ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.tiptap li {
+    margin-bottom: 0.25rem;
+}
+
+.tiptap li p {
+    margin-bottom: 0.25rem;
+}
+
+/* ─── Blockquote ─── */
+.tiptap blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* ─── Code ─── */
+.tiptap code {
+    background: var(--surface-raised);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+}
+
+.tiptap pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.tiptap pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+}
+
+/* ─── Horizontal Rule ─── */
+.tiptap hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+}
+
+/* ─── Focus ─── */
+.tiptap:focus {
+    outline: none;
+}

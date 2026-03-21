@@ -5,6 +5,7 @@ import { useAgentStore } from '@/stores/useAgentStore'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useDraft, useSaveDraft } from '@/hooks/useDraft'
 import { Bold, Italic, Heading1, Heading2, List, ListOrdered, Quote, Code2, Save, Loader2 } from 'lucide-react'
+import './tiptap-editor.css'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 interface EditorTabProps {
