@@ -101,6 +101,7 @@ export interface ThreadInfo {
     thread_id: string
     title: string
     status: string
+    updated_at?: string
     workspace_id?: string
     langgraph_thread_id?: string
 }

@@ -71,6 +71,7 @@ async def create_thread(
 @router.get("")
 async def list_threads(
     workspace_id: uuid.UUID,
+    limit: int | None = None,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[dict]:
@@ -79,12 +80,13 @@ async def list_threads(
     if ws is None or ws.is_deleted or ws.owner_id != current_user.id:
         raise HTTPException(status_code=404, detail="Workspace not found")
 
-    threads = await thread_repo.list_by_workspace(session, workspace_id)
+    threads = await thread_repo.list_by_workspace(session, workspace_id, limit=limit)
     return [
         {
             "thread_id": str(t.id),
             "title": t.title,
             "status": t.status,
+            "updated_at": t.updated_at.isoformat() if t.updated_at else None,
         }
         for t in threads
     ]
