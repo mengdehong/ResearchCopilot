@@ -87,14 +87,21 @@ export const zh: TranslationDict = {
     auth: {
         brand: {
             title: 'Research Copilot',
-            slogan: '借助人工智能和无缝协作加速您的研究。',
+            slogan: '面向高认知负荷深度脑力工作者，通过 Agent 自主规划与沙箱验证，实现从自然语言到结构化成果的闭环。',
+            badge: '智能研究工作站',
+            features: {
+                planning: { title: '意图驱动规划', desc: '自然语言指令驱动 Agent 自主规划调度，全流程自动化执行。' },
+                parsing: { title: '高保真深度解析', desc: '深度解析复杂文档，精准还原表格与公式，确保数据源头可靠。' },
+                sandbox: { title: '安全沙箱验证', desc: '内置隔离执行环境，支持 Python 实验推演，结论经得起推敲。' },
+                delivery: { title: '结构化成果交付', desc: '自动生成结构化报告与多维图表，一键交付高质量研究成果。' },
+            },
         },
         continue_with: '继续使用 {{provider}}',
         login_error: '登录失败，请检查您的凭据。',
         login: {
             title: '欢迎回来',
-            subtitle: '登录您的账户',
-            submit: '登录',
+            subtitle: '请输入您的凭据以访问您的研究工作站。',
+            submit: '登录工作站',
         },
         email: '邮箱地址',
         password: '密码',
@@ -104,9 +111,9 @@ export const zh: TranslationDict = {
         no_account: '还没有账户？',
         register_link: '去注册',
         register: {
-            title: '创建账户',
-            subtitle: '今天就开始您的研究之旅',
-            submit: '注册',
+            title: '开启研究之旅',
+            subtitle: '立即开启您的智能案头研究之旅。',
+            submit: '创建研究账户',
         },
         display_name: '显示名称',
         signing_up: '注册中...',

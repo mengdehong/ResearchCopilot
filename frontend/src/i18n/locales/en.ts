@@ -85,14 +85,21 @@ export const en = {
     auth: {
         brand: {
             title: 'Research Copilot',
-            slogan: 'Accelerate your research with AI-powered intelligence and seamless collaboration.',
+            slogan: 'An AI-powered workstation for deep cognitive work — from natural language to structured deliverables, end to end.',
+            badge: 'Intelligent Research Workstation',
+            features: {
+                planning: { title: 'Intent-Driven Planning', desc: 'Natural language commands drive autonomous Agent planning and scheduling for fully automated workflows.' },
+                parsing: { title: 'High-Fidelity Deep Parsing', desc: 'Deep analysis of complex documents with precise table and formula extraction for reliable data sourcing.' },
+                sandbox: { title: 'Secure Sandbox Verification', desc: 'Built-in isolated execution environment supporting Python experiments — conclusions you can trust.' },
+                delivery: { title: 'Structured Deliverables', desc: 'Auto-generate structured reports and multi-dimensional charts — deliver high-quality research with one click.' },
+            },
         },
         continue_with: 'Continue with {{provider}}',
         login_error: 'Failed to sign in. Please check your credentials.',
         login: {
             title: 'Welcome back',
-            subtitle: 'Sign in to your account',
-            submit: 'Sign in',
+            subtitle: 'Enter your credentials to access your research workstation.',
+            submit: 'Sign in to Workstation',
         },
         email: 'Email',
         password: 'Password',
@@ -102,9 +109,9 @@ export const en = {
         no_account: "Don't have an account?",
         register_link: 'Sign up',
         register: {
-            title: 'Create an account',
-            subtitle: 'Start your research journey today',
-            submit: 'Sign up',
+            title: 'Start your research journey',
+            subtitle: 'Create your intelligent research workstation today.',
+            submit: 'Create research account',
         },
         display_name: 'Display Name',
         signing_up: 'Signing up...',
