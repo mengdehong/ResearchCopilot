@@ -1,19 +1,20 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, Extension } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import { TextSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
+import Placeholder from '@tiptap/extension-placeholder'
 import MathExtension from '@aarkue/tiptap-math-extension'
 import 'katex/dist/katex.min.css'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useDraft, useSaveDraft } from '@/hooks/useDraft'
-import { Bold, Italic, Heading1, Heading2, Heading3, List, ListOrdered, Quote, Code2, Sigma, Save, Loader2 } from 'lucide-react'
+import { Bold, Italic, Strikethrough, Underline as UnderlineIcon, Code2, Link as LinkIcon, Heading1, Heading2, Heading3, List, ListOrdered, Quote, Sigma, Save, Loader2 } from 'lucide-react'
 import './tiptap-editor.css'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { Extension } from '@tiptap/react'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { createLowlight, common } from 'lowlight'
-import 'highlight.js/styles/github-dark.css' // Or any suitable theme
+import 'highlight.js/styles/github-dark.css'
 
 const lowlight = createLowlight(common)
 
@@ -33,10 +34,24 @@ function unpackMathNode(view: EditorView, node: PmNode, nodePos: number): void {
     view.dispatch(tr)
 }
 
-const MathShortcuts = Extension.create({
-    name: 'mathShortcuts',
+const EditorShortcuts = Extension.create({
+    name: 'editorShortcuts',
     addKeyboardShortcuts() {
         return {
+            'Mod-s': () => {
+                // Save is handled via a custom event dispatched to the component
+                document.dispatchEvent(new CustomEvent('editor:save'))
+                return true
+            },
+            'Mod-Shift-m': () => {
+                return this.editor.chain()
+                    .focus()
+                    .insertContent({ type: 'inlineMath', attrs: { latex: '\\square', display: 'yes', evaluate: 'no' } })
+                    .run()
+            },
+            'Mod-Shift-x': () => {
+                return this.editor.chain().focus().toggleStrike().run()
+            },
             Enter: () => {
                 const { state } = this.editor
                 const { selection } = state
@@ -112,14 +127,31 @@ export default function EditorTab({ threadId }: EditorTabProps) {
         extensions: [
             StarterKit.configure({
                 codeBlock: false,
+                dropcursor: {
+                    color: 'var(--accent)',
+                    width: 2,
+                },
+                link: {
+                    openOnClick: false,
+                    autolink: true,
+                    HTMLAttributes: { class: 'editor-link' },
+                },
             }),
             CodeBlockLowlight.configure({
                 lowlight,
             }),
+            Placeholder.configure({
+                placeholder: ({ node, pos, editor: ed }) => {
+                    if (node.type.name === 'heading') return '标题'
+                    if (pos === 0 && ed.isEmpty) return '开始撰写你的研究文档…'
+                    return "输入 '/' 打开命令"
+                },
+                showOnlyCurrent: true,
+            }),
             MathExtension.configure({ addInlineMath: true }),
-            MathShortcuts,
+            EditorShortcuts,
         ],
-        content: '<p>Start writing your research document here...</p>',
+        content: '',
         editorProps: {
             attributes: {
                 class: 'outline-none min-h-full px-8 py-6 text-sm leading-relaxed text-[var(--text-primary)]',
@@ -274,6 +306,13 @@ export default function EditorTab({ threadId }: EditorTabProps) {
         }
     }, [editor, handleSave])
 
+    // Bridge keyboard shortcut (Mod-s) → handleSave via custom event
+    useEffect(() => {
+        const onSave = () => handleSave()
+        document.addEventListener('editor:save', onSave)
+        return () => document.removeEventListener('editor:save', onSave)
+    }, [handleSave])
+
     return (
         <div className="flex flex-col h-full">
             {/* Toolbar */}
@@ -291,6 +330,12 @@ export default function EditorTab({ threadId }: EditorTabProps) {
                             label="Italic"
                             active={editor.isActive('italic')}
                             onClick={() => editor.chain().focus().toggleItalic().run()}
+                        />
+                        <ToolbarButton
+                            icon={<Strikethrough className="size-3.5" />}
+                            label="Strikethrough (Ctrl+Shift+X)"
+                            active={editor.isActive('strike')}
+                            onClick={() => editor.chain().focus().toggleStrike().run()}
                         />
                     </ToolbarGroup>
 
@@ -362,8 +407,56 @@ export default function EditorTab({ threadId }: EditorTabProps) {
                 </div>
             )}
 
+            {/* BubbleMenu — glassmorphism floating toolbar */}
+            {editor && (
+                <BubbleMenu editor={editor}>
+                    <div className="bubble-menu">
+                        <button
+                            className={`bubble-menu-btn ${editor.isActive('bold') ? 'is-active' : ''}`}
+                            onClick={() => editor.chain().focus().toggleBold().run()}
+                        >
+                            <Bold className="size-3.5" />
+                        </button>
+                        <button
+                            className={`bubble-menu-btn ${editor.isActive('italic') ? 'is-active' : ''}`}
+                            onClick={() => editor.chain().focus().toggleItalic().run()}
+                        >
+                            <Italic className="size-3.5" />
+                        </button>
+                        <button
+                            className={`bubble-menu-btn ${editor.isActive('strike') ? 'is-active' : ''}`}
+                            onClick={() => editor.chain().focus().toggleStrike().run()}
+                        >
+                            <Strikethrough className="size-3.5" />
+                        </button>
+                        <button
+                            className={`bubble-menu-btn ${editor.isActive('underline') ? 'is-active' : ''}`}
+                            onClick={() => editor.chain().focus().toggleUnderline().run()}
+                        >
+                            <UnderlineIcon className="size-3.5" />
+                        </button>
+                        <div className="bubble-menu-sep" />
+                        <button
+                            className={`bubble-menu-btn ${editor.isActive('code') ? 'is-active' : ''}`}
+                            onClick={() => editor.chain().focus().toggleCode().run()}
+                        >
+                            <Code2 className="size-3.5" />
+                        </button>
+                        <button
+                            className={`bubble-menu-btn ${editor.isActive('link') ? 'is-active' : ''}`}
+                            onClick={() => {
+                                const url = window.prompt('URL')
+                                if (url) editor.chain().focus().setLink({ href: url }).run()
+                            }}
+                        >
+                            <LinkIcon className="size-3.5" />
+                        </button>
+                    </div>
+                </BubbleMenu>
+            )}
+
             {/* Editor */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto scroll-smooth">
                 <EditorContent editor={editor} />
             </div>
         </div>

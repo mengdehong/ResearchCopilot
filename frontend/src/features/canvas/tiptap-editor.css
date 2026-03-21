@@ -3,89 +3,151 @@
 
 .tiptap {
     font-size: 0.9375rem;
-    letter-spacing: -0.01em;
-    line-height: 1.8;
+    line-height: 1.85;
     color: var(--text-primary);
+    caret-color: var(--accent);
+    scroll-behavior: smooth;
+}
+
+/* Custom caret */
+.tiptap .ProseMirror-cursor,
+.tiptap>.ProseMirror {
+    caret-color: var(--accent);
+}
+
+/* ─── Selection ─── */
+.tiptap ::selection {
+    background: var(--accent-subtle);
+    color: var(--text-primary);
+}
+
+/* ─── Placeholder ─── */
+.tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: var(--text-muted);
+    opacity: 0.6;
+    pointer-events: none;
+    height: 0;
+    font-style: italic;
+}
+
+.tiptap p.is-empty:not(:first-child)::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: var(--text-muted);
+    opacity: 0.4;
+    pointer-events: none;
+    height: 0;
+    font-size: 0.875rem;
 }
 
 /* ─── Headings ─── */
 .tiptap h1,
 .tiptap h2,
 .tiptap h3 {
-    font-weight: 600;
-    margin: 2rem 0 1rem;
-    line-height: 1.25;
-    letter-spacing: -0.02em;
+    font-weight: 650;
+    line-height: 1.35;
     color: var(--text-primary);
+    letter-spacing: -0.01em;
 }
 
 .tiptap h1 {
-    font-size: 1.75rem;
+    font-size: 1.625rem;
+    margin: 2rem 0 0.75rem;
 }
 
 .tiptap h2 {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
+    margin: 1.5rem 0 0.625rem;
 }
 
 .tiptap h3 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    margin: 1.25rem 0 0.5rem;
+}
+
+/* First heading in document needs no top margin */
+.tiptap>h1:first-child,
+.tiptap>h2:first-child,
+.tiptap>h3:first-child {
+    margin-top: 0;
 }
 
 /* ─── Paragraph ─── */
 .tiptap p {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5em;
 }
 
 /* ─── Lists ─── */
 .tiptap ul {
     list-style-type: disc;
     padding-left: 1.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.625rem;
 }
 
 .tiptap ol {
     list-style-type: decimal;
     padding-left: 1.5rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.625rem;
 }
 
 .tiptap li {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
 }
 
 .tiptap li p {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
+}
+
+/* Nested list marker progression */
+.tiptap ul ul {
+    list-style-type: circle;
+}
+
+.tiptap ul ul ul {
+    list-style-type: square;
+}
+
+.tiptap ol ol {
+    list-style-type: lower-alpha;
+}
+
+.tiptap ol ol ol {
+    list-style-type: lower-roman;
 }
 
 /* ─── Blockquote ─── */
 .tiptap blockquote {
     border-left: 3px solid var(--accent);
-    margin: 1.5rem 0;
+    padding: 0.5rem 1rem;
+    margin: 1rem 0;
     color: var(--text-secondary);
     font-style: italic;
     background: var(--accent-subtle);
-    padding: 1rem 1.25rem;
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 /* ─── Code ─── */
 .tiptap code {
     background: var(--surface-raised);
-    padding: 1px 4px;
-    border-radius: 3px;
+    padding: 2px 6px;
+    border-radius: 4px;
     font-family: var(--font-mono);
-    font-size: 0.9em;
+    font-size: 0.875em;
+    color: var(--accent);
 }
 
 .tiptap pre {
     background: var(--surface-raised);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 1.25rem;
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
     font-family: var(--font-mono);
     font-size: 0.8125rem;
+    line-height: 1.65;
     overflow-x: auto;
-    margin: 1.5rem 0;
+    margin: 1rem 0;
     box-shadow: var(--shadow-sm);
 }
 
@@ -94,13 +156,14 @@
     padding: 0;
     border-radius: 0;
     font-size: inherit;
+    color: inherit;
 }
 
 /* ─── Horizontal Rule ─── */
 .tiptap hr {
     border: none;
     border-top: 1px solid var(--border);
-    margin: 1.5rem 0;
+    margin: 1.75rem 0;
 }
 
 /* ─── Math (KaTeX) ─── */
@@ -134,7 +197,70 @@
     margin: 0;
 }
 
+/* ─── Links ─── */
+.tiptap .editor-link {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--transition-fast);
+    cursor: pointer;
+}
+
+.tiptap .editor-link:hover {
+    border-bottom-color: var(--accent);
+}
+
+/* ─── Dropcursor ─── */
+.ProseMirror-dropcursor {
+    color: var(--accent) !important;
+}
+
 /* ─── Focus ─── */
 .tiptap:focus {
     outline: none;
+}
+
+/* ─── BubbleMenu ─── */
+.bubble-menu {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px) saturate(1.8);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    animation: var(--animate-zoom-in);
+}
+
+.bubble-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.bubble-menu-btn:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+}
+
+.bubble-menu-btn.is-active {
+    background: var(--accent-subtle);
+    color: var(--accent);
+}
+
+.bubble-menu-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    margin: 0 2px;
 }

@@ -8,6 +8,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src'),
+            '@tiptap/react/menus': path.resolve(__dirname, './node_modules/@tiptap/react/dist/menus/index.js'),
         },
     },
     server: {
