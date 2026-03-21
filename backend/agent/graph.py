@@ -6,6 +6,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 
+from backend.agent.dspy_modules import registry as dspy_registry
 from backend.agent.prompts.loader import load_prompt
 from backend.agent.routing import (
     RouteDecision,
@@ -61,7 +62,7 @@ def _build_supervisor_node(llm: BaseChatModel):
                 "current_step_index": 0,
             }
 
-        # 2. LLM 结构化输出路由
+        # 2. LLM 结构化输出路由（DSPy 优先，回退到 YAML）
         discipline = state.get("discipline", "")
         user_message = ""
         for msg in reversed(messages):
@@ -77,21 +78,30 @@ def _build_supervisor_node(llm: BaseChatModel):
             ensure_ascii=False,
         )
 
-        prompt = load_prompt(
-            "supervisor",
-            variables={
-                "discipline": discipline,
-                "user_message": user_message,
-                "artifacts_summary": artifacts_summary,
-            },
-        )
+        dspy_module = dspy_registry.get("supervisor_routing")
+        if dspy_module is not None:
+            logger.info("routing_via_dspy", module="supervisor_routing")
+            decision = dspy_module(
+                discipline=discipline,
+                chat_history=user_message,
+                current_artifacts=artifacts_summary,
+            )
+        else:
+            prompt = load_prompt(
+                "supervisor",
+                variables={
+                    "discipline": discipline,
+                    "user_message": user_message,
+                    "artifacts_summary": artifacts_summary,
+                },
+            )
 
-        decision = llm.with_structured_output(RouteDecision).invoke(
-            [
-                SystemMessage(content=prompt["system"]),
-                HumanMessage(content=prompt["user"]),
-            ]
-        )
+            decision = llm.with_structured_output(RouteDecision).invoke(
+                [
+                    SystemMessage(content=prompt["system"]),
+                    HumanMessage(content=prompt["user"]),
+                ]
+            )
 
         logger.info(
             "routing_decision",
