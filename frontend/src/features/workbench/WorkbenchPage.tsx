@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { useCreateThread, useCreateRun, useResumeRun } from '@/hooks/useThreads'
@@ -13,12 +13,14 @@ import CanvasPanel from '@/features/canvas/CanvasPanel'
  */
 export default function WorkbenchPage() {
     const { id: workspaceId = '' } = useParams<{ id: string }>()
+    const [searchParams] = useSearchParams()
+    const threadParam = searchParams.get('thread') ?? ''
     const addMessage = useAgentStore((s) => s.addMessage)
     const interrupt = useAgentStore((s) => s.interrupt)
     const clearInterrupt = useAgentStore((s) => s.clearInterrupt)
     const reset = useAgentStore((s) => s.reset)
 
-    const [threadId, setThreadId] = useState('')
+    const [threadId, setThreadId] = useState(threadParam)
     const [activeRunId, setActiveRunId] = useState('')
 
     const createThread = useCreateThread()
@@ -42,6 +44,17 @@ export default function WorkbenchPage() {
             prevWorkspaceRef.current = workspaceId
         }
     }, [workspaceId, reset])
+
+    // Sync threadId from URL query param when thread changes
+    const prevThreadRef = useRef(threadParam)
+    useEffect(() => {
+        if (threadParam && threadParam !== prevThreadRef.current) {
+            setThreadId(threadParam)
+            setActiveRunId('')
+            reset()
+            prevThreadRef.current = threadParam
+        }
+    }, [threadParam, reset])
 
     const handleSendMessage = useCallback(
         async (message: string) => {
