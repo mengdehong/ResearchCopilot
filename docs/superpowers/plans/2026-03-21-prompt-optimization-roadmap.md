@@ -1,6 +1,6 @@
 # Prompt 优化路线图
 
-> 基于当前成果：Supervisor +19.2%, Discovery +17.8%
+> 基于当前成果：Supervisor +19.2%, Discovery +17.8%, **Extraction + expand_query 已全部优化并集成**
 
 ## 当前覆盖
 
@@ -8,9 +8,10 @@
 | :-------------------------- | :----------------------- | :------ | :--------- |
 | `supervisor.yaml`           | ✅ SupervisorRouterModule | ✅ 86.4% | **已完成** |
 | `discovery/filter_and_rank` | ✅ FilterRankModule       | ✅ 97.5% | **已完成** |
-| `discovery/expand_query`    | ❌                        | —       | 待改造     |
-| `extraction/generate_notes` | ❌                        | —       | 待改造     |
-| `extraction/cross_compare`  | ❌                        | —       | 待改造     |
+| `discovery/expand_query`    | ✅ ExpandQueryModule      | ✅ 98.7% | **已完成** |
+| `extraction/generate_notes` | ✅ GenerateNotesModule    | ✅ 100%  | **已完成** |
+| `extraction/cross_compare`  | ✅ CrossCompareModule     | ✅ 99.0% | **已完成** |
+| `extraction/build_glossary` | ✅ BuildGlossaryModule    | ✅ 100%  | **已完成** |
 | `ideation/analyze_gaps`     | ❌                        | —       | 待改造     |
 | `critique/supporter_review` | ❌                        | —       | 待改造     |
 | `critique/critic_review`    | ❌                        | —       | 待改造     |
@@ -24,17 +25,17 @@
 - 执行 `finishing-a-development-branch` 流程
 - 确保 `uv sync` 正常（optimization 为可选 extra）
 
-### S2. 扩展到高价值节点
+### S2. 扩展到高价値节点 ✅
 
 按 **调用频率 × 输出质量敏感度** 排序：
 
-| 优先级 | 节点                               | 理由                               | 预估收益 |
-| :----- | :--------------------------------- | :--------------------------------- | :------- |
-| P0     | `expand_query`                     | 每次搜索必经，查询质量直接影响召回 | 高       |
-| P1     | `generate_notes`                   | 精读核心，用户直接看到输出质量     | 高       |
-| P1     | `analyze_gaps`                     | 创意核心，gap 质量决定后续方向     | 中-高    |
-| P2     | `critic_review`                    | 审稿质量影响最终产出               | 中       |
-| P3     | `cross_compare` / `build_glossary` | 辅助型，低频                       | 低       |
+| 优先级 | 节点                               | 理由                               | 实际收益              |
+| :----- | :--------------------------------- | :--------------------------------- | :-------------------- |
+| P0     | `expand_query`                     | 每次搜索必经，查询质量直接影响召回 | **+1.14%** ✅          |
+| P1     | `generate_notes`                   | 精读核心，用户直接看到输出质量     | **+0.32%** ✅          |
+| P1     | `analyze_gaps`                     | 创意核心，gap 质量决定后续方向     | 中-高                 |
+| P2     | `critic_review`                    | 审稿质量影响最终产出               | 中                    |
+| P3     | `cross_compare` / `build_glossary` | 辅助型，低频                       | **+2.85% / +0.17%** ✅ |
 
 每个节点改造模式相同：
 1. 定义 `dspy.Signature` + `dspy.Module`
