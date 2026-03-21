@@ -66,8 +66,8 @@ function MessageBubble({ message }: MessageBubbleProps) {
     // User message: right-aligned bubble
     if (!isAssistant) {
         return (
-            <div className="flex justify-end px-6 py-2">
-                <div className="max-w-[75%] rounded-2xl rounded-br-md bg-[var(--accent)] px-4 py-2.5 text-white text-sm leading-relaxed shadow-sm">
+            <div className="flex justify-end px-6 py-3">
+                <div className="max-w-[85%] rounded-3xl rounded-br-md bg-[var(--surface-raised)] border border-[var(--border)] px-5 py-3.5 text-[var(--text-primary)] text-[15px] leading-relaxed shadow-[var(--shadow-sm)]">
                     <AcademicMarkdown content={message.content} />
                 </div>
             </div>
@@ -76,8 +76,8 @@ function MessageBubble({ message }: MessageBubbleProps) {
 
     // Assistant message: left-aligned, no bubble, no avatar
     return (
-        <div className="px-6 py-3">
-            <div className="text-sm text-[var(--text-primary)] leading-relaxed prose-sm max-w-none">
+        <div className="px-6 py-4">
+            <div className="text-[15px] text-[var(--text-primary)] leading-relaxed prose-sm max-w-none">
                 <AcademicMarkdown content={message.content} />
             </div>
         </div>

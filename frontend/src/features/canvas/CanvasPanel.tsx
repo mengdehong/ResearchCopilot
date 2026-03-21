@@ -29,7 +29,7 @@ export default function CanvasPanel({ threadId, interrupt, onResumeInterrupt }: 
     return (
         <div className="flex flex-col h-full bg-[var(--surface)]">
             {/* Tab Bar */}
-            <div className="flex items-center gap-0.5 px-2 pt-2 border-b border-[var(--border)] bg-[var(--surface)]">
+            <div className="flex items-center gap-1 px-3 pt-2.5 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
                 {TABS.map((tab) => (
                     <button
                         key={tab.key}

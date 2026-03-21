@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
@@ -7,6 +7,7 @@ import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from '@/i18n/useTranslation'
 import { useThreads, useDeleteThread } from '@/hooks/useThreads'
 import { ConfirmDeleteDialog, useConfirmDelete } from '@/components/ui/confirm-delete-dialog'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 import {
     Tooltip,
@@ -15,7 +16,7 @@ import {
 } from '@/components/ui/tooltip'
 
 const SIDEBAR_SPRING = { type: 'spring' as const, damping: 25, stiffness: 300 }
-const COLLAPSED_WIDTH = 56
+const COLLAPSED_WIDTH = 64
 const SIDEBAR_MIN_WIDTH = 120
 const SIDEBAR_MAX_WIDTH = 480
 
@@ -51,12 +52,20 @@ export default function AppLayout() {
         document.addEventListener('mouseup', onMouseUp)
     }
     const { resolvedTheme, setTheme } = useTheme()
+    const isMobile = useMediaQuery('(max-width: 768px)')
+
+    // Auto-collapse sidebar on narrow viewports
+    useEffect(() => {
+        if (isMobile && navExpanded) {
+            toggleNav()
+        }
+    }, [isMobile]) // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
-        <div className="flex h-screen w-screen overflow-hidden bg-[var(--background)]">
+        <div className="flex h-screen w-screen overflow-hidden bg-[var(--background)] p-2 gap-2">
             {/* ─── Sidebar ─── */}
             <motion.nav
-                className="relative flex flex-col h-screen border-r border-[var(--border)] bg-[var(--surface)] overflow-hidden select-none shrink-0"
+                className="relative flex flex-col h-full rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden select-none shrink-0"
                 animate={{ width: navExpanded ? sidebarWidth : COLLAPSED_WIDTH }}
                 transition={SIDEBAR_SPRING}
             >
@@ -69,7 +78,7 @@ export default function AppLayout() {
                 )}
 
                 {/* Top: Logo + Nav Items */}
-                <div className="flex flex-col items-center gap-1 pt-3 px-2">
+                <div className="flex flex-col items-center gap-1.5 pt-4 px-3">
                     {/* Logo */}
                     <NavLink
                         to="/workspaces"
@@ -135,7 +144,7 @@ export default function AppLayout() {
                 </div>
 
                 {/* Bottom: Theme + Settings */}
-                <div className="flex flex-col items-center gap-1 pb-3 px-2 border-t border-[var(--border)] pt-2">
+                <div className="flex flex-col items-center gap-1.5 pb-4 px-3 border-t border-[var(--border)] pt-3">
                     {/* Theme Switch */}
                     <SidebarButton
                         icon={resolvedTheme === 'dark'
@@ -161,8 +170,19 @@ export default function AppLayout() {
             </motion.nav>
 
             {/* ─── Main Content ─── */}
-            <main className="flex-1 overflow-auto h-screen bg-[var(--background)]">
-                <Outlet />
+            <main className="flex-1 overflow-hidden h-full rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={location.pathname}
+                        className="h-full w-full overflow-auto"
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                    >
+                        <Outlet />
+                    </motion.div>
+                </AnimatePresence>
             </main>
         </div>
     )
@@ -183,9 +203,9 @@ function SidebarButton({ icon, label, expanded, onClick, active = false }: Sideb
             onClick={onClick}
             className={`
                 flex items-center gap-2.5 w-full px-2.5 py-2 rounded-[var(--radius-sm)]
-                text-sm transition-colors cursor-pointer
+                text-sm transition-all duration-200 cursor-pointer active:scale-[0.98]
                 ${active
-                    ? 'bg-[var(--accent-subtle)] text-[var(--accent)]'
+                    ? 'bg-[var(--accent-subtle)] text-[var(--accent)] font-medium'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]'
                 }
             `}
@@ -270,7 +290,7 @@ function ThreadList({ workspaceId }: ThreadListProps) {
                     >
                         <button
                             onClick={() => navigate(`/workspace/${workspaceId}?thread=${thread.thread_id}`)}
-                            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-colors text-left cursor-pointer pr-7"
+                            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] transition-all duration-200 active:scale-[0.98] hover:text-[var(--text-primary)] text-left cursor-pointer pr-7"
                         >
                             <MessageSquare className="size-3.5 shrink-0" />
                             <span className="truncate">{thread.title}</span>

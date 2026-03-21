@@ -16,8 +16,8 @@ interface HITLInternalProps extends HITLCardProps {
 
 function SelectPapersCard({ t }: HITLInternalProps) {
     return (
-        <div className="mx-6 my-3 rounded-[var(--radius-md)] border border-[var(--accent)]/40 bg-[var(--accent-subtle)] px-4 py-3 flex items-center gap-2.5 animate-[pulse-glow_2s_ease-in-out_2]">
-            <FileText className="size-4 text-[var(--accent)] shrink-0" />
+        <div className="mx-6 my-4 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent-subtle)]/50 backdrop-blur-xl px-5 py-4 flex items-center gap-3 animate-[pulse-glow_2s_ease-in-out_2] shadow-[var(--shadow-sm)]">
+            <FileText className="size-5 text-[var(--accent)] shrink-0" />
             <p className="text-sm text-[var(--text-secondary)]">
                 {t('hitl.paperListOnRight')}
             </p>
@@ -29,8 +29,8 @@ function ConfirmExecuteCard({ interrupt, onResume, t }: HITLInternalProps) {
     const code = String(interrupt.payload.code ?? '')
 
     return (
-        <div className="mx-6 my-3 rounded-[var(--radius-md)] border-2 border-[var(--accent)] bg-[var(--surface)] overflow-hidden animate-[pulse-glow_2s_ease-in-out_2]">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)] bg-[var(--accent-subtle)]">
+        <div className="mx-6 my-4 rounded-2xl border border-[var(--accent)]/40 bg-[var(--surface)]/80 backdrop-blur-xl overflow-hidden shadow-[var(--shadow-md)] animate-[pulse-glow_2s_ease-in-out_2]">
+            <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[var(--border)] bg-[var(--accent-subtle)]/50">
                 <Zap className="size-4 text-[var(--accent)]" />
                 <h4 className="text-sm font-semibold text-[var(--text-primary)]">
                     {t('hitl.confirmExecute')}
@@ -76,8 +76,8 @@ function ConfirmFinalizeCard({ interrupt, onResume, t }: HITLInternalProps) {
     const content = String(interrupt.payload.content ?? '')
 
     return (
-        <div className="mx-6 my-3 rounded-[var(--radius-md)] border-2 border-[var(--accent)] bg-[var(--surface)] overflow-hidden animate-[pulse-glow_2s_ease-in-out_2]">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)] bg-[var(--accent-subtle)]">
+        <div className="mx-6 my-4 rounded-2xl border border-[var(--accent)]/40 bg-[var(--surface)]/80 backdrop-blur-xl overflow-hidden shadow-[var(--shadow-md)] animate-[pulse-glow_2s_ease-in-out_2]">
+            <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-[var(--border)] bg-[var(--accent-subtle)]/50">
                 <FileEdit className="size-4 text-[var(--accent)]" />
                 <h4 className="text-sm font-semibold text-[var(--text-primary)]">
                     {t('hitl.confirmFinalize')}

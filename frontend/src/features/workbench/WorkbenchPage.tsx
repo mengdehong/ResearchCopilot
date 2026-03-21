@@ -1,9 +1,11 @@
 import { useCallback, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
+import { MessageSquare, FileText } from 'lucide-react'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { useCreateThread, useCreateRun, useResumeRun } from '@/hooks/useThreads'
 import { useSSE } from '@/hooks/useSSE'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import ChatPanel from '@/features/chat/ChatPanel'
 import CanvasPanel from '@/features/canvas/CanvasPanel'
 
@@ -26,6 +28,8 @@ export default function WorkbenchPage() {
     const createThread = useCreateThread()
     const createRun = useCreateRun()
     const resumeRun = useResumeRun()
+    const isMobile = useMediaQuery('(max-width: 768px)')
+    const [mobileTab, setMobileTab] = useState<'chat' | 'canvas'>('chat')
 
     // Wire SSE: connect when we have a threadId + activeRunId
     useSSE({
@@ -122,11 +126,57 @@ export default function WorkbenchPage() {
         [interrupt, resumeRun, clearInterrupt],
     )
 
+    if (isMobile) {
+        return (
+            <div className="h-full w-full flex flex-col">
+                {/* Mobile Tab Bar */}
+                <div className="flex items-center border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
+                    <button
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors cursor-pointer ${mobileTab === 'chat'
+                                ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]'
+                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                            }`}
+                        onClick={() => setMobileTab('chat')}
+                    >
+                        <MessageSquare className="size-4" />
+                        Chat
+                    </button>
+                    <button
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors cursor-pointer ${mobileTab === 'canvas'
+                                ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]'
+                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                            }`}
+                        onClick={() => setMobileTab('canvas')}
+                    >
+                        <FileText className="size-4" />
+                        Canvas
+                    </button>
+                </div>
+                {/* Mobile Content */}
+                <div className="flex-1 overflow-hidden">
+                    {mobileTab === 'chat' ? (
+                        <ChatPanel
+                            threadId={threadId}
+                            onSendMessage={handleSendMessage}
+                            onResumeInterrupt={handleResumeInterrupt}
+                        />
+                    ) : (
+                        <CanvasPanel
+                            threadId={threadId}
+                            interrupt={interrupt}
+                            onResumeInterrupt={handleResumeInterrupt}
+                        />
+                    )}
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="h-full w-full">
             <Group
                 orientation="horizontal"
-                className="h-full"
+                className="h-full gap-0"
             >
                 <Panel
                     defaultSize={40}
@@ -140,7 +190,7 @@ export default function WorkbenchPage() {
                     />
                 </Panel>
 
-                <Separator className="w-1 bg-[var(--border)] hover:bg-[var(--accent)]/40 active:bg-[var(--accent)]/60 transition-colors" />
+                <Separator className="w-px bg-[var(--border)] hover:w-1 hover:bg-[var(--accent)]/40 active:bg-[var(--accent)]/60 transition-all duration-200" />
 
                 <Panel
                     defaultSize={60}

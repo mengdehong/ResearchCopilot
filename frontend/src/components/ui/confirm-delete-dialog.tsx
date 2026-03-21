@@ -59,6 +59,7 @@ export function ConfirmDeleteDialog({
  * Returns [dialogProps, openDialog] — spread dialogProps onto ConfirmDeleteDialog,
  * call openDialog(callback) to show the dialog.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useConfirmDelete() {
     const [open, setOpen] = useState(false)
     const [pending, setPending] = useState(false)

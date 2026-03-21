@@ -52,10 +52,10 @@ export default function CoTTree({ nodes }: CoTTreeProps) {
     )
 
     return (
-        <div className="mx-6 my-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+        <div className="mx-6 my-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow-sm)]">
             {/* Clickable header — toggles entire CoT */}
             <button
-                className="flex items-center gap-2 w-full px-3 py-2 border-b border-[var(--border)] bg-[var(--surface-raised)] hover:bg-[var(--surface-raised)]/80 transition-colors cursor-pointer"
+                className="flex items-center gap-2.5 w-full px-4 py-3 bg-gradient-to-r from-[var(--surface-raised)] to-transparent hover:bg-[var(--surface-raised)] transition-all duration-300 cursor-pointer"
                 onClick={() => setCollapsed(!collapsed)}
             >
                 {collapsed
@@ -115,9 +115,9 @@ function CoTNodeItem({ node }: { node: CoTNode }) {
             : ''
 
     return (
-        <div className="ml-1">
+        <div className="relative ml-2 pl-3 mt-1.5 before:content-[''] before:absolute before:left-0 before:top-4 before:bottom-[-4px] before:w-px before:bg-[var(--border)] last:before:hidden">
             <button
-                className="flex items-center gap-1.5 w-full px-2 py-1 rounded-[var(--radius-sm)] text-left hover:bg-[var(--surface-raised)] transition-colors cursor-pointer"
+                className="group flex items-center gap-2 w-full px-2.5 py-1.5 rounded-[var(--radius-sm)] text-left hover:bg-[var(--surface-raised)] hover:shadow-[var(--shadow-sm)] transition-all duration-200 active:scale-[0.98] cursor-pointer"
                 onClick={() => setExpanded(!expanded)}
             >
                 {node.children.length > 0 && (
@@ -140,7 +140,7 @@ function CoTNodeItem({ node }: { node: CoTNode }) {
                 {expanded && node.children.length > 0 && (
                     <motion.div
                         ref={contentRef}
-                        className="ml-4 border-l border-[var(--border)]"
+                        className="ml-2 pl-2"
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
