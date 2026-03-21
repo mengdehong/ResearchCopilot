@@ -1,5 +1,4 @@
-"""Agent API router — thread CRUD, runs, SSE events, HITL interrupts."""
-
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,12 +13,15 @@ from backend.api.dependencies import (
 )
 from backend.api.schemas.agent import InterruptResponse, RunRequest
 from backend.clients.langgraph_runner import LangGraphRunner
+from backend.core.logger import get_logger
 from backend.models.user import User
 from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
 from backend.repositories import run_snapshot_repo, thread_repo
 from backend.services import agent_service
-from backend.services.event_translator import translate_sse_stream
+from backend.services.event_translator import translate_run_event_stream
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/agent/threads", tags=["agent"])
 
@@ -205,9 +207,39 @@ async def stream_run_events(
 
     async def event_generator():
         raw_stream = runner.get_event_stream(run_id)
-        async for sse_event in translate_sse_stream(raw_stream):
-            data = sse_event.model_dump_json()
-            yield f"event: {sse_event.event_type}\ndata: {data}\n\n"
+        seq = 0
+        completed_nodes: list[str] = []
+        async for run_event in translate_run_event_stream(raw_stream):
+            seq += 1
+            event_type = run_event["event_type"]
+            # 记录完成的节点用于生成状态摘要
+            if event_type == "node_end":
+                node_name = run_event["data"].get("node_name", "")
+                if node_name:
+                    completed_nodes.append(node_name)
+            logger.debug(
+                "sse_event_yielded",
+                run_id=run_id,
+                seq=seq,
+                event_type=event_type,
+            )
+            yield f"id: {seq}\ndata: {json.dumps(run_event)}\n\n"
+
+        # 发送 assistant_message：基于完成的节点生成状态摘要
+        if completed_nodes:
+            seq += 1
+            summary = " → ".join(completed_nodes)
+            msg_event = {
+                "event_type": "assistant_message",
+                "data": {"content": f"已完成工作流：{summary}"},
+            }
+            yield f"id: {seq}\ndata: {json.dumps(msg_event)}\n\n"
+
+        # 发送 run_end 信号让前端关闭连接
+        seq += 1
+        end_event = {"event_type": "run_end", "data": {"run_id": run_id}}
+        yield f"id: {seq}\ndata: {json.dumps(end_event)}\n\n"
+        logger.info("sse_stream_ended", run_id=run_id, event_count=seq)
 
     return StreamingResponse(
         event_generator(),
