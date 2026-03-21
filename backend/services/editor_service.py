@@ -55,10 +55,16 @@ async def load_draft(
     session: AsyncSession,
     thread_id: uuid.UUID,
     owner: User,
-) -> EditorDraft | None:
-    """Load editor draft. Returns None if not found or not owned."""
+) -> tuple[Thread, EditorDraft | None] | None:
+    """Load editor draft.
+
+    Returns None if thread not found or access denied.
+    Returns (thread, None) if thread exists but no draft saved yet.
+    Returns (thread, draft) if draft exists.
+    """
     thread = await _verify_thread_ownership(session, thread_id, owner)
     if thread is None:
         return None
 
-    return await editor_repo.get_by_thread_id(session, thread_id)
+    draft = await editor_repo.get_by_thread_id(session, thread_id)
+    return (thread, draft)

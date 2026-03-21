@@ -40,8 +40,15 @@ async def load_draft(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> DraftLoad:
-    """Load editor draft for a thread."""
-    draft = await editor_service.load_draft(session, thread_id, current_user)
+    """Load editor draft for a thread. Returns empty content if no draft saved yet."""
+    result = await editor_service.load_draft(session, thread_id, current_user)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Thread not found or access denied")
+    thread, draft = result
     if draft is None:
-        raise HTTPException(status_code=404, detail="Draft not found")
+        return DraftLoad(
+            thread_id=thread_id,
+            content="",
+            updated_at=thread.updated_at,
+        )
     return DraftLoad.model_validate(draft)
