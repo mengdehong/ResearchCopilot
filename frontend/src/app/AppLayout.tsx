@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react'
+import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from '@/i18n/useTranslation'
-import { useThreads } from '@/hooks/useThreads'
+import { useThreads, useDeleteThread } from '@/hooks/useThreads'
+import { ConfirmDeleteDialog, useConfirmDelete } from '@/components/ui/confirm-delete-dialog'
 
 import {
     Tooltip,
@@ -232,9 +233,24 @@ function ThreadList({ workspaceId }: ThreadListProps) {
         expanded ? workspaceId : '',
     )
     const navigate = useNavigate()
+    const location = useLocation()
+    const deleteThread = useDeleteThread()
+    const [confirmProps, openConfirm] = useConfirmDelete()
 
     const threads = expanded ? allThreads : collapsedThreads
     const hasMore = (collapsedThreads?.length ?? 0) >= COLLAPSED_LIMIT
+
+    const handleDelete = (e: React.MouseEvent, threadId: string) => {
+        e.stopPropagation()
+        openConfirm(() => {
+            const searchParams = new URLSearchParams(location.search)
+            const isActive = searchParams.get('thread') === threadId
+            deleteThread.mutate(
+                { threadId, workspaceId },
+                { onSuccess: () => { if (isActive) navigate(`/workspace/${workspaceId}`) } },
+            )
+        })
+    }
 
     if (!threads?.length) {
         return (
@@ -245,28 +261,43 @@ function ThreadList({ workspaceId }: ThreadListProps) {
     }
 
     return (
-        <div className="flex-1 overflow-y-auto scrollbar-hide space-y-0.5">
-            {threads.map((thread) => (
-                <button
-                    key={thread.thread_id}
-                    onClick={() => navigate(`/workspace/${workspaceId}?thread=${thread.thread_id}`)}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-colors text-left cursor-pointer"
-                >
-                    <MessageSquare className="size-3.5 shrink-0" />
-                    <span className="truncate">{thread.title}</span>
-                </button>
-            ))}
-            {hasMore && (
-                <button
-                    onClick={() => setExpanded((prev) => !prev)}
-                    className="flex items-center justify-center gap-1 w-full py-1 mt-1 rounded-[var(--radius-sm)] text-[10px] text-[var(--text-muted)] opacity-50 hover:opacity-100 hover:bg-[var(--surface-raised)] transition-all cursor-pointer"
-                >
-                    {expanded
-                        ? <><ChevronUp className="size-3" /> 收起</>
-                        : <><ChevronDown className="size-3" /> 展开全部历史</>
-                    }
-                </button>
-            )}
-        </div>
+        <>
+            <div className="flex-1 overflow-y-auto scrollbar-hide space-y-0.5">
+                {threads.map((thread) => (
+                    <div
+                        key={thread.thread_id}
+                        className="group relative"
+                    >
+                        <button
+                            onClick={() => navigate(`/workspace/${workspaceId}?thread=${thread.thread_id}`)}
+                            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-[var(--radius-sm)] text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-colors text-left cursor-pointer pr-7"
+                        >
+                            <MessageSquare className="size-3.5 shrink-0" />
+                            <span className="truncate">{thread.title}</span>
+                        </button>
+                        <button
+                            onClick={(e) => handleDelete(e, thread.thread_id)}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+                            title="删除对话"
+                        >
+                            <Trash2 className="size-3" />
+                        </button>
+                    </div>
+                ))}
+                {hasMore && (
+                    <button
+                        onClick={() => setExpanded((prev) => !prev)}
+                        className="flex items-center justify-center gap-1 w-full py-1 mt-1 rounded-[var(--radius-sm)] text-[10px] text-[var(--text-muted)] opacity-50 hover:opacity-100 hover:bg-[var(--surface-raised)] transition-all cursor-pointer"
+                    >
+                        {expanded
+                            ? <><ChevronUp className="size-3" /> 收起</>
+                            : <><ChevronDown className="size-3" /> 展开全部历史</>
+                        }
+                    </button>
+                )}
+            </div>
+            <ConfirmDeleteDialog {...confirmProps} title="删除对话" description="删除后不可恢复，确认继续？" />
+        </>
     )
 }
+

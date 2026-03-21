@@ -72,3 +72,17 @@ export function useCancelRun() {
         },
     })
 }
+
+export function useDeleteThread() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (params: { threadId: string; workspaceId: string }) => {
+            await api.delete(`/agent/threads/${params.threadId}`)
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: ['threads', variables.workspaceId],
+            })
+        },
+    })
+}
