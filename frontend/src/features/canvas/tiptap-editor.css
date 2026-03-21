@@ -98,6 +98,37 @@
     margin: 1.5rem 0;
 }
 
+/* ─── Math (KaTeX) ─── */
+
+/* 公式节点外层容器 */
+.tiptap .tiptap-math.latex {
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.tiptap .tiptap-math.latex:hover {
+    background: var(--accent-subtle);
+    border-radius: 3px;
+}
+
+/* 通过选中状态高亮 */
+.tiptap .tiptap-math.latex.ProseMirror-selectednode {
+    outline: 2px solid var(--accent);
+    border-radius: 3px;
+}
+
+/* 块级公式 (display mode): 独占一行，居中 */
+.tiptap .tiptap-math.latex:has(.katex-display) {
+    display: block;
+    margin: 1rem 0;
+    text-align: center;
+}
+
+/* KaTeX 渲染出的 display 模式自身也需要 block */
+.tiptap .katex-display {
+    margin: 0;
+}
+
 /* ─── Focus ─── */
 .tiptap:focus {
     outline: none;

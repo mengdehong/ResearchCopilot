@@ -1,12 +1,98 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import { TextSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
+import MathExtension from '@aarkue/tiptap-math-extension'
+import 'katex/dist/katex.min.css'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useDraft, useSaveDraft } from '@/hooks/useDraft'
-import { Bold, Italic, Heading1, Heading2, List, ListOrdered, Quote, Code2, Save, Loader2 } from 'lucide-react'
+import { Bold, Italic, Heading1, Heading2, Heading3, List, ListOrdered, Quote, Code2, Sigma, Save, Loader2 } from 'lucide-react'
 import './tiptap-editor.css'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { Extension } from '@tiptap/react'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import { createLowlight, common } from 'lowlight'
+import 'highlight.js/styles/github-dark.css' // Or any suitable theme
+
+const lowlight = createLowlight(common)
+
+import type { EditorView } from '@tiptap/pm/view'
+import type { Node as PmNode } from '@tiptap/pm/model'
+
+function unpackMathNode(view: EditorView, node: PmNode, nodePos: number): void {
+    const { tr } = view.state
+    const latex = (node.attrs as Record<string, string>).latex || ''
+    const isDisplay = (node.attrs as Record<string, string>).display === 'yes'
+    const delimiter = isDisplay ? '$$' : '$'
+
+    tr.insertText(`${delimiter}${latex}${delimiter}`, nodePos, nodePos + node.nodeSize)
+    const newStart = nodePos + delimiter.length
+    const newEnd = newStart + latex.length
+    tr.setSelection(TextSelection.create(tr.doc, newStart, newEnd))
+    view.dispatch(tr)
+}
+
+const MathShortcuts = Extension.create({
+    name: 'mathShortcuts',
+    addKeyboardShortcuts() {
+        return {
+            Enter: () => {
+                const { state } = this.editor
+                const { selection } = state
+                const { $from, empty } = selection
+
+                if (!empty) return false
+
+                const textBefore = $from.parent.textContent
+
+                // Match block math $$...$$ anywhere in the paragraph
+                const matchBlock = textBefore.match(/\$\$(?!\s)(.*?(?<!\\))\$\$/)
+                if (matchBlock) {
+                    return this.editor.chain()
+                        .deleteRange({ from: $from.start(), to: $from.end() })
+                        .insertContent({
+                            type: 'inlineMath',
+                            attrs: { latex: matchBlock[1], display: 'yes', evaluate: 'no' },
+                        })
+                        .command(({ tr, dispatch }) => {
+                            if (dispatch) tr.split(tr.selection.from)
+                            return true
+                        })
+                        .run()
+                }
+
+                // Match inline math $...$ anywhere in the paragraph
+                const matchInline = textBefore.match(/(?<!\$)\$(?![\s$])((?:[^$\\]|\\\$|\\)+?(?<![\s\\]))\$(?!\$)/)
+                if (matchInline) {
+                    return this.editor.chain()
+                        .deleteRange({ from: $from.start(), to: $from.end() })
+                        .insertContent({
+                            type: 'inlineMath',
+                            attrs: { latex: matchInline[1], display: 'no', evaluate: 'no' },
+                        })
+                        .command(({ tr, dispatch }) => {
+                            if (dispatch) tr.split(tr.selection.from)
+                            return true
+                        })
+                        .run()
+                }
+
+                // 如果段落中只有 $$，将其替换为公式块占位符
+                if (textBefore.trim() === '$$' && $from.parent.type.name === 'paragraph') {
+                    return this.editor.chain()
+                        .deleteRange({ from: $from.start(), to: $from.end() })
+                        .insertContent({
+                            type: 'inlineMath',
+                            attrs: { latex: '\\square', display: 'yes', evaluate: 'no' },
+                        })
+                        .run()
+                }
+                return false
+            },
+        }
+    },
+})
 
 interface EditorTabProps {
     threadId: string
@@ -20,14 +106,119 @@ export default function EditorTab({ threadId }: EditorTabProps) {
     const prevGeneratedRef = useRef('')
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const lastUnpackedParaRef = useRef<number | null>(null)
 
     const editor = useEditor({
-        extensions: [StarterKit],
+        extensions: [
+            StarterKit.configure({
+                codeBlock: false,
+            }),
+            CodeBlockLowlight.configure({
+                lowlight,
+            }),
+            MathExtension.configure({ addInlineMath: true }),
+            MathShortcuts,
+        ],
         content: '<p>Start writing your research document here...</p>',
         editorProps: {
             attributes: {
                 class: 'outline-none min-h-full px-8 py-6 text-sm leading-relaxed text-[var(--text-primary)]',
             },
+            handleClickOn(view, _pos, node, nodePos) {
+                if (node.type.name === 'inlineMath') {
+                    unpackMathNode(view, node, nodePos)
+                    // Track which paragraph was unpacked
+                    const $pos = view.state.doc.resolve(nodePos)
+                    lastUnpackedParaRef.current = $pos.before($pos.depth)
+                    return true
+                }
+                return false
+            }
+        },
+        onSelectionUpdate({ editor: ed, transaction }) {
+            // Only auto-unpack/repack on pure cursor moves (no doc changes)
+            if (transaction.docChanged) return
+
+            const { $from, empty } = ed.state.selection
+            if (!empty) return
+
+            const currentParaPos = $from.before($from.depth)
+
+            // --- Repack logic: if cursor left the unpacked paragraph, repack it ---
+            if (lastUnpackedParaRef.current !== null && currentParaPos !== lastUnpackedParaRef.current) {
+                const prevParaPos = lastUnpackedParaRef.current
+                lastUnpackedParaRef.current = null
+                try {
+                    const $prev = ed.state.doc.resolve(prevParaPos + 1)
+                    const prevPara = $prev.parent
+                    if (prevPara.type.name === 'paragraph' && prevPara.isTextblock) {
+                        const text = prevPara.textContent
+                        const blockMatch = text.match(/\$\$(?!\s)(.*?(?<!\\))\$\$/)
+                        const inlineMatch = text.match(/(?<!\$)\$(?![\s$])((?:[^$\\]|\\\$|\\)+?(?<![\s\\]))\$(?!\$)/)
+                        const match = blockMatch || inlineMatch
+                        if (match) {
+                            const isBlock = !!blockMatch
+                            const latex = match[1]
+                            const paraStart = prevParaPos + 1
+                            const paraEnd = paraStart + prevPara.content.size
+                            ed.chain()
+                                .deleteRange({ from: paraStart, to: paraEnd })
+                                .insertContentAt(paraStart, {
+                                    type: 'inlineMath',
+                                    attrs: { latex, display: isBlock ? 'yes' : 'no', evaluate: 'no' },
+                                })
+                                .run()
+                            return
+                        }
+                    }
+                } catch {
+                    // Position may be invalid if doc changed, ignore
+                }
+            }
+
+            // --- Unpack logic: if cursor is next to a math node, unpack it ---
+            if ($from.nodeBefore?.type.name === 'inlineMath') {
+                const nodePos = $from.pos - $from.nodeBefore.nodeSize
+                unpackMathNode(ed.view, $from.nodeBefore, nodePos)
+                lastUnpackedParaRef.current = currentParaPos
+                return
+            }
+            if ($from.nodeAfter?.type.name === 'inlineMath') {
+                unpackMathNode(ed.view, $from.nodeAfter, $from.pos)
+                lastUnpackedParaRef.current = currentParaPos
+            }
+        },
+        onBlur({ editor: ed }) {
+            // When editor loses focus, repack any unpacked paragraph
+            if (lastUnpackedParaRef.current !== null) {
+                const prevParaPos = lastUnpackedParaRef.current
+                lastUnpackedParaRef.current = null
+                try {
+                    const $prev = ed.state.doc.resolve(prevParaPos + 1)
+                    const prevPara = $prev.parent
+                    if (prevPara.type.name === 'paragraph' && prevPara.isTextblock) {
+                        const text = prevPara.textContent
+                        const blockMatch = text.match(/\$\$(?!\s)(.*?(?<!\\))\$\$/)
+                        const inlineMatch = text.match(/(?<!\$)\$(?![\s$])((?:[^$\\]|\\\$|\\)+?(?<![\s\\]))\$(?!\$)/)
+                        const match = blockMatch || inlineMatch
+                        if (match) {
+                            const isBlock = !!blockMatch
+                            const latex = match[1]
+                            const paraStart = prevParaPos + 1
+                            const paraEnd = paraStart + prevPara.content.size
+                            ed.chain()
+                                .deleteRange({ from: paraStart, to: paraEnd })
+                                .insertContentAt(paraStart, {
+                                    type: 'inlineMath',
+                                    attrs: { latex, display: isBlock ? 'yes' : 'no', evaluate: 'no' },
+                                })
+                                .run()
+                        }
+                    }
+                } catch {
+                    // ignore
+                }
+            }
         },
     })
 
@@ -118,6 +309,12 @@ export default function EditorTab({ threadId }: EditorTabProps) {
                             active={editor.isActive('heading', { level: 2 })}
                             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
                         />
+                        <ToolbarButton
+                            icon={<Heading3 className="size-3.5" />}
+                            label="Heading 3"
+                            active={editor.isActive('heading', { level: 3 })}
+                            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                        />
                     </ToolbarGroup>
 
                     <div className="w-px h-5 bg-[var(--border)] mx-1" />
@@ -146,6 +343,11 @@ export default function EditorTab({ threadId }: EditorTabProps) {
                             label="Code Block"
                             active={editor.isActive('codeBlock')}
                             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                        />
+                        <ToolbarButton
+                            icon={<Sigma className="size-3.5" />}
+                            label="Math Formula ($$...$$)"
+                            onClick={() => editor.chain().focus().insertContent({ type: 'inlineMath', attrs: { latex: '\\square', display: 'yes', evaluate: 'no' } }).run()}
                         />
                     </ToolbarGroup>
 
