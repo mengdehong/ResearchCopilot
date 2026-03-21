@@ -10,8 +10,12 @@ from backend.clients.langgraph_runner import LangGraphRunner
 from backend.clients.storage_client import StorageClient
 
 
-def _make_mock_graph() -> MagicMock:
-    """Create a mock CompiledStateGraph that yields test events."""
+def _make_mock_graph(*, has_interrupt: bool = False) -> MagicMock:
+    """Create a mock CompiledStateGraph that yields test events.
+
+    Args:
+        has_interrupt: 若 True, aget_state 返回 pending next 节点（模拟 interrupt）。
+    """
     graph = MagicMock()
 
     async def fake_astream_events(input_data, *, config=None, version="v2"):
@@ -19,6 +23,22 @@ def _make_mock_graph() -> MagicMock:
         yield {"event": "events/on_chat_model_stream", "data": {"chunk": "Hi"}}
 
     graph.astream_events = fake_astream_events
+
+    # Mock aget_state for interrupt detection
+    state_snapshot = MagicMock()
+    if has_interrupt:
+        state_snapshot.next = ("present_candidates",)
+        interrupt_obj = MagicMock()
+        interrupt_obj.value = {"action": "select_papers", "candidates": []}
+        task_obj = MagicMock()
+        task_obj.interrupts = (interrupt_obj,)
+        state_snapshot.tasks = (task_obj,)
+    else:
+        state_snapshot.next = ()
+        state_snapshot.tasks = ()
+
+    graph.aget_state = AsyncMock(return_value=state_snapshot)
+
     return graph
 
 
@@ -31,6 +51,31 @@ class TestLangGraphRunner:
         events = [e async for e in runner.get_event_stream("r1")]
         assert len(events) == 2
         assert events[0]["event"] == "events/metadata"
+
+    async def test_interrupt_detection(self) -> None:
+        """当图被 interrupt 暂停，_execute 应注入 __interrupt__ 事件。"""
+        graph = _make_mock_graph(has_interrupt=True)
+        runner = LangGraphRunner(graph)
+
+        await runner.start_run(run_id="r1", thread_id="t1", input_data={})
+        events = [e async for e in runner.get_event_stream("r1")]
+        # 2 个原始事件 + 1 个 __interrupt__
+        assert len(events) == 3
+        interrupt_event = events[-1]
+        assert interrupt_event["event"] == "__interrupt__"
+        assert interrupt_event["data"]["action"] == "select_papers"
+        assert interrupt_event["data"]["run_id"] == "r1"
+        assert interrupt_event["data"]["thread_id"] == "t1"
+
+    async def test_no_interrupt_when_graph_completes(self) -> None:
+        """正常完成时不应生成 __interrupt__ 事件。"""
+        graph = _make_mock_graph(has_interrupt=False)
+        runner = LangGraphRunner(graph)
+
+        await runner.start_run(run_id="r1", thread_id="t1", input_data={})
+        events = [e async for e in runner.get_event_stream("r1")]
+        assert len(events) == 2
+        assert all(e["event"] != "__interrupt__" for e in events)
 
     async def test_cancel_run(self) -> None:
         graph = MagicMock()
@@ -52,6 +97,32 @@ class TestLangGraphRunner:
         runner = LangGraphRunner(graph)
         events = [e async for e in runner.get_event_stream("nonexistent")]
         assert events == []
+
+    async def test_resume_run(self) -> None:
+        """resume_run 应启动新的事件流。"""
+        graph = _make_mock_graph()
+        runner = LangGraphRunner(graph)
+
+        await runner.resume_run(
+            run_id="r2",
+            thread_id="t1",
+            resume_payload={"selected_ids": ["p1"]},
+        )
+        events = [e async for e in runner.get_event_stream("r2")]
+        assert len(events) == 2  # 2 个原始事件（无 interrupt）
+
+    async def test_config_includes_thread_id(self) -> None:
+        """start_run 应自动在 config 中注入 thread_id。"""
+        graph = _make_mock_graph()
+        runner = LangGraphRunner(graph)
+
+        await runner.start_run(run_id="r1", thread_id="t1", input_data={})
+        # 等待事件消费完毕
+        _ = [e async for e in runner.get_event_stream("r1")]
+        # 验证 aget_state 被调用时的 config 包含 thread_id
+        call_args = graph.aget_state.call_args
+        config = call_args[0][0]
+        assert config["configurable"]["thread_id"] == "t1"
 
 
 class TestStorageClient:

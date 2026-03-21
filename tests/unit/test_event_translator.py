@@ -1,6 +1,10 @@
 """Event translator tests."""
 
-from backend.services.event_translator import translate_event, translate_stream
+from backend.services.event_translator import (
+    translate_event,
+    translate_stream,
+    translate_to_run_event,
+)
 
 
 class TestTranslateEvent:
@@ -32,6 +36,41 @@ class TestTranslateEvent:
     def test_missing_event_key(self) -> None:
         result = translate_event({"data": {}})
         assert result is None
+
+
+class TestTranslateToRunEvent:
+    def test_interrupt_passes_candidates_as_papers(self) -> None:
+        """interrupt 事件应将 candidates 字段传递为 papers。"""
+        candidates = [
+            {"id": "p1", "title": "Paper 1"},
+            {"id": "p2", "title": "Paper 2"},
+        ]
+        result = translate_to_run_event(
+            {
+                "event": "__interrupt__",
+                "data": {
+                    "action": "select_papers",
+                    "run_id": "r1",
+                    "thread_id": "t1",
+                    "candidates": candidates,
+                },
+            }
+        )
+        assert result is not None
+        assert result["event_type"] == "interrupt"
+        assert result["data"]["action"] == "select_papers"
+        assert result["data"]["papers"] == candidates
+
+    def test_interrupt_without_candidates(self) -> None:
+        """无 candidates 时 papers 应为空列表。"""
+        result = translate_to_run_event(
+            {
+                "event": "__interrupt__",
+                "data": {"action": "confirm_execute", "run_id": "r1"},
+            }
+        )
+        assert result is not None
+        assert result["data"]["papers"] == []
 
 
 class TestTranslateStream:
