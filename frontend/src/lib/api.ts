@@ -20,7 +20,9 @@ const api = axios.create({
     withCredentials: true, // required for httpOnly cookies like refresh_token
 })
 
-api.interceptors.request.use((config: any) => {
+import type { InternalAxiosRequestConfig } from 'axios'
+
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     if (currentToken) {
         config.headers.Authorization = `Bearer ${currentToken}`
     }
@@ -41,26 +43,33 @@ function onRefreshed(token: string) {
 }
 
 api.interceptors.response.use(
-    (response: any) => response,
-    async (error: any) => {
-        const originalRequest = error.config
+    (response) => response,
+    async (error: unknown) => {
+        const err = error as { response?: { status?: number }; config?: InternalAxiosRequestConfig & { _retry?: boolean } }
+        const originalRequest = err.config
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (err.response?.status === 401 && !originalRequest?._retry) {
             // Prevent attempting to refresh if the refresh endpoint itself or login fails
-            if (originalRequest.url === '/auth/refresh' || originalRequest.url === '/auth/login') {
+            if (originalRequest?.url === '/auth/refresh' || originalRequest?.url === '/auth/login') {
                 return Promise.reject(error)
             }
 
             if (isRefreshing) {
                 return new Promise((resolve) => {
                     subscribeTokenRefresh((token: string) => {
-                        originalRequest.headers.Authorization = `Bearer ${token}`
-                        resolve(api(originalRequest))
+                        if (originalRequest) {
+                            originalRequest.headers.Authorization = `Bearer ${token}`
+                            resolve(api(originalRequest))
+                        } else {
+                            resolve(Promise.reject(error))
+                        }
                     })
                 })
             }
 
-            originalRequest._retry = true
+            if (originalRequest) {
+                originalRequest._retry = true
+            }
             isRefreshing = true
 
             try {
@@ -70,8 +79,11 @@ api.interceptors.response.use(
                 isRefreshing = false
                 onRefreshed(access_token)
 
-                originalRequest.headers.Authorization = `Bearer ${access_token}`
-                return api(originalRequest)
+                if (originalRequest) {
+                    originalRequest.headers.Authorization = `Bearer ${access_token}`
+                    return api(originalRequest)
+                }
+                return Promise.reject(error)
             } catch (refreshError) {
                 isRefreshing = false
                 clearToken()

@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useRef } from 'react'
+import { useCallback, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { useAgentStore } from '@/stores/useAgentStore'
@@ -35,26 +35,23 @@ export default function WorkbenchPage() {
     })
 
     // Reset agent store only when workspace changes (not on every mount)
-    const prevWorkspaceRef = useRef(workspaceId)
-    useEffect(() => {
-        if (prevWorkspaceRef.current !== workspaceId) {
-            reset()
-            setThreadId('')
-            setActiveRunId('')
-            prevWorkspaceRef.current = workspaceId
-        }
-    }, [workspaceId, reset])
+    // Synchronous state initialization for render sync (React 18 compatible derived state pattern)
+    const [prevWorkspace, setPrevWorkspace] = useState(workspaceId)
+    if (workspaceId !== prevWorkspace) {
+        setPrevWorkspace(workspaceId)
+        setThreadId('')
+        setActiveRunId('')
+        reset()
+    }
 
     // Sync threadId from URL query param when thread changes
-    const prevThreadRef = useRef(threadParam)
-    useEffect(() => {
-        if (threadParam && threadParam !== prevThreadRef.current) {
-            setThreadId(threadParam)
-            setActiveRunId('')
-            reset()
-            prevThreadRef.current = threadParam
-        }
-    }, [threadParam, reset])
+    const [prevThreadParam, setPrevThreadParam] = useState(threadParam)
+    if (threadParam && threadParam !== prevThreadParam) {
+        setPrevThreadParam(threadParam)
+        setThreadId(threadParam)
+        setActiveRunId('')
+        reset()
+    }
 
     const handleSendMessage = useCallback(
         async (message: string) => {

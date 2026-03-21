@@ -26,8 +26,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUser(userRes.data)
                     setIsAuthenticated(true)
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 // Not authenticated or refresh token expired
+                console.debug('Session restore failed or no session:', err)
                 if (mounted) {
                     setUser(null)
                     setIsAuthenticated(false)
@@ -54,8 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const logout = useCallback(async () => {
         try {
             await api.post('/auth/logout')
-        } catch (err) {
-            console.error('Logout failed:', err)
+        } catch (error: unknown) {
+            console.error('Failed to restore session:', error)
         } finally {
             clearToken()
             setUser(null)

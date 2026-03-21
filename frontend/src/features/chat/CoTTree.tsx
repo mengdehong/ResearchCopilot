@@ -43,13 +43,13 @@ interface CoTTreeProps {
 
 export default function CoTTree({ nodes }: CoTTreeProps) {
     const filtered = filterInternalNodes(nodes)
+    const [collapsed, setCollapsed] = useState(false)
+
     if (filtered.length === 0) return null
 
     const isRunning = filtered.some(
         (n) => n.status === 'running' || n.children.some((c) => c.status === 'running'),
     )
-
-    const [collapsed, setCollapsed] = useState(false)
 
     return (
         <div className="mx-6 my-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
@@ -96,8 +96,10 @@ function CoTNodeItem({ node }: { node: CoTNode }) {
     const contentRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
+        // Only run when status changes to running to avoid setting state during render
         if (node.status === 'running') {
-            setExpanded(true)
+            const timeout = setTimeout(() => setExpanded(true), 0)
+            return () => clearTimeout(timeout)
         }
     }, [node.status])
 
