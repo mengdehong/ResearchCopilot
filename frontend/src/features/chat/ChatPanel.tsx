@@ -4,17 +4,21 @@ import MessageList from './MessageList'
 import InputArea from './InputArea'
 import CoTTree from './CoTTree'
 import HITLCard from './HITLCard'
+import { Button } from '@/components/ui/button'
+import { Square } from 'lucide-react'
 
 interface ChatPanelProps {
     threadId: string
     onSendMessage: (message: string, files?: File[]) => void
     onResumeInterrupt: (action: string, payload?: Record<string, unknown>) => void
+    onCancelRun?: () => void
 }
 
 export default function ChatPanel({
     threadId,
     onSendMessage,
     onResumeInterrupt,
+    onCancelRun,
 }: ChatPanelProps) {
     const messages = useAgentStore((s) => s.messages)
     const cotTree = useAgentStore((s) => s.cotTree)
@@ -30,7 +34,21 @@ export default function ChatPanel({
                 <h3 className="text-sm font-semibold text-[var(--text-primary)]">
                     {t('chat.title')}
                 </h3>
-                <AgentStatusIndicator isStreaming={isStreaming} />
+                <div className="flex items-center gap-2">
+                    {isStreaming && onCancelRun && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={onCancelRun}
+                            className="h-7 px-2 text-xs text-[var(--error)] hover:text-[var(--error)] hover:bg-[var(--error-subtle)] gap-1"
+                            aria-label="Stop agent run"
+                        >
+                            <Square className="size-3" />
+                            {t('chat.stopRun')}
+                        </Button>
+                    )}
+                    <AgentStatusIndicator isStreaming={isStreaming} />
+                </div>
             </div>
 
             {/* Message Area */}

@@ -32,3 +32,20 @@ class SkillRegistry:
     def search_by_tag(self, tag: str) -> list[SkillDefinition]:
         """按标签搜索 Skill。"""
         return [s for s in self._skills.values() if tag in s.tags]
+
+
+# ---------------------------------------------------------------------------
+# 全局注册实例（应用启动时填充）
+# ---------------------------------------------------------------------------
+
+skills_registry = SkillRegistry()
+
+
+def _bootstrap() -> None:
+    """注册所有内置 Skill。延迟导入避免循环依赖。"""
+    from backend.agent.skills.arxiv_search import ARXIV_SEARCH_SKILL  # noqa: PLC0415
+
+    skills_registry.register(ARXIV_SEARCH_SKILL)
+
+
+_bootstrap()

@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { MessageSquare, FileText } from 'lucide-react'
 import { useAgentStore } from '@/stores/useAgentStore'
-import { useCreateThread, useCreateRun, useResumeRun } from '@/hooks/useThreads'
+import { useCreateThread, useCreateRun, useResumeRun, useCancelRun } from '@/hooks/useThreads'
 import { useSSE } from '@/hooks/useSSE'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import ChatPanel from '@/features/chat/ChatPanel'
@@ -30,6 +30,7 @@ export default function WorkbenchPage() {
     const createThread = useCreateThread()
     const createRun = useCreateRun()
     const resumeRun = useResumeRun()
+    const cancelRun = useCancelRun()
     const isMobile = useMediaQuery('(max-width: 768px)')
     const [mobileTab, setMobileTab] = useState<'chat' | 'canvas'>('chat')
 
@@ -128,6 +129,16 @@ export default function WorkbenchPage() {
         [interrupt, resumeRun, clearInterrupt],
     )
 
+    const handleCancelRun = useCallback(async () => {
+        if (!threadId || !activeRunId) return
+        try {
+            await cancelRun.mutateAsync({ threadId, runId: activeRunId })
+        } finally {
+            useAgentStore.setState({ isStreaming: false, currentNode: null })
+            setActiveRunId('')
+        }
+    }, [threadId, activeRunId, cancelRun])
+
     if (isMobile) {
         return (
             <div className="h-full w-full flex flex-col">
@@ -161,6 +172,7 @@ export default function WorkbenchPage() {
                             threadId={threadId}
                             onSendMessage={handleSendMessage}
                             onResumeInterrupt={handleResumeInterrupt}
+                            onCancelRun={handleCancelRun}
                         />
                     ) : (
                         <CanvasPanel
@@ -189,6 +201,7 @@ export default function WorkbenchPage() {
                         threadId={threadId}
                         onSendMessage={handleSendMessage}
                         onResumeInterrupt={handleResumeInterrupt}
+                        onCancelRun={handleCancelRun}
                     />
                 </Panel>
 

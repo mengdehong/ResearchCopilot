@@ -19,6 +19,7 @@ export const zh: TranslationDict = {
     },
     nav: {
         workspaces: '工作区',
+        documents: '文档',
         settings: '设置',
         collapse: '收起',
         expand: '展开',
@@ -72,6 +73,7 @@ export const zh: TranslationDict = {
         title: '对话',
         streaming: '流式传输中',
         idle: '空闲',
+        stopRun: '停止',
         voice: {
             recording: '正在录音...',
             transcribing: '转写中...',
