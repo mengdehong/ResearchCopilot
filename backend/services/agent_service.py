@@ -14,7 +14,7 @@ from backend.repositories import base as base_repo
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from backend.clients.langgraph_client import LangGraphClient, RunInfo
+    from backend.clients.langgraph_runner import LangGraphRunner
     from backend.models.user import User
 
 
@@ -45,100 +45,74 @@ async def _verify_thread_ownership(
 
 async def create_thread(
     session: AsyncSession,
-    lg_client: LangGraphClient,
     *,
     workspace_id: uuid.UUID,
     title: str,
     owner: User,
 ) -> Thread | None:
-    """Create a local thread + corresponding thread on LangGraph."""
+    """Create a local thread (no external LangGraph server needed)."""
     ws = await base_repo.get_by_id(session, Workspace, workspace_id)
     if ws is None or ws.is_deleted or ws.owner_id != owner.id:
         return None
 
-    lg_info = await lg_client.create_thread(
-        metadata={"workspace_id": str(workspace_id)},
-    )
-
     thread = Thread()
     thread.workspace_id = workspace_id
     thread.title = title
-    thread.status = "creating"
-    thread.langgraph_thread_id = lg_info.thread_id
+    thread.status = "idle"
     return await base_repo.create(session, thread)
 
 
 async def trigger_run(
     session: AsyncSession,
-    lg_client: LangGraphClient,
+    runner: LangGraphRunner,
     *,
     thread_id: uuid.UUID,
     message: str,
     owner: User,
+    workspace_id: str | None = None,
+    discipline: str | None = None,
 ) -> RunResult | None:
-    """Store snapshot → quota check → forward to LangGraph → return run_id."""
+    """Store snapshot → start graph execution via Runner → return run_id."""
     thread = await _verify_thread_ownership(session, thread_id, owner)
     if thread is None:
         return None
 
-    # Forward to LangGraph first to get run_id
-    run_info: RunInfo = await lg_client.create_run(
-        thread.langgraph_thread_id or str(thread_id),
-        assistant_id="default",
-        input_data={"message": message},
-    )
+    run_id = str(uuid.uuid4())
 
-    # Store input snapshot with run_id
+    # Store input snapshot
     snapshot = RunSnapshot()
     snapshot.thread_id = thread_id
-    snapshot.run_id = uuid.UUID(run_info.run_id)
+    snapshot.run_id = uuid.UUID(run_id)
     snapshot.user_message = message
     snapshot.status = "running"
     await base_repo.create(session, snapshot)
 
+    # Build graph input (SharedState fields)
+    input_data: dict = {
+        "messages": [{"role": "user", "content": message}],
+        "workspace_id": workspace_id or str(thread.workspace_id),
+        "discipline": discipline or "",
+        "artifacts": {},
+    }
+
+    # Start real graph execution
+    await runner.start_run(
+        run_id=run_id,
+        thread_id=str(thread_id),
+        input_data=input_data,
+    )
+
     return RunResult(
-        run_id=run_info.run_id,
+        run_id=run_id,
         thread_id=str(thread_id),
         status="running",
-        stream_url=f"/api/agent/threads/{thread_id}/runs/{run_info.run_id}/stream",
-    )
-
-
-async def resume_run(
-    session: AsyncSession,
-    lg_client: LangGraphClient,
-    *,
-    thread_id: uuid.UUID,
-    run_id: str,
-    action: str,
-    payload: dict | None,
-    owner: User,
-) -> RunResult | None:
-    """Human-in-the-loop: resume a paused run with user response."""
-    thread = await _verify_thread_ownership(session, thread_id, owner)
-    if thread is None:
-        return None
-
-    command = {"resume": action}
-    if payload:
-        command["payload"] = payload
-
-    run_info = await lg_client.resume_run(
-        thread.langgraph_thread_id or str(thread_id),
-        command=command,
-    )
-
-    return RunResult(
-        run_id=run_info.run_id,
-        thread_id=str(thread_id),
-        status=run_info.status,
-        stream_url=f"/api/agent/threads/{thread_id}/runs/{run_info.run_id}/stream",
+        stream_url=f"/api/agent/threads/{thread_id}/runs/{run_id}/stream",
     )
 
 
 async def cancel_run(
     session: AsyncSession,
-    lg_client: LangGraphClient,
+    runner: LangGraphRunner,
     *,
     thread_id: uuid.UUID,
     run_id: str,
@@ -149,8 +123,5 @@ async def cancel_run(
     if thread is None:
         return False
 
-    await lg_client.cancel_run(
-        thread.langgraph_thread_id or str(thread_id),
-        run_id,
-    )
+    await runner.cancel_run(run_id)
     return True
