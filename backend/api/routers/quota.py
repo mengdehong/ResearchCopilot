@@ -8,7 +8,7 @@ from backend.api.dependencies import get_current_user, get_db
 from backend.api.schemas.quota import QuotaStatusResponse, WorkspaceQuota
 from backend.models.user import User
 from backend.models.workspace import Workspace
-from backend.services.quota_service import get_quota_status
+from backend.services.quota_service import batch_quota_status
 
 router = APIRouter(prefix="/api/quota", tags=["quota"])
 
@@ -26,12 +26,15 @@ async def quota_status(
     result = await session.execute(stmt)
     workspaces = result.scalars().all()
 
+    # Single SQL round-trip: GROUP BY workspace_id instead of N individual queries
+    statuses = await batch_quota_status(session, [ws.id for ws in workspaces])
+
     ws_quotas: list[WorkspaceQuota] = []
     total_used = 0
     total_limit = 0
 
     for ws in workspaces:
-        status = await get_quota_status(session, ws.id)
+        status = statuses[ws.id]
         ws_quotas.append(
             WorkspaceQuota(
                 workspace_id=str(ws.id),
@@ -53,3 +56,4 @@ async def quota_status(
         usage_percent=round(usage_percent, 2),
         workspaces=ws_quotas,
     )
+

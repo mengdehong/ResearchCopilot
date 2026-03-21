@@ -13,6 +13,7 @@ from backend.models.quota_record import QuotaRecord
 
 if TYPE_CHECKING:
     import uuid
+    from collections.abc import Sequence
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,7 +38,7 @@ async def get_quota_status(
     monthly_limit: int = DEFAULT_MONTHLY_LIMIT,
 ) -> QuotaStatus:
     """Get current month's token usage and remaining quota."""
-    now = datetime.now(tz=UTC)
+    now = datetime.now(tz=UTC).replace(tzinfo=None)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     stmt = select(
@@ -57,6 +58,50 @@ async def get_quota_status(
         limit_tokens=monthly_limit,
         remaining_tokens=max(0, monthly_limit - used),
     )
+
+
+async def batch_quota_status(
+    session: AsyncSession,
+    workspace_ids: Sequence[uuid.UUID],
+    *,
+    monthly_limit: int = DEFAULT_MONTHLY_LIMIT,
+) -> dict[uuid.UUID, QuotaStatus]:
+    """Return quota status for multiple workspaces in a single SQL query.
+
+    Runs one GROUP BY query instead of N individual queries, eliminating the
+    N+1 problem when aggregating usage across a user's workspaces.
+    """
+    if not workspace_ids:
+        return {}
+
+    now = datetime.now(tz=UTC).replace(tzinfo=None)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    stmt = (
+        select(
+            QuotaRecord.workspace_id,
+            func.coalesce(
+                func.sum(QuotaRecord.input_tokens + QuotaRecord.output_tokens),
+                0,
+            ).label("used"),
+        )
+        .where(
+            QuotaRecord.workspace_id.in_(workspace_ids),
+            QuotaRecord.created_at >= month_start,
+        )
+        .group_by(QuotaRecord.workspace_id)
+    )
+    result = await session.execute(stmt)
+    rows = {row.workspace_id: int(row.used) for row in result}
+
+    return {
+        ws_id: QuotaStatus(
+            used_tokens=rows.get(ws_id, 0),
+            limit_tokens=monthly_limit,
+            remaining_tokens=max(0, monthly_limit - rows.get(ws_id, 0)),
+        )
+        for ws_id in workspace_ids
+    }
 
 
 async def check_and_consume(
