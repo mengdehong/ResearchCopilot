@@ -14,7 +14,7 @@ class EditorDraft(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     thread_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("threads.id"),
+        ForeignKey("threads.id", ondelete="CASCADE"),
         unique=True,
         nullable=False,
     )

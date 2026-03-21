@@ -19,7 +19,7 @@ class RunSnapshot(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     thread_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("threads.id"),
+        ForeignKey("threads.id", ondelete="CASCADE"),
         nullable=False,
     )
     parent_run_id: Mapped[uuid.UUID | None] = mapped_column(

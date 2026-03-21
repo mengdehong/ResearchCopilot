@@ -114,8 +114,18 @@ async def delete_thread(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> None:
-    """Delete a thread."""
+    """Delete a thread and all related data."""
     await _verify_thread_ownership(session, thread_id, current_user)
+
+    # 手动清理关联数据（兜底，防止旧表缺少 CASCADE 约束）
+    from sqlalchemy import delete as sa_delete
+
+    from backend.models.editor_draft import EditorDraft
+    from backend.models.run_snapshot import RunSnapshot
+
+    await session.execute(sa_delete(RunSnapshot).where(RunSnapshot.thread_id == thread_id))
+    await session.execute(sa_delete(EditorDraft).where(EditorDraft.thread_id == thread_id))
+
     thread = await thread_repo.get_by_id(session, thread_id)
     await session.delete(thread)
     await session.commit()
