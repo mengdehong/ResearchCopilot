@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { getToken, setToken, clearToken } from '@/lib/api'
 import { useTranslation } from '@/i18n/useTranslation'
+import type { LocaleContextValue } from '@/i18n/LocaleContext'
 import { DISCIPLINES } from '@/types'
 import type { Locale } from '@/i18n/types'
 import { useTheme, type Theme } from '@/hooks/useTheme'
@@ -64,7 +65,7 @@ interface QuotaUsageCardProps {
     readonly quota: QuotaData | undefined
     readonly loading: boolean
     readonly error: boolean
-    readonly t: (key: string) => string
+    readonly t: LocaleContextValue['t']
 }
 
 function QuotaUsageCard({ quota, loading, error, t }: QuotaUsageCardProps) {

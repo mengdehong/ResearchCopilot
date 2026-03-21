@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare, ChevronDown, ChevronUp, Trash2, Files } from 'lucide-react'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from '@/i18n/useTranslation'
@@ -121,6 +121,17 @@ export default function AppLayout() {
                         onClick={() => navigate('/workspaces')}
                         active={!workspaceId && location.pathname.includes('/workspaces')}
                     />
+
+                    {/* Documents */}
+                    {workspaceId && (
+                        <SidebarButton
+                            icon={<Files className="size-4" />}
+                            label={t('nav.documents')}
+                            expanded={navExpanded}
+                            onClick={() => navigate(`/workspace/${workspaceId}/documents`)}
+                            active={location.pathname.includes(`/workspace/${workspaceId}/documents`)}
+                        />
+                    )}
                 </div>
 
                 {/* Middle: Thread History (only when expanded + in workspace) */}

@@ -17,6 +17,7 @@ export const en = {
     },
     nav: {
         workspaces: 'Workspaces',
+        documents: 'Documents',
         settings: 'Settings',
         collapse: 'Collapse',
         expand: 'Expand',

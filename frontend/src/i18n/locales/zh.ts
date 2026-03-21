@@ -19,6 +19,7 @@ export const zh: TranslationDict = {
     },
     nav: {
         workspaces: '工作区',
+        documents: '文档',
         settings: '设置',
         collapse: '收起',
         expand: '展开',
