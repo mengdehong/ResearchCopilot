@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Message } from '@/types'
-import { Bot, User } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Bot } from 'lucide-react'
 import { SlideUp } from '@/components/shared/MotionWrappers'
 import AcademicMarkdown from '@/components/shared/AcademicMarkdown'
 
@@ -64,30 +63,22 @@ function MessageBubble({ message }: MessageBubbleProps) {
         )
     }
 
-    return (
-        <div className={`relative flex gap-3 px-6 py-3 ${isAssistant ? 'bg-[var(--surface)]' : ''}`}>
-            {/* Accent line for assistant messages */}
-            {isAssistant && (
-                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--accent)]" />
-            )}
-
-            <Avatar className="size-7 shrink-0 mt-0.5">
-                <AvatarFallback className={
-                    isAssistant
-                        ? 'bg-[var(--accent-subtle)] text-[var(--accent)]'
-                        : 'bg-[var(--surface-raised)] text-[var(--text-secondary)]'
-                }>
-                    {isAssistant ? <Bot className="size-3.5" /> : <User className="size-3.5" />}
-                </AvatarFallback>
-            </Avatar>
-
-            <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-[var(--text-muted)] mb-1">
-                    {isAssistant ? 'Assistant' : 'You'}
-                </div>
-                <div className="text-sm text-[var(--text-primary)] leading-relaxed prose-sm">
+    // User message: right-aligned bubble
+    if (!isAssistant) {
+        return (
+            <div className="flex justify-end px-6 py-2">
+                <div className="max-w-[75%] rounded-2xl rounded-br-md bg-[var(--accent)] px-4 py-2.5 text-white text-sm leading-relaxed shadow-sm">
                     <AcademicMarkdown content={message.content} />
                 </div>
+            </div>
+        )
+    }
+
+    // Assistant message: left-aligned, no bubble, no avatar
+    return (
+        <div className="px-6 py-3">
+            <div className="text-sm text-[var(--text-primary)] leading-relaxed prose-sm max-w-none">
+                <AcademicMarkdown content={message.content} />
             </div>
         </div>
     )
@@ -100,23 +91,10 @@ interface StreamingMessageProps {
 
 function StreamingMessage({ content }: StreamingMessageProps) {
     return (
-        <div className="relative flex gap-3 px-6 py-3 bg-[var(--surface)]">
-            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--accent)]" />
-
-            <Avatar className="size-7 shrink-0 mt-0.5">
-                <AvatarFallback className="bg-[var(--accent-subtle)] text-[var(--accent)]">
-                    <Bot className="size-3.5" />
-                </AvatarFallback>
-            </Avatar>
-
-            <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-[var(--text-muted)] mb-1">
-                    Assistant
-                </div>
-                <div className="text-sm text-[var(--text-primary)] leading-relaxed">
-                    <AcademicMarkdown content={content} />
-                    <span className="inline-block w-0.5 h-4 ml-0.5 bg-[var(--accent)] animate-blink align-text-bottom" />
-                </div>
+        <div className="px-6 py-3">
+            <div className="text-sm text-[var(--text-primary)] leading-relaxed">
+                <AcademicMarkdown content={content} />
+                <span className="inline-block w-0.5 h-4 ml-0.5 bg-[var(--accent)] animate-blink align-text-bottom" />
             </div>
         </div>
     )

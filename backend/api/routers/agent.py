@@ -19,7 +19,7 @@ from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
 from backend.repositories import run_snapshot_repo, thread_repo
 from backend.services import agent_service
-from backend.services.event_translator import translate_run_event_stream
+from backend.services.event_translator import translate_to_run_event
 
 logger = get_logger(__name__)
 
@@ -209,10 +209,29 @@ async def stream_run_events(
         raw_stream = runner.get_event_stream(run_id)
         seq = 0
         completed_nodes: list[str] = []
-        async for run_event in translate_run_event_stream(raw_stream):
+        last_ai_content: str | None = None
+        async for raw_event in raw_stream:
+            # 检查 on_chain_end 的 output 中是否有新增 AI 消息
+            # 仅限 supervisor 节点产出的 AIMessage（chat 模式），
+            # 避免未来 workflow 子图意外覆盖
+            raw_type = raw_event.get("event", "")
+            if raw_type in ("on_chain_end", "events/on_chain_end"):
+                raw_name = raw_event.get("name", "")
+                output = raw_event.get("data", {}).get("output", {})
+                if raw_name == "supervisor" and isinstance(output, dict):
+                    msgs = output.get("messages", [])
+                    for msg in reversed(msgs):
+                        if hasattr(msg, "type") and msg.type == "ai":
+                            last_ai_content = msg.content
+                            break
+
+            # 翻译事件
+            run_event = translate_to_run_event(raw_event)
+            if run_event is None:
+                continue
+
             seq += 1
             event_type = run_event["event_type"]
-            # 记录完成的节点用于生成状态摘要
             if event_type == "node_end":
                 node_name = run_event["data"].get("node_name", "")
                 if node_name:
@@ -225,14 +244,25 @@ async def stream_run_events(
             )
             yield f"id: {seq}\ndata: {json.dumps(run_event)}\n\n"
 
-        # 发送 assistant_message：基于完成的节点生成状态摘要
-        if completed_nodes:
-            seq += 1
+        # 发送 assistant_message：
+        # 优先使用图执行产生的 AI 消息（supervisor chat 模式），
+        # 否则回退到节点完成摘要
+        seq += 1
+        if last_ai_content:
+            msg_event = {
+                "event_type": "assistant_message",
+                "data": {"content": last_ai_content},
+            }
+        elif completed_nodes:
             summary = " → ".join(completed_nodes)
             msg_event = {
                 "event_type": "assistant_message",
                 "data": {"content": f"已完成工作流：{summary}"},
             }
+        else:
+            msg_event = None
+
+        if msg_event:
             yield f"id: {seq}\ndata: {json.dumps(msg_event)}\n\n"
 
         # 发送 run_end 信号让前端关闭连接
