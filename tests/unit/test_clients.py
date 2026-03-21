@@ -1,50 +1,57 @@
-"""Client layer tests — LangGraphClient, StorageClient, AuthClient."""
+"""Client layer tests — LangGraphRunner, StorageClient, AuthClient."""
+
+import asyncio
+from unittest.mock import AsyncMock, MagicMock
 
 import jwt
 
 from backend.clients.auth_client import AuthClient
-from backend.clients.langgraph_client import LangGraphClient
+from backend.clients.langgraph_runner import LangGraphRunner
 from backend.clients.storage_client import StorageClient
 
 
-class TestLangGraphClient:
-    async def test_create_thread(self) -> None:
-        client = LangGraphClient()
-        info = await client.create_thread(metadata={"ws": "test"})
-        assert info.thread_id
-        assert info.metadata == {"ws": "test"}
+def _make_mock_graph() -> MagicMock:
+    """Create a mock CompiledStateGraph that yields test events."""
+    graph = MagicMock()
 
-    async def test_create_run(self) -> None:
-        client = LangGraphClient()
-        info = await client.create_run(
-            "thread-1",
-            assistant_id="default",
-            input_data={"message": "hello"},
-        )
-        assert info.run_id
-        assert info.thread_id == "thread-1"
-        assert info.status == "pending"
+    async def fake_astream_events(input_data, *, config=None, version="v2"):
+        yield {"event": "events/metadata", "data": {"run_id": "r1"}}
+        yield {"event": "events/on_chat_model_stream", "data": {"chunk": "Hi"}}
 
-    async def test_stream_run(self) -> None:
-        client = LangGraphClient()
-        events = [e async for e in client.stream_run("t1", "r1")]
-        assert len(events) >= 1
+    graph.astream_events = fake_astream_events
+    return graph
+
+
+class TestLangGraphRunner:
+    async def test_start_run_and_stream(self) -> None:
+        graph = _make_mock_graph()
+        runner = LangGraphRunner(graph)
+
+        await runner.start_run(run_id="r1", thread_id="t1", input_data={"messages": []})
+        events = [e async for e in runner.get_event_stream("r1")]
+        assert len(events) == 2
         assert events[0]["event"] == "events/metadata"
 
-    async def test_resume_run(self) -> None:
-        client = LangGraphClient()
-        info = await client.resume_run("t1", command={"resume": "approve"})
-        assert info.status == "resuming"
-
     async def test_cancel_run(self) -> None:
-        client = LangGraphClient()
-        await client.cancel_run("t1", "r1")  # should not raise
+        graph = MagicMock()
 
-    async def test_get_thread_state(self) -> None:
-        client = LangGraphClient()
-        state = await client.get_thread_state("t1")
-        assert state["thread_id"] == "t1"
-        assert "values" in state
+        async def slow_stream(input_data, *, config=None, version="v2"):
+            await asyncio.sleep(10)
+            yield {"event": "events/metadata", "data": {}}
+
+        graph.astream_events = slow_stream
+        runner = LangGraphRunner(graph)
+
+        await runner.start_run(run_id="r1", thread_id="t1", input_data={})
+        await runner.cancel_run("r1")
+        # After cancel, run should be removed
+        assert "r1" not in runner._active_runs
+
+    async def test_stream_unknown_run(self) -> None:
+        graph = _make_mock_graph()
+        runner = LangGraphRunner(graph)
+        events = [e async for e in runner.get_event_stream("nonexistent")]
+        assert events == []
 
 
 class TestStorageClient:

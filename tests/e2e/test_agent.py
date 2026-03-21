@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from tests.e2e.mocks.mock_langgraph import MockLangGraphClient
+from tests.e2e.mocks.mock_langgraph import MockLangGraphRunner
 from tests.e2e.seed import SeedData
 
 pytestmark = pytest.mark.e2e
@@ -124,7 +124,7 @@ async def test_create_run(
     test_client: httpx.AsyncClient,
     auth_headers: dict[str, str],
     seed_data: SeedData,
-    mock_lg_client: MockLangGraphClient,
+    mock_lg_runner: MockLangGraphRunner,
 ) -> None:
     """POST /api/agent/threads/{id}/runs — 创建 run (202 Accepted)。"""
     thread_id = await _create_thread(
@@ -150,7 +150,7 @@ async def test_list_runs(
     test_client: httpx.AsyncClient,
     auth_headers: dict[str, str],
     seed_data: SeedData,
-    mock_lg_client: MockLangGraphClient,
+    mock_lg_runner: MockLangGraphRunner,
 ) -> None:
     """GET /api/agent/threads/{id}/runs — 列出 runs。"""
     thread_id = await _create_thread(
@@ -183,7 +183,7 @@ async def test_stream_run_events(
     test_client: httpx.AsyncClient,
     auth_headers: dict[str, str],
     seed_data: SeedData,
-    mock_lg_client: MockLangGraphClient,
+    mock_lg_runner: MockLangGraphRunner,
 ) -> None:
     """GET /api/agent/threads/{id}/runs/{run_id}/events — SSE 事件流。"""
     thread_id = await _create_thread(

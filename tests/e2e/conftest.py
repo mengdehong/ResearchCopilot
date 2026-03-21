@@ -16,8 +16,8 @@ from fastapi import FastAPI
 from httpx import ASGITransport
 from sqlalchemy import delete
 
+from backend.api.dependencies import get_lg_runner
 from backend.api.routers import agent, auth, document, editor, health, workspace
-from backend.api.routers.agent import _get_lg_client
 from backend.api.routers.document import _get_storage
 from backend.clients.storage_client import StorageClient
 from backend.core.config import Settings
@@ -26,7 +26,7 @@ from backend.core.exceptions import AppError, app_error_handler
 from backend.models.user import User
 from backend.models.workspace import Workspace
 
-from .mocks.mock_langgraph import MockLangGraphClient
+from .mocks.mock_langgraph import MockLangGraphRunner
 from .seed import SeedData, sign_test_token
 
 # ---------------------------------------------------------------------------
@@ -42,7 +42,7 @@ from .seed import SeedData, sign_test_token
 # Mocks
 # ---------------------------------------------------------------------------
 
-_mock_lg_client = MockLangGraphClient()
+_mock_lg_runner = MockLangGraphRunner()
 _mock_storage = StorageClient(base_dir="/tmp/research-copilot-e2e-uploads")
 
 
@@ -59,7 +59,7 @@ def _create_test_app() -> FastAPI:
     test_app.include_router(document.router)
     test_app.include_router(editor.router)
     test_app.include_router(agent.router)
-    test_app.dependency_overrides[_get_lg_client] = lambda: _mock_lg_client
+    test_app.dependency_overrides[get_lg_runner] = lambda: _mock_lg_runner
     test_app.dependency_overrides[_get_storage] = lambda: _mock_storage
     return test_app
 
@@ -68,8 +68,8 @@ _test_app = _create_test_app()
 
 
 @pytest.fixture(scope="session")
-def mock_lg_client() -> MockLangGraphClient:
-    return _mock_lg_client
+def mock_lg_runner() -> MockLangGraphRunner:
+    return _mock_lg_runner
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

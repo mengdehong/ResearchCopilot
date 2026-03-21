@@ -150,7 +150,6 @@ class TestDocumentService:
 class TestAgentService:
     @patch("backend.services.agent_service.base_repo")
     async def test_trigger_run(self, mock_base: MagicMock) -> None:
-        from backend.clients.langgraph_client import LangGraphClient
         from backend.services.agent_service import trigger_run
 
         session = AsyncMock()
@@ -160,20 +159,22 @@ class TestAgentService:
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
         mock_base.create = AsyncMock(side_effect=lambda s, obj: obj)
 
-        lg_client = LangGraphClient()
+        runner = MagicMock()
+        runner.start_run = AsyncMock()
+
         result = await trigger_run(
             session,
-            lg_client,
+            runner,
             thread_id=thread.id,
             message="hello",
             owner=owner,
         )
         assert result is not None
         assert result.status == "running"
+        runner.start_run.assert_awaited_once()
 
     @patch("backend.services.agent_service.base_repo")
     async def test_trigger_run_forbidden(self, mock_base: MagicMock) -> None:
-        from backend.clients.langgraph_client import LangGraphClient
         from backend.services.agent_service import trigger_run
 
         session = AsyncMock()
@@ -182,9 +183,10 @@ class TestAgentService:
         ws = _ws(uuid.uuid4())
         mock_base.get_by_id = AsyncMock(side_effect=[thread, ws])
 
+        runner = MagicMock()
         result = await trigger_run(
             session,
-            LangGraphClient(),
+            runner,
             thread_id=thread.id,
             message="hi",
             owner=owner,

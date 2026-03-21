@@ -1,4 +1,4 @@
-"""Agent router tests — mock agent_service."""
+"""Agent router tests — mock agent_service and LangGraphRunner."""
 
 import uuid
 from datetime import UTC, datetime
@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from backend.api.dependencies import get_current_user, get_db
+from backend.api.dependencies import get_current_user, get_current_user_sse, get_db, get_lg_runner
 from backend.main import app
 from backend.models.user import User
 
@@ -24,17 +24,32 @@ def _user() -> User:
 
 
 @pytest.fixture()
+def mock_runner() -> MagicMock:
+    runner = MagicMock()
+    runner.start_run = AsyncMock()
+    runner.cancel_run = AsyncMock()
+
+    async def fake_stream(run_id):
+        yield {"event": "events/metadata", "data": {"run_id": run_id}}
+
+    runner.get_event_stream = fake_stream
+    return runner
+
+
+@pytest.fixture()
 def current_user() -> User:
     return _user()
 
 
 @pytest.fixture()
-def client(current_user: User) -> AsyncClient:
+def client(current_user: User, mock_runner: MagicMock) -> AsyncClient:
     session = AsyncMock()
     session.commit = AsyncMock()
     session.delete = AsyncMock()
     app.dependency_overrides[get_db] = lambda: session
     app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[get_current_user_sse] = lambda: current_user
+    app.dependency_overrides[get_lg_runner] = lambda: mock_runner
     transport = ASGITransport(app=app)
     c = AsyncClient(transport=transport, base_url="http://test")
     yield c
@@ -79,12 +94,8 @@ class TestAgentRouter:
         assert response.status_code == 204
 
     @patch("backend.api.routers.agent._verify_thread_ownership", new_callable=AsyncMock)
-    @patch("backend.api.routers.agent.thread_repo")
-    async def test_stream_returns_sse(self, mock_thread_repo, mock_verify, client) -> None:
+    async def test_stream_returns_sse(self, mock_verify, client) -> None:
         tid = uuid.uuid4()
-        mock_thread = MagicMock()
-        mock_thread.langgraph_thread_id = "lg-123"
-        mock_thread_repo.get_by_id = AsyncMock(return_value=mock_thread)
         response = await client.get(f"/api/agent/threads/{tid}/runs/r1/stream")
         assert response.status_code == 200
         assert "text/event-stream" in response.headers.get("content-type", "")
