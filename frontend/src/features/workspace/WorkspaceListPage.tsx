@@ -3,7 +3,36 @@ import { useWorkspaces, useCreateWorkspace, useDeleteWorkspace } from '@/hooks/u
 import { useTranslation } from '@/i18n/useTranslation'
 import { DISCIPLINES } from '@/types'
 import { useState } from 'react'
-import './WorkspaceListPage.css'
+import { Plus, Trash2, BookOpen, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from '@/components/ui/dialog'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import { StaggerContainer, StaggerItem, FadeIn } from '@/components/shared/MotionWrappers'
+
+/** Discipline gradient colors for card accent bars */
+const DISCIPLINE_GRADIENTS: Record<string, string> = {
+    computer_science: 'from-blue-500 to-cyan-400',
+    biology: 'from-green-500 to-emerald-400',
+    physics: 'from-violet-500 to-purple-400',
+    mathematics: 'from-amber-500 to-orange-400',
+    chemistry: 'from-rose-500 to-pink-400',
+    other: 'from-slate-500 to-gray-400',
+}
 
 export default function WorkspaceListPage() {
     const navigate = useNavigate()
@@ -23,6 +52,7 @@ export default function WorkspaceListPage() {
             {
                 onSuccess: () => {
                     setName('')
+                    setDiscipline('computer_science')
                     setShowCreate(false)
                 },
             },
@@ -30,98 +60,162 @@ export default function WorkspaceListPage() {
     }
 
     return (
-        <div className="workspace-list-page">
-            <div className="workspace-list-page__header">
+        <div className="h-full overflow-auto p-6 md:p-10">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1>{t('workspace.title')}</h1>
-                    <p className="text-muted">{t('workspace.subtitle')}</p>
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">
+                        {t('workspace.title')}
+                    </h1>
+                    <p className="text-sm text-[var(--text-secondary)] mt-1">
+                        {t('workspace.subtitle')}
+                    </p>
                 </div>
-                <button
-                    className="btn btn--primary"
-                    onClick={() => setShowCreate(true)}
-                >
+                <Button onClick={() => setShowCreate(true)}>
+                    <Plus className="size-4" />
                     {t('workspace.newWorkspace')}
-                </button>
+                </Button>
             </div>
 
-            {showCreate && (
-                <div className="card workspace-create-card">
-                    <h3>{t('workspace.createTitle')}</h3>
-                    <div className="workspace-create-card__form">
-                        <input
-                            className="workspace-input"
+            {/* Loading */}
+            {isLoading && (
+                <div className="flex items-center justify-center py-20 text-[var(--text-muted)]">
+                    <Loader2 className="size-5 animate-spin mr-2" />
+                    {t('workspace.loadingWorkspaces')}
+                </div>
+            )}
+
+            {/* Empty State */}
+            {!isLoading && workspaces?.length === 0 && (
+                <FadeIn>
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="flex items-center justify-center size-16 rounded-full bg-[var(--accent-subtle)] mb-4">
+                            <BookOpen className="size-7 text-[var(--accent)]" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+                            {t('workspace.empty')}
+                        </h3>
+                        <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-md">
+                            Create your first workspace to start organizing your research.
+                        </p>
+                        <Button onClick={() => setShowCreate(true)}>
+                            <Plus className="size-4" />
+                            {t('workspace.newWorkspace')}
+                        </Button>
+                    </div>
+                </FadeIn>
+            )}
+
+            {/* Card Grid */}
+            {workspaces && workspaces.length > 0 && (
+                <StaggerContainer
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                    itemCount={workspaces.length}
+                >
+                    {workspaces.map((ws) => (
+                        <StaggerItem key={ws.id}>
+                            <div
+                                className="group relative flex items-stretch rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-hover)] hover:-translate-y-0.5 hover:shadow-md transition-all cursor-pointer overflow-hidden"
+                                onClick={() => navigate(`/workspace/${ws.id}`)}
+                            >
+                                {/* Discipline gradient accent bar */}
+                                <div
+                                    className={`w-1.5 shrink-0 bg-gradient-to-b ${DISCIPLINE_GRADIENTS[ws.discipline] ?? DISCIPLINE_GRADIENTS.other}`}
+                                />
+
+                                <div className="flex-1 p-4 min-w-0">
+                                    <div className="flex items-start justify-between mb-2">
+                                        <h3 className="text-sm font-semibold text-[var(--text-primary)] truncate pr-2">
+                                            {ws.name}
+                                        </h3>
+                                        <button
+                                            className="opacity-0 group-hover:opacity-100 p-1 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-subtle)] transition-all cursor-pointer"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                deleteWorkspace.mutate(ws.id)
+                                            }}
+                                            title={t('workspace.deleteTitle')}
+                                        >
+                                            <Trash2 className="size-3.5" />
+                                        </button>
+                                    </div>
+
+                                    <Badge variant="secondary" className="mb-2">
+                                        {t(`discipline.${ws.discipline as 'computer_science' | 'biology' | 'physics' | 'mathematics' | 'chemistry' | 'other'}`)}
+                                    </Badge>
+
+                                    <p className="text-xs text-[var(--text-muted)]">
+                                        {t('workspace.created', {
+                                            date: new Date(ws.created_at).toLocaleDateString(),
+                                        })}
+                                    </p>
+                                </div>
+                            </div>
+                        </StaggerItem>
+                    ))}
+
+                    {/* "New Workspace" dashed card */}
+                    <StaggerItem>
+                        <button
+                            className="flex items-center justify-center w-full h-full min-h-[120px] rounded-[var(--radius-md)] border-2 border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] transition-all cursor-pointer"
+                            onClick={() => setShowCreate(true)}
+                        >
+                            <Plus className="size-6 mr-2" />
+                            <span className="text-sm font-medium">{t('workspace.newWorkspace')}</span>
+                        </button>
+                    </StaggerItem>
+                </StaggerContainer>
+            )}
+
+            {/* Create Dialog */}
+            <Dialog open={showCreate} onOpenChange={setShowCreate}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t('workspace.createTitle')}</DialogTitle>
+                        <DialogDescription>
+                            Create a new research workspace to organize your papers and notes.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex flex-col gap-4 py-2">
+                        <Input
                             placeholder="Workspace name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             autoFocus
                         />
-                        <select
-                            className="workspace-select"
-                            value={discipline}
-                            onChange={(e) => setDiscipline(e.target.value)}
+                        <Select value={discipline} onValueChange={setDiscipline}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {DISCIPLINES.map((d) => (
+                                    <SelectItem key={d} value={d}>
+                                        {t(`discipline.${d}`)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setShowCreate(false)}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button
+                            onClick={handleCreate}
+                            disabled={!name.trim() || createWorkspace.isPending}
                         >
-                            {DISCIPLINES.map((d) => (
-                                <option key={d} value={d}>
-                                    {t(`discipline.${d}`)}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="workspace-create-card__actions">
-                            <button className="btn btn--ghost" onClick={() => setShowCreate(false)}>
-                                {t('common.cancel')}
-                            </button>
-                            <button
-                                className="btn btn--primary"
-                                onClick={handleCreate}
-                                disabled={!name.trim() || createWorkspace.isPending}
-                            >
-                                {createWorkspace.isPending ? t('workspace.creating') : t('common.create')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {isLoading && (
-                <div className="workspace-list-page__loading">{t('workspace.loadingWorkspaces')}</div>
-            )}
-
-            <div className="workspace-grid">
-                {workspaces?.map((ws) => (
-                    <div
-                        key={ws.id}
-                        className="card card--interactive workspace-card"
-                        onClick={() => navigate(`/workspace/${ws.id}`)}
-                    >
-                        <div className="workspace-card__top">
-                            <div className="workspace-card__icon">📚</div>
-                            <button
-                                className="btn btn--ghost btn--sm workspace-card__delete"
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    deleteWorkspace.mutate(ws.id)
-                                }}
-                                title={t('workspace.deleteTitle')}
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <h3 className="workspace-card__name">{ws.name}</h3>
-                        <span className="badge badge--accent">
-                            {t(`discipline.${ws.discipline as 'computer_science' | 'biology' | 'physics' | 'mathematics' | 'chemistry' | 'other'}`)}
-                        </span>
-                        <p className="workspace-card__date text-muted">
-                            {t('workspace.created', { date: new Date(ws.created_at).toLocaleDateString() })}
-                        </p>
-                    </div>
-                ))}
-
-                {!isLoading && workspaces?.length === 0 && (
-                    <div className="workspace-list-page__empty">
-                        <p>{t('workspace.empty')}</p>
-                    </div>
-                )}
-            </div>
+                            {createWorkspace.isPending && (
+                                <Loader2 className="size-4 animate-spin" />
+                            )}
+                            {createWorkspace.isPending
+                                ? t('workspace.creating')
+                                : t('common.create')}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
