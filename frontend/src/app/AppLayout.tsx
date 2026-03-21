@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LayoutGrid, Settings, Sun, Moon, Menu, MessageSquare } from 'lucide-react'
+import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare } from 'lucide-react'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from '@/i18n/useTranslation'
@@ -60,7 +60,10 @@ export default function AppLayout() {
 
                     {/* Expand/collapse toggle */}
                     <SidebarButton
-                        icon={<Menu className="size-4" />}
+                        icon={navExpanded
+                            ? <PanelLeftClose className="size-4" />
+                            : <PanelLeftOpen className="size-4" />
+                        }
                         label={navExpanded ? t('nav.collapse') : t('nav.expand')}
                         expanded={navExpanded}
                         onClick={toggleNav}
