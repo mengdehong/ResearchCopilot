@@ -40,9 +40,11 @@ function WorkbenchInner({ workspaceId }: { workspaceId: string }) {
     })
 
     // Reset agent store on mount (i.e. workspace change via key remount)
+    // Empty deps: component remounts via key={workspaceId}, so [] is correct.
     useEffect(() => {
         reset()
-    }, [reset])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const handleSendMessage = useCallback(
         async (message: string) => {

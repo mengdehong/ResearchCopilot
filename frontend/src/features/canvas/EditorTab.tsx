@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useAgentStore } from '@/stores/useAgentStore'
+import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useDraft, useSaveDraft } from '@/hooks/useDraft'
 import './EditorTab.css'
 
@@ -13,8 +14,10 @@ export default function EditorTab({ threadId }: EditorTabProps) {
     const { data: draft } = useDraft(threadId)
     const saveDraft = useSaveDraft()
     const generatedContent = useAgentStore((s) => s.generatedContent)
+    const setSaveStatus = useLayoutStore((s) => s.setSaveStatus)
     const prevGeneratedRef = useRef('')
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     const editor = useEditor({
         extensions: [StarterKit],
@@ -49,8 +52,21 @@ export default function EditorTab({ threadId }: EditorTabProps) {
     const handleSave = useCallback(() => {
         if (!editor || !threadId) return
         const content = editor.getHTML()
-        saveDraft.mutate({ threadId, content })
-    }, [editor, threadId, saveDraft])
+        setSaveStatus('saving')
+        saveDraft.mutate(
+            { threadId, content },
+            {
+                onSuccess: () => {
+                    setSaveStatus('saved')
+                    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+                    savedTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000)
+                },
+                onError: () => {
+                    setSaveStatus('idle')
+                },
+            },
+        )
+    }, [editor, threadId, saveDraft, setSaveStatus])
 
     useEffect(() => {
         if (!editor) return
@@ -64,6 +80,7 @@ export default function EditorTab({ threadId }: EditorTabProps) {
         return () => {
             editor.off('update', debouncedSave)
             if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+            if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
         }
     }, [editor, handleSave])
 

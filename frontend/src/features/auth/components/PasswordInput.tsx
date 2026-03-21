@@ -11,16 +11,16 @@ export function PasswordInput({ label, error, ...props }: PasswordInputProps) {
     return (
         <div className="form-group">
             {label && <label className="form-label">{label}</label>}
-            <div className="relative">
+            <div className="password-wrapper">
                 <input
                     type={showPassword ? 'text' : 'password'}
-                    className="form-input pr-10"
+                    className="form-input"
                     {...props}
                 />
                 <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    className="password-toggle"
                     tabIndex={-1}
                 >
                     {showPassword ? (

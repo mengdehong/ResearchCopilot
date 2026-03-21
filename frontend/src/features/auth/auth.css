@@ -51,7 +51,7 @@
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 50%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
     animation: rotate 20s linear infinite;
     z-index: 1;
 }
@@ -60,6 +60,7 @@
     from {
         transform: rotate(0deg);
     }
+
     to {
         transform: rotate(360deg);
     }
@@ -226,4 +227,37 @@
     color: #ef4444;
     font-size: 0.875rem;
     margin-top: 0.25rem;
+}
+
+/* Password toggle */
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper .form-input {
+    padding-right: 3rem;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 0.75rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-light);
+    transition: color 0.2s;
+}
+
+.password-toggle:hover {
+    color: var(--color-text);
+}
+
+.password-toggle svg {
+    width: 1.25rem;
+    height: 1.25rem;
 }

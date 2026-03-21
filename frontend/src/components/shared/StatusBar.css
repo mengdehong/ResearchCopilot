@@ -49,3 +49,21 @@
     font-family: var(--font-mono);
     color: var(--color-accent);
 }
+
+.status-bar__center {
+    display: flex;
+    align-items: center;
+}
+
+.status-bar__save {
+    font-size: var(--font-size-xs);
+}
+
+.status-bar__save--saving {
+    color: var(--color-accent);
+    animation: pulse 1.5s ease infinite;
+}
+
+.status-bar__save--saved {
+    color: var(--color-success);
+}
