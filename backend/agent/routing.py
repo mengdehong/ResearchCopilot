@@ -66,10 +66,11 @@ def apply_hard_rules(messages: list) -> str | None:
 class RouteDecision(BaseModel):
     """LLM 路由决策输出。"""
 
-    mode: Literal["single", "plan"]
+    mode: Literal["single", "plan", "chat"]
     target_workflow: WorkflowName | None = None
     plan: ExecutionPlan | None = None
     reasoning: str
+    reply_text: str | None = None
 
 
 class StepEvaluation(BaseModel):
@@ -83,7 +84,7 @@ class StepEvaluation(BaseModel):
 def route_to_workflow(state: dict) -> str:
     """根据 routing_decision 路由到目标 WF。无效名称抛出 ValueError。"""
     decision = state.get("routing_decision")
-    if decision is None or decision == "__end__":
+    if decision is None or decision in ("__end__", "__chat__"):
         return "__end__"
     if decision in VALID_WORKFLOWS:
         return decision

@@ -3,7 +3,7 @@
 import json
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 
 from backend.agent.prompts.loader import load_prompt
@@ -99,6 +99,21 @@ def _build_supervisor_node(llm: BaseChatModel):
             mode=decision.mode,
             reasoning=decision.reasoning,
         )
+
+        if decision.mode == "chat":
+            reply = decision.reply_text or "我是 Research Copilot，有什么可以帮您？"
+            logger.info(
+                "routing_decision",
+                target="__chat__",
+                mode="chat",
+                reasoning=decision.reasoning,
+            )
+            return {
+                "routing_decision": "__chat__",
+                "plan": None,
+                "current_step_index": 0,
+                "messages": [AIMessage(content=reply)],
+            }
 
         if decision.mode == "single":
             target = decision.target_workflow or "__end__"

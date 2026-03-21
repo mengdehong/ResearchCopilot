@@ -14,7 +14,7 @@ def test_load_supervisor_prompt() -> None:
             "artifacts_summary": "{}",
         },
     )
-    assert "Supervisor" in result["system"]
+    assert "Research Copilot" in result["system"]
     assert "搜索 transformer" in result["user"]
 
 
