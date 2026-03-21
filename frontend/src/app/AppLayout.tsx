@@ -5,7 +5,7 @@ import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from '@/i18n/useTranslation'
 import { useThreads } from '@/hooks/useThreads'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+
 import {
     Tooltip,
     TooltipTrigger,
@@ -99,7 +99,7 @@ export default function AppLayout() {
                     </AnimatePresence>
                 </div>
 
-                {/* Bottom: Theme + Settings + User */}
+                {/* Bottom: Theme + Settings */}
                 <div className="flex flex-col items-center gap-1 pb-3 px-2 border-t border-[var(--border)] pt-2">
                     {/* Theme Switch */}
                     <SidebarButton
@@ -121,14 +121,7 @@ export default function AppLayout() {
                         active={location.pathname.includes('/settings')}
                     />
 
-                    {/* User Avatar */}
-                    <div className="flex items-center gap-2 w-full px-2 py-1.5 mt-1">
-                        <Avatar className="size-7 shrink-0">
-                            <AvatarFallback className="bg-[var(--accent-subtle)] text-[var(--accent)] text-xs">
-                                U
-                            </AvatarFallback>
-                        </Avatar>
-                    </div>
+
                 </div>
             </motion.nav>
 

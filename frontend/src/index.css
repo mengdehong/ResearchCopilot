@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* ─── Tailwind CSS v4 theme configuration ─── */
@@ -10,6 +10,7 @@
 
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --font-display: 'Outfit', sans-serif;
 
     --animate-fade-in: fade-in 200ms ease-out;
     --animate-fade-out: fade-out 150ms ease-in;
@@ -19,6 +20,7 @@
     --animate-zoom-out: zoom-out 150ms ease-in;
     --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
     --animate-blink: blink 1s step-end infinite;
+    --animate-float: float 6s ease-in-out infinite;
 
     @keyframes fade-in {
         from {
@@ -100,6 +102,20 @@
         }
     }
 
+    @keyframes float {
+        0% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-10px);
+        }
+
+        100% {
+            transform: translateY(0px);
+        }
+    }
+
     @keyframes blink {
 
         0%,
@@ -145,6 +161,9 @@
     --transition-slow: 300ms ease;
 
     --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.04), 0 0 1px rgba(0, 0, 0, 0.06);
+
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.5);
 }
 
 /* ─── Design Tokens: Dark mode ─── */
@@ -166,6 +185,9 @@
     --warning-subtle: rgba(251, 191, 36, 0.12);
     --error: #F87171;
     --error-subtle: rgba(248, 113, 113, 0.12);
+
+    --glass-bg: rgba(18, 21, 31, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.08);
 
     /* Dark mode: use borders instead of shadows */
     --shadow-sm: none;
@@ -258,4 +280,15 @@
     &::-webkit-scrollbar {
         display: none;
     }
+}
+
+/* ─── Glassmorphism utilities ─── */
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+}
+
+.glow-blue {
+    box-shadow: 0 0 40px -10px rgba(59, 130, 246, 0.3);
 }
