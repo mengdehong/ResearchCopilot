@@ -44,7 +44,7 @@ export default function ChatPanel({
                             aria-label="Stop agent run"
                         >
                             <Square className="size-3" />
-                            Stop
+                            {t('chat.stopRun')}
                         </Button>
                     )}
                     <AgentStatusIndicator isStreaming={isStreaming} />

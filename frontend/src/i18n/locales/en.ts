@@ -71,6 +71,7 @@ export const en = {
         title: 'Chat',
         streaming: 'Streaming',
         idle: 'Idle',
+        stopRun: 'Stop',
         voice: {
             recording: 'Recording...',
             transcribing: 'Transcribing...',

@@ -73,6 +73,7 @@ export const zh: TranslationDict = {
         title: '对话',
         streaming: '流式传输中',
         idle: '空闲',
+        stopRun: '停止',
         voice: {
             recording: '正在录音...',
             transcribing: '转写中...',

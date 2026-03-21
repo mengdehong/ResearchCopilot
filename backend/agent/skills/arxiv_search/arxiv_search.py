@@ -44,7 +44,9 @@ def _execute(
     }
     logger.info("arxiv_search_start", query=query, max_results=params["max_results"])
 
-    response = httpx.get(_ARXIV_API_URL, params=params, timeout=30.0)
+    transport = httpx.HTTPTransport(retries=3)
+    with httpx.Client(transport=transport, timeout=30.0) as client:
+        response = client.get(_ARXIV_API_URL, params=params)
     response.raise_for_status()
 
     root = ET.fromstring(response.text)
