@@ -56,6 +56,13 @@ export const en = {
         title: 'Chat',
         streaming: 'Streaming',
         idle: 'Idle',
+        voice: {
+            recording: 'Recording...',
+            transcribing: 'Transcribing...',
+            micPermissionDenied: 'Microphone permission denied',
+            sttUnavailable: 'Speech recognition unavailable, switched to precise mode',
+            error: 'Voice recognition failed',
+        },
     },
     documents: {
         title: 'Documents',

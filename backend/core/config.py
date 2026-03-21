@@ -59,3 +59,6 @@ class Settings(BaseSettings):
     # --- MinerU ---
     mineru_api_url: str = "https://mineru.net/api/v4"
     mineru_api_key: str | None = None
+    # --- Groq STT ---
+    groq_api_key: str | None = None
+    groq_stt_model: str = "whisper-large-v3-turbo"
