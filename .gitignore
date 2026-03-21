@@ -33,5 +33,6 @@ frontend/dist/
 Thumbs.db
 
 *.pdf
+backend/agent/compiled_prompts/*.json
 .worktrees/
 docs/superpowers/plans/archive
