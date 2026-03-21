@@ -9,7 +9,7 @@ from backend.api.middleware import AccessLogMiddleware, RequestIDMiddleware
 from backend.api.routers import agent, auth, document, editor, health, workspace
 from backend.clients.langgraph_runner import LangGraphRunner
 from backend.core.config import Settings
-from backend.core.database import create_engine, create_session_factory
+from backend.core.database import create_checkpointer, create_engine, create_session_factory
 from backend.core.exceptions import AppError, app_error_handler
 from backend.core.logger import get_logger, setup_logging
 from backend.services.llm_gateway import LLMGateway, LLMProvider
@@ -17,11 +17,8 @@ from backend.services.llm_gateway import LLMGateway, LLMProvider
 logger = get_logger(__name__)
 
 
-def _build_lg_runner(settings: Settings) -> LangGraphRunner:
-    """构建 LangGraph Runner：LLM → 编译图 → Runner。"""
-    # 延迟导入避免循环依赖和启动时不需要 agent 包
-    from backend.agent.graph import build_supervisor_graph
-
+def _build_llm(settings: Settings) -> object:
+    """构建 LLM 实例。"""
     gateway = LLMGateway(
         default_provider=LLMProvider(settings.default_llm_provider),
         default_model=settings.default_llm_model,
@@ -29,11 +26,7 @@ def _build_lg_runner(settings: Settings) -> LangGraphRunner:
         anthropic_api_key=settings.anthropic_api_key,
         google_api_key=settings.google_api_key,
     )
-    llm = gateway.get_model()
-    graph = build_supervisor_graph(llm=llm)
-    compiled = graph.compile()
-    logger.info("langgraph_compiled", model=settings.default_llm_model)
-    return LangGraphRunner(compiled)
+    return gateway.get_model()
 
 
 @asynccontextmanager
@@ -47,18 +40,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.settings = settings
 
     # LangGraph Runner（LLM key 缺失时跳过，允许非 Agent 功能正常运行）
+    checkpointer_ctx = None
     try:
-        app.state.lg_runner = _build_lg_runner(settings)
+        from backend.agent.graph import build_supervisor_graph
+
+        llm = _build_llm(settings)
+        graph = build_supervisor_graph(llm=llm)
+
+        # 创建 checkpointer 并注入图编译（interrupt 需要持久化状态）
+        checkpointer_ctx = create_checkpointer(settings.database_url)
+        checkpointer = await checkpointer_ctx.__aenter__()
+        compiled = graph.compile(checkpointer=checkpointer)
+        app.state.lg_runner = LangGraphRunner(compiled)
+        logger.info("langgraph_compiled", model=settings.default_llm_model)
     except (ValueError, ImportError):
         logger.warning(
             "langgraph_runner_init_skipped", reason="LLM key or agent package unavailable"
         )
         app.state.lg_runner = None
+        checkpointer_ctx = None
 
     logger.info("application_started", app_name=settings.app_name)
     yield
     if app.state.lg_runner is not None:
         await app.state.lg_runner.shutdown()
+    if checkpointer_ctx is not None:
+        await checkpointer_ctx.__aexit__(None, None, None)
     await engine.dispose()
     logger.info("application_stopped")
 

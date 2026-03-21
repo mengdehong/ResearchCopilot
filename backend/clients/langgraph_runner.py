@@ -1,7 +1,7 @@
 """LangGraph In-Process Runner — 在 BFF 进程内执行 LangGraph 图。
 
 替代 Mock 的 LangGraphClient。通过 asyncio.Task + asyncio.Queue
-解耦图执行和 SSE 事件消费。
+解耦图执行和 SSE 事件消费。支持 HITL interrupt/resume。
 """
 
 from __future__ import annotations
@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from langgraph.types import Command
 
 from backend.core.logger import get_logger
 
@@ -65,6 +67,9 @@ class LangGraphRunner:
 
         queue: asyncio.Queue[dict | None] = asyncio.Queue(maxsize=256)
         run_config = config or {}
+        # 确保 config 包含 thread_id（checkpointer 需要）
+        configurable = run_config.setdefault("configurable", {})
+        configurable.setdefault("thread_id", thread_id)
 
         task = asyncio.create_task(
             self._execute(run_id=run_id, input_data=input_data, queue=queue, config=run_config),
@@ -77,6 +82,46 @@ class LangGraphRunner:
             thread_id=thread_id,
         )
         logger.info("run_started", run_id=run_id, thread_id=thread_id)
+
+    async def resume_run(
+        self,
+        *,
+        run_id: str,
+        thread_id: str,
+        resume_payload: dict,
+    ) -> None:
+        """恢复被 interrupt 暂停的 run。
+
+        使用 Command(resume=payload) 恢复图执行，启动新的事件流。
+
+        Args:
+            run_id: 新 run 的唯一标识。
+            thread_id: 所属 thread。
+            resume_payload: HITL 响应（传给 interrupt 的返回值）。
+        """
+        if run_id in self._active_runs:
+            logger.warning("run_already_active", run_id=run_id)
+            return
+
+        queue: asyncio.Queue[dict | None] = asyncio.Queue(maxsize=256)
+        config = {"configurable": {"thread_id": thread_id}}
+
+        task = asyncio.create_task(
+            self._execute(
+                run_id=run_id,
+                input_data=Command(resume=resume_payload),
+                queue=queue,
+                config=config,
+            ),
+            name=f"lg-resume-{run_id}",
+        )
+
+        self._active_runs[run_id] = RunHandle(
+            task=task,
+            queue=queue,
+            thread_id=thread_id,
+        )
+        logger.info("run_resumed", run_id=run_id, thread_id=thread_id)
 
     async def get_event_stream(self, run_id: str) -> AsyncIterator[dict]:
         """从指定 run 的 Queue 消费事件。
@@ -114,7 +159,7 @@ class LangGraphRunner:
         self,
         *,
         run_id: str,
-        input_data: dict,
+        input_data: dict | Command,
         queue: asyncio.Queue[dict | None],
         config: dict,
     ) -> None:
@@ -126,6 +171,29 @@ class LangGraphRunner:
                 version="v2",
             ):
                 await queue.put(event)
+
+            # 检查是否因 interrupt 而停止
+            state_snapshot = await self._graph.aget_state(config)
+            if state_snapshot.next:
+                # 图被 interrupt 暂停，从 tasks 中提取 interrupt payload
+                interrupt_payload = self._extract_interrupt_payload(state_snapshot)
+                thread_id = config.get("configurable", {}).get("thread_id", "")
+                await queue.put(
+                    {
+                        "event": "__interrupt__",
+                        "data": {
+                            "run_id": run_id,
+                            "thread_id": thread_id,
+                            **interrupt_payload,
+                        },
+                    }
+                )
+                logger.info(
+                    "interrupt_detected",
+                    run_id=run_id,
+                    pending_nodes=list(state_snapshot.next),
+                )
+
         except asyncio.CancelledError:
             logger.info("run_cancelled_during_execution", run_id=run_id)
         except Exception:
@@ -139,3 +207,19 @@ class LangGraphRunner:
         finally:
             # 发送 sentinel 表示流结束
             await queue.put(_SENTINEL)
+
+    @staticmethod
+    def _extract_interrupt_payload(state_snapshot: object) -> dict:
+        """从 LangGraph state snapshot 提取 interrupt payload。
+
+        state_snapshot.tasks 是包含 interrupts 的 PregelTask 列表。
+        每个 task.interrupts 是 Interrupt 对象列表，每个有 .value 属性。
+        """
+        tasks = getattr(state_snapshot, "tasks", ())
+        for task in tasks:
+            interrupts = getattr(task, "interrupts", ())
+            for intr in interrupts:
+                value = getattr(intr, "value", None)
+                if isinstance(value, dict):
+                    return value
+        return {}

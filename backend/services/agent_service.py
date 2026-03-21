@@ -100,6 +100,7 @@ async def trigger_run(
         run_id=run_id,
         thread_id=str(thread_id),
         input_data=input_data,
+        config={"configurable": {"thread_id": str(thread_id)}},
     )
 
     return RunResult(
