@@ -52,7 +52,7 @@ export default function PaperSelectOverlay({
 
     return (
         <motion.div
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]"
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[4px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -108,10 +108,10 @@ export default function PaperSelectOverlay({
                         <label
                             key={p.id}
                             className={`
-                                flex items-start gap-3 p-3 rounded-[var(--radius-md)] transition-all cursor-pointer border
+                                flex items-start gap-3 p-4 rounded-[var(--radius-md)] transition-all duration-200 cursor-pointer border active:scale-[0.99]
                                 ${selected.has(p.id)
-                                    ? 'bg-[var(--accent-subtle)] border-[var(--accent)]/30'
-                                    : 'bg-[var(--surface)] border-transparent hover:bg-[var(--surface-raised)] hover:border-[var(--border)]'
+                                    ? 'bg-[var(--accent-subtle)] border-[var(--accent)]/40 shadow-sm'
+                                    : 'bg-[var(--surface)] border-transparent hover:bg-[var(--surface-raised)] hover:border-[var(--border)] hover:shadow-sm'
                                 }
                             `}
                         >

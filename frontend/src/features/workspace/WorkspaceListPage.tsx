@@ -23,6 +23,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { StaggerContainer, StaggerItem, FadeIn } from '@/components/shared/MotionWrappers'
+import { SkeletonCard } from '@/components/ui/skeleton'
 
 /** Discipline gradient colors for card accent bars */
 const DISCIPLINE_GRADIENTS: Record<string, string> = {
@@ -60,9 +61,9 @@ export default function WorkspaceListPage() {
     }
 
     return (
-        <div className="h-full overflow-auto p-6 md:p-10">
+        <div className="h-full overflow-auto p-8 md:p-12">
             {/* Header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-10">
                 <div>
                     <h1 className="text-2xl font-bold text-[var(--text-primary)]">
                         {t('workspace.title')}
@@ -79,9 +80,10 @@ export default function WorkspaceListPage() {
 
             {/* Loading */}
             {isLoading && (
-                <div className="flex items-center justify-center py-20 text-[var(--text-muted)]">
-                    <Loader2 className="size-5 animate-spin mr-2" />
-                    {t('workspace.loadingWorkspaces')}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <SkeletonCard />
+                    <SkeletonCard />
+                    <SkeletonCard />
                 </div>
             )}
 
@@ -109,13 +111,13 @@ export default function WorkspaceListPage() {
             {/* Card Grid */}
             {workspaces && workspaces.length > 0 && (
                 <StaggerContainer
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
                     itemCount={workspaces.length}
                 >
                     {workspaces.map((ws) => (
                         <StaggerItem key={ws.id}>
                             <div
-                                className="group relative flex items-stretch rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-hover)] hover:-translate-y-0.5 hover:shadow-md transition-all cursor-pointer overflow-hidden"
+                                className="group relative flex items-stretch rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] hover:border-transparent hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] transition-all duration-300 ease-out cursor-pointer overflow-hidden"
                                 onClick={() => navigate(`/workspace/${ws.id}`)}
                             >
                                 {/* Discipline gradient accent bar */}
@@ -157,7 +159,7 @@ export default function WorkspaceListPage() {
                     {/* "New Workspace" dashed card */}
                     <StaggerItem>
                         <button
-                            className="flex items-center justify-center w-full h-full min-h-[120px] rounded-[var(--radius-md)] border-2 border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--accent-subtle)] transition-all cursor-pointer"
+                            className="flex items-center justify-center w-full h-full min-h-[120px] rounded-[var(--radius-md)] border-2 border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:shadow-sm hover:bg-[var(--accent-subtle)] transition-all duration-300 ease-out active:scale-[0.98] cursor-pointer"
                             onClick={() => setShowCreate(true)}
                         >
                             <Plus className="size-6 mr-2" />

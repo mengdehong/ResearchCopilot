@@ -87,7 +87,7 @@ export default function EditorTab({ threadId }: EditorTabProps) {
         <div className="flex flex-col h-full">
             {/* Toolbar */}
             {editor && (
-                <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-[var(--border)] bg-[var(--surface-raised)]">
+                <div className="flex items-center flex-wrap gap-1 px-4 py-2 border-b border-[var(--border)] bg-gradient-to-br from-[var(--surface)] to-[var(--surface-raised)] shadow-[var(--shadow-sm)] sticky top-0 z-10">
                     <ToolbarGroup>
                         <ToolbarButton
                             icon={<Bold className="size-3.5" />}

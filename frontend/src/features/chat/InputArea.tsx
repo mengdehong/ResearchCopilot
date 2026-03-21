@@ -44,7 +44,7 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
     }, [])
 
     return (
-        <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--surface)]">
+        <div className="shrink-0 px-4 py-4 pb-5 border-t border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-2xl z-20">
             {/* File tags */}
             {files.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -92,7 +92,7 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
 
                 <div className="flex-1 relative">
                     <textarea
-                        className="w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-[3px] focus:ring-[var(--accent-subtle)] transition-all disabled:opacity-50"
+                        className="w-full resize-none rounded-3xl border border-[var(--border)] bg-[var(--background)] px-5 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-[3px] focus:ring-[var(--accent-subtle)] transition-all shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] focus:shadow-[var(--shadow-md)] disabled:opacity-50"
                         placeholder="Type your research question..."
                         value={value}
                         onChange={(e) => setValue(e.target.value)}
@@ -106,7 +106,7 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
                     onClick={handleSend}
                     disabled={disabled || !value.trim()}
                     aria-label="Send message"
-                    className="shrink-0"
+                    className="shrink-0 transition-all duration-200 active:scale-[0.85] rounded-full h-10 w-10 shadow-[var(--shadow-sm)]"
                 >
                     {disabled ? (
                         <Loader2 className="size-4 animate-spin" />
