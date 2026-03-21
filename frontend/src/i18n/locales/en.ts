@@ -18,6 +18,8 @@ export const en = {
     nav: {
         workspaces: 'Workspaces',
         settings: 'Settings',
+        collapse: 'Collapse',
+        expand: 'Expand',
     },
     workspace: {
         title: 'Workspaces',
@@ -47,10 +49,13 @@ export const en = {
         apiKeyHint: 'Your API key is stored locally in the browser.',
         preferences: 'Preferences',
         defaultDiscipline: 'Default Discipline',
+        lightMode: 'Light Mode',
+        darkMode: 'Dark Mode',
     },
     chat: {
         title: 'Chat',
         streaming: 'Streaming',
+        idle: 'Idle',
     },
     documents: {
         title: 'Documents',

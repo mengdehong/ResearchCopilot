@@ -20,6 +20,8 @@ export const zh: TranslationDict = {
     nav: {
         workspaces: '工作区',
         settings: '设置',
+        collapse: '收起',
+        expand: '展开',
     },
     workspace: {
         title: '工作区',
@@ -49,10 +51,13 @@ export const zh: TranslationDict = {
         apiKeyHint: '你的 API 密钥存储在浏览器本地。',
         preferences: '偏好设置',
         defaultDiscipline: '默认学科',
+        lightMode: '浅色模式',
+        darkMode: '深色模式',
     },
     chat: {
         title: '对话',
         streaming: '流式传输中',
+        idle: '空闲',
     },
     documents: {
         title: '文档',
