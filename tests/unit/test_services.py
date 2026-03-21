@@ -167,6 +167,33 @@ class TestDocumentService:
         assert "equations" in result
         assert "references" in result
 
+    @patch("backend.workers.celery_app.app")
+    @patch("backend.services.document_service.document_repo")
+    @patch("backend.services.document_service.base_repo")
+    async def test_retry_parse_sends_celery_task(
+        self,
+        mock_base: MagicMock,
+        mock_doc_repo: MagicMock,
+        mock_celery: MagicMock,
+    ) -> None:
+        from backend.services.document_service import retry_parse
+
+        session = AsyncMock()
+        owner = _user()
+        ws = _ws(owner.id)
+        doc = _doc(ws.id)
+        mock_base.get_by_id = AsyncMock(side_effect=[doc, ws])
+        mock_doc_repo.update_parse_status = AsyncMock()
+
+        result = await retry_parse(session, doc.id, owner)
+
+        assert result is not None
+        assert result.id == doc.id
+        mock_celery.send_task.assert_called_once_with(
+            "backend.workers.tasks.parse_document.run_parse_pipeline",
+            kwargs={"doc_id": str(doc.id)},
+        )
+
 
 # ---------------------------------------------------------------------------
 # agent_service
