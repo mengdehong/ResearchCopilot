@@ -1,4 +1,6 @@
 import { useLayoutStore } from '@/stores/useLayoutStore'
+import { useAgentStore } from '@/stores/useAgentStore'
+import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import EditorTab from './EditorTab'
 import PDFTab from './PDFTab'
@@ -23,6 +25,17 @@ interface CanvasPanelProps {
 export default function CanvasPanel({ threadId, interrupt, onResumeInterrupt }: CanvasPanelProps) {
     const activeTab = useLayoutStore((s) => s.activeCanvasTab)
     const setActiveTab = useLayoutStore((s) => s.setActiveCanvasTab)
+
+    const activePdf = useAgentStore((s) => s.activePdf)
+    const sandboxResult = useAgentStore((s) => s.sandboxResult)
+
+    useEffect(() => {
+        if (activePdf) setActiveTab('pdf')
+    }, [activePdf, setActiveTab])
+
+    useEffect(() => {
+        if (sandboxResult) setActiveTab('sandbox')
+    }, [sandboxResult, setActiveTab])
 
     const showPaperOverlay = interrupt?.action === 'select_papers'
 

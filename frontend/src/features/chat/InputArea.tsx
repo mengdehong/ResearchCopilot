@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from 'react'
+import { useState, useCallback, useRef, type KeyboardEvent, type ChangeEvent } from 'react'
 import { Send, Loader2, Paperclip, X, Mic, MicOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/i18n/useTranslation'
@@ -24,12 +24,7 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
 
     const voice = useVoiceInput(handleTranscript)
 
-    const [displayTime, setDisplayTime] = useState('0:00')
-    useEffect(() => {
-        const mins = Math.floor(voice.elapsedSeconds / 60)
-        const secs = voice.elapsedSeconds % 60
-        setDisplayTime(`${mins}:${secs.toString().padStart(2, '0')}`)
-    }, [voice.elapsedSeconds])
+    const displayTime = `${Math.floor(voice.elapsedSeconds / 60)}:${(voice.elapsedSeconds % 60).toString().padStart(2, '0')}`
 
     const handleMicClick = useCallback(async () => {
         if (voice.status === 'recording') {
@@ -164,8 +159,8 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
                     disabled={disabled || isTranscribing}
                     aria-label={isRecording ? 'Stop recording' : 'Start voice input'}
                     className={`shrink-0 transition-colors ${isRecording
-                            ? 'text-red-500 hover:text-red-600 animate-[pulse-glow_2s_ease-in-out_infinite]'
-                            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        ? 'text-red-500 hover:text-red-600 animate-[pulse-glow_2s_ease-in-out_infinite]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                         }`}
                 >
                     {isTranscribing ? (

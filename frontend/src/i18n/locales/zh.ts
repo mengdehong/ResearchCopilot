@@ -22,6 +22,16 @@ export const zh: TranslationDict = {
         settings: '设置',
         collapse: '收起',
         expand: '展开',
+        threads: '对话历史',
+        noThreads: '暂无对话',
+        deleteThread: '删除对话',
+        deleteThreadConfirm: '删除后不可恢复，确认继续？',
+        collapseHistory: '收起',
+        expandHistory: '展开全部历史',
+    },
+    workbench: {
+        chat: '对话',
+        canvas: '画布',
     },
     workspace: {
         title: '工作区',
@@ -53,6 +63,10 @@ export const zh: TranslationDict = {
         defaultDiscipline: '默认学科',
         lightMode: '浅色模式',
         darkMode: '深色模式',
+        quotaTitle: 'Token 用量',
+        quotaDesc: '本月所有工作区的 Token 消耗统计',
+        quotaRemaining: '剩余',
+        quotaByWorkspace: '按工作区',
     },
     chat: {
         title: '对话',
@@ -74,6 +88,13 @@ export const zh: TranslationDict = {
         dropzoneHint: '支持最大 50MB 的 PDF 文件',
         loadingDocuments: '加载文档...',
         empty: '暂无文档，上传 PDF 开始吧。',
+        status: {
+            completed: '已完成',
+            parsing: '解析中',
+            pending: '排队中',
+            failed: '解析失败',
+            uploading: '上传中...',
+        },
     },
     hitl: {
         selectPapers: '选择论文',
@@ -91,6 +112,8 @@ export const zh: TranslationDict = {
         selectedCount: '已选 {{count}} 篇',
         score: '评分',
         paperListOnRight: '论文列表已在右侧面板展示，请在右侧勾选。',
+        rejectConfirm: '确定要拒绝吗？',
+        confirmReject: '确认拒绝',
     },
     status: {
         processing: '处理中...',

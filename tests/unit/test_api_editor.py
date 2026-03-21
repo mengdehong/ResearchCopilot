@@ -54,7 +54,11 @@ class TestEditorRouter:
     @patch("backend.api.routers.editor.editor_service")
     async def test_load_draft(self, mock_svc, client) -> None:
         tid = uuid.uuid4()
-        mock_svc.load_draft = AsyncMock(return_value=_draft(tid))
+        
+        class MockThread:
+            updated_at = datetime.now(tz=UTC)
+            
+        mock_svc.load_draft = AsyncMock(return_value=(MockThread(), _draft(tid)))
         response = await client.get(f"/api/editor/draft/{tid}")
         assert response.status_code == 200
         assert response.json()["content"] == "draft content"

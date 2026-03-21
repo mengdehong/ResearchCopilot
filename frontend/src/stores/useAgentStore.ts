@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Message, CoTNode, InterruptData, RunEvent } from '@/types'
+import type { Message, CoTNode, InterruptData, RunEvent, PdfHighlight, SandboxResult } from '@/types'
 
 interface AgentState {
     messages: Message[]
@@ -8,6 +8,9 @@ interface AgentState {
     isStreaming: boolean
     currentNode: string | null
     generatedContent: string
+    contentBlock: { content: string; workflow: string } | null
+    activePdf: PdfHighlight | null
+    sandboxResult: SandboxResult | null
 
     addMessage: (msg: Message) => void
     handleSSEEvent: (event: RunEvent) => void
@@ -23,6 +26,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     isStreaming: false,
     currentNode: null,
     generatedContent: '',
+    contentBlock: null,
+    activePdf: null,
+    sandboxResult: null,
 
     addMessage: (msg) =>
         set((state) => ({ messages: [...state.messages, msg] })),
@@ -106,9 +112,43 @@ export const useAgentStore = create<AgentState>((set, get) => ({
                 break
             }
 
+            case 'content_block': {
+                const content = String(data.content ?? '')
+                const workflow = String(data.workflow ?? '')
+                if (content) {
+                    set({ contentBlock: { content, workflow } })
+                }
+                break
+            }
+
             case 'run_end':
                 set({ isStreaming: false, currentNode: null })
                 break
+
+            case 'pdf_highlight': {
+                const highlight = {
+                    document_id: String(data.document_id ?? ''),
+                    page: Number(data.page ?? 1),
+                    bbox: Array.isArray(data.bbox) ? data.bbox.map(Number) : [],
+                    text_snippet: String(data.text_snippet ?? ''),
+                }
+                set({ activePdf: highlight })
+                // Also optionally set layout store tab to 'pdf', but usually done in CanvasPanel or here
+                break
+            }
+
+            case 'sandbox_result': {
+                const result = {
+                    code: String(data.code ?? ''),
+                    stdout: String(data.stdout ?? ''),
+                    stderr: String(data.stderr ?? ''),
+                    exit_code: Number(data.exit_code ?? 0),
+                    duration_ms: Number(data.duration_ms ?? 0),
+                    artifacts: Array.isArray(data.artifacts) ? data.artifacts.map(String) : [],
+                }
+                set({ sandboxResult: result })
+                break
+            }
 
             default:
                 break
@@ -125,6 +165,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             isStreaming: false,
             currentNode: null,
             generatedContent: '',
+            contentBlock: null,
+            activePdf: null,
+            sandboxResult: null,
         }),
 
     setStreaming: (streaming) => set({ isStreaming: streaming }),

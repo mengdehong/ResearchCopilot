@@ -19,6 +19,7 @@ from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
 from backend.repositories import run_snapshot_repo, thread_repo
 from backend.services import agent_service
+from backend.services.artifacts_renderer import render_artifacts
 from backend.services.event_translator import translate_to_run_event
 
 logger = get_logger(__name__)
@@ -223,6 +224,8 @@ async def stream_run_events(
         completed_nodes: list[str] = []
         last_ai_content: str | None = None
         was_interrupted = False
+        # WF 名称集合，用于检测 WF 子图完成后注入 content_block
+        wf_names = {"discovery", "extraction", "ideation", "execution", "critique", "publish"}
         async for raw_event in raw_stream:
             # 检查 on_chain_end 的 output 中是否有新增 AI 消息
             # 仅限 supervisor 节点产出的 AIMessage（chat 模式），
@@ -258,6 +261,34 @@ async def stream_run_events(
                 event_type=event_type,
             )
             yield f"id: {seq}\ndata: {json.dumps(run_event)}\n\n"
+
+            # WF 子图完成后：尝试从 output 提取 artifacts 并注入 content_block
+            if event_type == "node_end":
+                node_name = run_event["data"].get("node_name", "")
+                if node_name in wf_names:
+                    raw_output = raw_event.get("data", {}).get("output", {})
+                    wf_artifacts = (
+                        raw_output.get("artifacts", {}).get(node_name, {})
+                        if isinstance(raw_output, dict)
+                        else {}
+                    )
+                    markdown = render_artifacts(node_name, wf_artifacts)
+                    if markdown:
+                        seq += 1
+                        content_event = {
+                            "event_type": "content_block",
+                            "data": {
+                                "content": markdown,
+                                "workflow": node_name,
+                            },
+                        }
+                        logger.debug(
+                            "sse_content_block_injected",
+                            run_id=run_id,
+                            workflow=node_name,
+                            content_length=len(markdown),
+                        )
+                        yield f"id: {seq}\ndata: {json.dumps(content_event)}\n\n"
 
         # 发送 assistant_message（仅在非 interrupt 时）：
         # interrupt 时不发 assistant_message，前端会显示 HITL 卡片

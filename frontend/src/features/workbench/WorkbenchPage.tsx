@@ -8,12 +8,14 @@ import { useSSE } from '@/hooks/useSSE'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import ChatPanel from '@/features/chat/ChatPanel'
 import CanvasPanel from '@/features/canvas/CanvasPanel'
+import { useTranslation } from '@/i18n/useTranslation'
 
 /**
  * Workbench page — no key-based remount; uses ref comparison
  * to reset agent store only when workspace actually changes.
  */
 export default function WorkbenchPage() {
+    const { t } = useTranslation()
     const { id: workspaceId = '' } = useParams<{ id: string }>()
     const [searchParams] = useSearchParams()
     const threadParam = searchParams.get('thread') ?? ''
@@ -133,23 +135,23 @@ export default function WorkbenchPage() {
                 <div className="flex items-center border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
                     <button
                         className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors cursor-pointer ${mobileTab === 'chat'
-                                ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]'
-                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                            ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                             }`}
                         onClick={() => setMobileTab('chat')}
                     >
                         <MessageSquare className="size-4" />
-                        Chat
+                        {t('workbench.chat')}
                     </button>
                     <button
                         className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors cursor-pointer ${mobileTab === 'canvas'
-                                ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]'
-                                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                            ? 'text-[var(--accent)] border-b-2 border-[var(--accent)]'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                             }`}
                         onClick={() => setMobileTab('canvas')}
                     >
                         <FileText className="size-4" />
-                        Canvas
+                        {t('workbench.canvas')}
                     </button>
                 </div>
                 {/* Mobile Content */}

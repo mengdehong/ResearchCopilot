@@ -152,7 +152,7 @@ export default function DocumentsPage() {
                                         </h3>
                                         <div className="flex items-center gap-2 mt-0.5">
                                             <Badge variant={STATUS_VARIANT[doc.parse_status] ?? 'secondary'}>
-                                                {doc.parse_status}
+                                                {t(`documents.status.${doc.parse_status}` as Parameters<typeof t>[0])}
                                             </Badge>
                                             {doc.year && (
                                                 <span className="text-xs text-[var(--text-muted)]">

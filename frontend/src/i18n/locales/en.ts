@@ -20,6 +20,16 @@ export const en = {
         settings: 'Settings',
         collapse: 'Collapse',
         expand: 'Expand',
+        threads: 'Threads',
+        noThreads: 'No threads yet',
+        deleteThread: 'Delete Thread',
+        deleteThreadConfirm: 'This action cannot be undone. Are you sure you want to continue?',
+        collapseHistory: 'Collapse',
+        expandHistory: 'Expand full history',
+    },
+    workbench: {
+        chat: 'Chat',
+        canvas: 'Canvas',
     },
     workspace: {
         title: 'Workspaces',
@@ -51,6 +61,10 @@ export const en = {
         defaultDiscipline: 'Default Discipline',
         lightMode: 'Light Mode',
         darkMode: 'Dark Mode',
+        quotaTitle: 'Token Usage',
+        quotaDesc: 'Monthly token consumption across all workspaces',
+        quotaRemaining: 'Remaining',
+        quotaByWorkspace: 'By Workspace',
     },
     chat: {
         title: 'Chat',
@@ -72,6 +86,13 @@ export const en = {
         dropzoneHint: 'Supports PDF files up to 50MB',
         loadingDocuments: 'Loading documents...',
         empty: 'No documents yet. Upload PDFs to get started.',
+        status: {
+            completed: 'Completed',
+            parsing: 'Parsing',
+            pending: 'Pending',
+            failed: 'Failed',
+            uploading: 'Uploading...',
+        },
     },
     hitl: {
         selectPapers: 'Select Papers',
@@ -89,6 +110,8 @@ export const en = {
         selectedCount: '{{count}} selected',
         score: 'Score',
         paperListOnRight: 'Paper list is shown on the right panel. Please select papers there.',
+        rejectConfirm: 'Are you sure you want to reject?',
+        confirmReject: 'Confirm Reject',
     },
     status: {
         processing: 'Processing...',

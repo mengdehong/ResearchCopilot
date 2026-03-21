@@ -51,7 +51,7 @@ function ConfirmExecuteCard({ interrupt, onResume, t }: HITLInternalProps) {
                     <PopoverContent className="w-56">
                         <div className="flex flex-col gap-2">
                             <p className="text-sm text-[var(--text-primary)]">
-                                Are you sure you want to reject?
+                                {t('hitl.rejectConfirm')}
                             </p>
                             <Button
                                 variant="destructive"
@@ -59,7 +59,7 @@ function ConfirmExecuteCard({ interrupt, onResume, t }: HITLInternalProps) {
                                 onClick={() => onResume('reject')}
                                 className="w-full"
                             >
-                                Confirm Reject
+                                {t('hitl.confirmReject')}
                             </Button>
                         </div>
                     </PopoverContent>

@@ -147,6 +147,22 @@ export interface InterruptData {
 
 export type CanvasTab = 'editor' | 'pdf' | 'sandbox'
 
+export interface PdfHighlight {
+    document_id: string
+    page: number
+    bbox: number[]
+    text_snippet: string
+}
+
+export interface SandboxResult {
+    code: string
+    stdout: string
+    stderr: string
+    exit_code: number
+    duration_ms: number
+    artifacts: string[]
+}
+
 /* ─── Constants ─── */
 export const DISCIPLINES = [
     'computer_science',

@@ -4,18 +4,172 @@ import { useTranslation } from '@/i18n/useTranslation'
 import { DISCIPLINES } from '@/types'
 import type { Locale } from '@/i18n/types'
 import { useTheme, type Theme } from '@/hooks/useTheme'
+import { useQuotaStatus } from '@/hooks/useQuotaStatus'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FadeIn } from '@/components/shared/MotionWrappers'
-import { Sun, Moon, Monitor, Check } from 'lucide-react'
+import { Sun, Moon, Monitor, Check, Zap } from 'lucide-react'
 
+/* ─── Settings Card ─── */
+interface SettingsCardProps {
+    readonly title: string
+    readonly description?: string
+    readonly children: React.ReactNode
+}
+
+function SettingsCard({ title, description, children }: SettingsCardProps) {
+    return (
+        <section className="mb-10">
+            <div className="mb-4">
+                <h2 className="text-sm font-semibold tracking-wide uppercase text-[var(--text-primary)] mb-1">{title}</h2>
+                {description && <p className="text-[13px] text-[var(--text-muted)]">{description}</p>}
+            </div>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)] p-5">
+                {children}
+            </div>
+        </section>
+    )
+}
+
+/* ─── Token formatting ─── */
+function formatTokens(n: number): string {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+    return String(n)
+}
+
+function usageColor(pct: number): string {
+    if (pct >= 90) return 'var(--destructive, #ef4444)'
+    if (pct >= 70) return 'var(--warning, #f59e0b)'
+    return 'var(--accent, #22c55e)'
+}
+
+/* ─── Quota Usage Card ─── */
+interface QuotaData {
+    readonly total_used: number
+    readonly total_limit: number
+    readonly remaining: number
+    readonly usage_percent: number
+    readonly workspaces: readonly {
+        readonly workspace_id: string
+        readonly workspace_name: string
+        readonly used_tokens: number
+        readonly limit_tokens: number
+    }[]
+}
+
+interface QuotaUsageCardProps {
+    readonly quota: QuotaData | undefined
+    readonly loading: boolean
+    readonly error: boolean
+    readonly t: (key: string) => string
+}
+
+function QuotaUsageCard({ quota, loading, error, t }: QuotaUsageCardProps) {
+    if (loading) {
+        return (
+            <SettingsCard title={t('settings.quotaTitle')} description={t('settings.quotaDesc')}>
+                <div className="space-y-4 animate-pulse">
+                    <div className="h-4 bg-[var(--surface-raised)] rounded-full w-full" />
+                    <div className="h-3 bg-[var(--surface-raised)] rounded w-1/3" />
+                    <div className="h-3 bg-[var(--surface-raised)] rounded w-1/2" />
+                </div>
+            </SettingsCard>
+        )
+    }
+
+    if (error || !quota) {
+        return (
+            <SettingsCard title={t('settings.quotaTitle')} description={t('settings.quotaDesc')}>
+                <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                    <Zap className="size-4" />
+                    <span>0 / 1.0M</span>
+                    <span className="text-xs ml-auto opacity-60">—</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-[var(--surface-raised)] mt-2" />
+            </SettingsCard>
+        )
+    }
+
+    const pct = quota.usage_percent
+    const color = usageColor(pct)
+
+    return (
+        <SettingsCard title={t('settings.quotaTitle')} description={t('settings.quotaDesc')}>
+            <div className="space-y-5">
+                {/* Overall progress */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-1.5 text-[var(--text-secondary)] font-medium">
+                            <Zap className="size-4" style={{ color }} />
+                            {formatTokens(quota.total_used)} / {formatTokens(quota.total_limit)}
+                        </span>
+                        <span
+                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: color, color: '#fff', opacity: 0.9 }}
+                        >
+                            {pct.toFixed(1)}%
+                        </span>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-[var(--surface-raised)] overflow-hidden">
+                        <div
+                            className="h-full rounded-full transition-all duration-700 ease-out"
+                            style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }}
+                        />
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)]">
+                        {t('settings.quotaRemaining')}: {formatTokens(quota.remaining)}
+                    </p>
+                </div>
+
+                {/* Per-workspace breakdown */}
+                {quota.workspaces.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                            {t('settings.quotaByWorkspace')}
+                        </h3>
+                        <ul className="space-y-1.5">
+                            {quota.workspaces.map((ws) => {
+                                const wsPct = ws.limit_tokens > 0
+                                    ? (ws.used_tokens / ws.limit_tokens) * 100
+                                    : 0
+                                return (
+                                    <li key={ws.workspace_id} className="flex items-center gap-3 text-sm">
+                                        <span className="text-[var(--text-secondary)] truncate flex-1 min-w-0">
+                                            {ws.workspace_name}
+                                        </span>
+                                        <div className="w-24 h-1.5 rounded-full bg-[var(--surface-raised)] overflow-hidden flex-shrink-0">
+                                            <div
+                                                className="h-full rounded-full transition-all duration-500"
+                                                style={{
+                                                    width: `${Math.min(wsPct, 100)}%`,
+                                                    backgroundColor: usageColor(wsPct),
+                                                }}
+                                            />
+                                        </div>
+                                        <span className="text-xs text-[var(--text-muted)] tabular-nums w-16 text-right flex-shrink-0">
+                                            {formatTokens(ws.used_tokens)}
+                                        </span>
+                                    </li>
+                                )
+                            })}
+                        </ul>
+                    </div>
+                )}
+            </div>
+        </SettingsCard>
+    )
+}
+
+/* ─── Main Settings Page ─── */
 export default function SettingsPage() {
     const [apiKey, setApiKey] = useState(getToken() ?? '')
     const [saved, setSaved] = useState(false)
     const { t, locale, setLocale } = useTranslation()
     const { theme, setTheme } = useTheme()
+    const { data: quota, isLoading: quotaLoading, isError: quotaError } = useQuotaStatus()
 
     const handleSave = () => {
         if (apiKey.trim()) {
@@ -39,6 +193,9 @@ export default function SettingsPage() {
                             {t('settings.subtitle')}
                         </p>
                     </div>
+
+                    {/* Token Usage */}
+                    <QuotaUsageCard quota={quota} loading={quotaLoading} error={quotaError} t={t} />
 
                     {/* Theme */}
                     <SettingsCard title="Theme" description="Choose your preferred appearance">
@@ -129,26 +286,5 @@ export default function SettingsPage() {
                 </div>
             </div>
         </FadeIn>
-    )
-}
-
-/* ─── Settings Card ─── */
-interface SettingsCardProps {
-    readonly title: string
-    readonly description?: string
-    readonly children: React.ReactNode
-}
-
-function SettingsCard({ title, description, children }: SettingsCardProps) {
-    return (
-        <section className="mb-10">
-            <div className="mb-4">
-                <h2 className="text-sm font-semibold tracking-wide uppercase text-[var(--text-primary)] mb-1">{title}</h2>
-                {description && <p className="text-[13px] text-[var(--text-muted)]">{description}</p>}
-            </div>
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)] p-5">
-                {children}
-            </div>
-        </section>
     )
 }

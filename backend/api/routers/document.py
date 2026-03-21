@@ -3,6 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_current_user, get_db
@@ -94,6 +95,25 @@ async def get_document(
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
     return DocumentMeta.model_validate(doc)
+
+
+@router.get("/{document_id}/download")
+async def download_document(
+    document_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    storage: StorageClient = Depends(_get_storage),
+) -> FileResponse:
+    """Download document file."""
+    doc = await document_service.get_document(session, document_id, current_user)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    file_path = storage._base_dir / doc.file_path
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on storage")
+    
+    return FileResponse(file_path, filename=f"{doc.title}.pdf")
 
 
 @router.get("/{document_id}/status", response_model=DocumentStatus)

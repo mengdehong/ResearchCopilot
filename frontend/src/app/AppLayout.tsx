@@ -135,7 +135,7 @@ export default function AppLayout() {
                                 transition={{ duration: 0.15 }}
                             >
                                 <div className="px-2 pb-2 text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">
-                                    Threads
+                                    {t('nav.threads')}
                                 </div>
                                 <ThreadList workspaceId={workspaceId} />
                             </motion.div>
@@ -247,6 +247,7 @@ interface ThreadListProps {
 }
 
 function ThreadList({ workspaceId }: ThreadListProps) {
+    const { t } = useTranslation()
     const [expanded, setExpanded] = useState(false)
     const { data: collapsedThreads } = useThreads(workspaceId, COLLAPSED_LIMIT)
     const { data: allThreads } = useThreads(
@@ -275,7 +276,7 @@ function ThreadList({ workspaceId }: ThreadListProps) {
     if (!threads?.length) {
         return (
             <div className="px-2 py-4 text-xs text-[var(--text-muted)] text-center">
-                No threads yet
+                {t('nav.noThreads')}
             </div>
         )
     }
@@ -298,7 +299,7 @@ function ThreadList({ workspaceId }: ThreadListProps) {
                         <button
                             onClick={(e) => handleDelete(e, thread.thread_id)}
                             className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded-[var(--radius-sm)] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
-                            title="删除对话"
+                            title={t('nav.deleteThread')}
                         >
                             <Trash2 className="size-3" />
                         </button>
@@ -310,13 +311,13 @@ function ThreadList({ workspaceId }: ThreadListProps) {
                         className="flex items-center justify-center gap-1 w-full py-1 mt-1 rounded-[var(--radius-sm)] text-[10px] text-[var(--text-muted)] opacity-50 hover:opacity-100 hover:bg-[var(--surface-raised)] transition-all cursor-pointer"
                     >
                         {expanded
-                            ? <><ChevronUp className="size-3" /> 收起</>
-                            : <><ChevronDown className="size-3" /> 展开全部历史</>
+                            ? <><ChevronUp className="size-3" /> {t('nav.collapseHistory')}</>
+                            : <><ChevronDown className="size-3" /> {t('nav.expandHistory')}</>
                         }
                     </button>
                 )}
             </div>
-            <ConfirmDeleteDialog {...confirmProps} title="删除对话" description="删除后不可恢复，确认继续？" />
+            <ConfirmDeleteDialog {...confirmProps} title={t('nav.deleteThread')} description={t('nav.deleteThreadConfirm')} />
         </>
     )
 }

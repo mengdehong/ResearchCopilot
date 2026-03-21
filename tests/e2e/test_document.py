@@ -156,7 +156,7 @@ async def test_get_document_artifacts(
 
     assert response.status_code == 200
     data = response.json()
-    assert "artifacts" in data
+    assert "paragraphs" in data
 
 
 async def test_delete_document(

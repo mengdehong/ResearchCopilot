@@ -5,6 +5,7 @@ import { TextSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import MathExtension from '@aarkue/tiptap-math-extension'
+import { marked } from 'marked'
 import 'katex/dist/katex.min.css'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { useLayoutStore } from '@/stores/useLayoutStore'
@@ -117,6 +118,7 @@ export default function EditorTab({ threadId }: EditorTabProps) {
     const { data: draft } = useDraft(threadId)
     const saveDraft = useSaveDraft()
     const generatedContent = useAgentStore((s) => s.generatedContent)
+    const contentBlock = useAgentStore((s) => s.contentBlock)
     const setSaveStatus = useLayoutStore((s) => s.setSaveStatus)
     const prevGeneratedRef = useRef('')
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -270,6 +272,18 @@ export default function EditorTab({ threadId }: EditorTabProps) {
         }
         prevGeneratedRef.current = generatedContent
     }, [editor, generatedContent])
+
+    // content_block → Markdown→HTML → TipTap setContent
+    useEffect(() => {
+        if (!editor || !contentBlock) return
+
+        const html = marked.parse(contentBlock.content)
+        if (typeof html === 'string' && html.trim()) {
+            editor.commands.setContent(html)
+            // 清空 contentBlock 防止重复写入
+            useAgentStore.setState({ contentBlock: null })
+        }
+    }, [editor, contentBlock])
 
     const handleSave = useCallback(() => {
         if (!editor || !threadId) return
