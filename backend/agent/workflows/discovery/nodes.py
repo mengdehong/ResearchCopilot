@@ -1,5 +1,6 @@
 """Discovery WF 节点函数。寻源初筛：扩展查询 → 搜索 → 筛选排序 → HITL 勾选 → 触发 ingestion → 写 artifacts。"""
 
+import asyncio
 import json
 
 import httpx
@@ -82,12 +83,12 @@ def search_apis(state: DiscoveryState) -> dict:
     return {"raw_results": raw_results}
 
 
-def filter_and_rank(
+async def filter_and_rank(
     state: DiscoveryState,
     *,
     llm: BaseChatModel,
 ) -> dict:
-    """去重 + LLM 生成 relevance_comment 填充 PaperCard 列表。"""
+    """去重 + LLM 并发生成 relevance_comment 填充 PaperCard 列表。"""
     raw_results = state.get("raw_results", [])
     discipline = state.get("discipline", "")
 
@@ -100,46 +101,49 @@ def filter_and_rank(
             seen.add(arxiv_id)
             unique.append(r)
 
-    # LLM 评估相关性
-    candidate_papers: list[PaperCard] = []
-    for paper in unique:
-        try:
-            prompt = load_prompt(
-                "discovery/prompts",
-                key="filter_and_rank",
-                variables={
-                    "discipline": discipline,
-                    "paper_json": json.dumps(
-                        {
-                            "title": paper.get("title", ""),
-                            "abstract": paper.get("abstract", ""),
-                        },
-                        ensure_ascii=False,
-                    ),
-                },
-            )
-            evaluation = llm.with_structured_output(RelevanceComment).invoke(
-                [
-                    SystemMessage(content=prompt["system"]),
-                    HumanMessage(content=prompt["user"]),
-                ]
-            )
-            candidate_papers.append(
-                PaperCard(
+    # 并发 LLM 评估相关性（限制并发 10）
+    sem = asyncio.Semaphore(10)
+
+    async def _evaluate_paper(paper: dict) -> PaperCard | None:
+        async with sem:
+            try:
+                prompt = load_prompt(
+                    "discovery/prompts",
+                    key="filter_and_rank",
+                    variables={
+                        "discipline": discipline,
+                        "paper_json": json.dumps(
+                            {
+                                "title": paper.get("title", ""),
+                                "abstract": paper.get("abstract", ""),
+                            },
+                            ensure_ascii=False,
+                        ),
+                    },
+                )
+                evaluation = await llm.with_structured_output(RelevanceComment).ainvoke(
+                    [
+                        SystemMessage(content=prompt["system"]),
+                        HumanMessage(content=prompt["user"]),
+                    ]
+                )
+                return PaperCard(
                     arxiv_id=paper.get("arxiv_id", ""),
                     title=paper.get("title", ""),
                     authors=paper.get("authors", []),
                     abstract=paper.get("abstract", ""),
-                    year=paper.get("year", 0),
+                    year=int(paper.get("year", 0) or 0),
                     citation_count=paper.get("citation_count"),
                     relevance_score=evaluation.relevance_score,
                     relevance_comment=evaluation.relevance_comment,
                     source=paper.get("source", "unknown"),
                 )
-            )
-        except Exception:
-            logger.warning("filter_rank_skip_paper", arxiv_id=paper.get("arxiv_id"))
-            raise
+            except Exception:
+                logger.warning("filter_rank_skip_paper", arxiv_id=paper.get("arxiv_id"))
+                return None
+
+    results = await asyncio.gather(*[_evaluate_paper(p) for p in unique])
+    candidate_papers = [p for p in results if p is not None]
 
     # 按 relevance_score 降序排列
     candidate_papers.sort(key=lambda p: p.relevance_score, reverse=True)

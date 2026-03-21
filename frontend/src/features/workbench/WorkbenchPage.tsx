@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { useAgentStore } from '@/stores/useAgentStore'
@@ -8,15 +8,11 @@ import ChatPanel from '@/features/chat/ChatPanel'
 import CanvasPanel from '@/features/canvas/CanvasPanel'
 
 /**
- * Outer shell: uses key={workspaceId} to remount WorkbenchInner,
- * so useState naturally re-initializes without setState-in-effect.
+ * Workbench page — no key-based remount; uses ref comparison
+ * to reset agent store only when workspace actually changes.
  */
 export default function WorkbenchPage() {
-    const { id: workspaceId } = useParams<{ id: string }>()
-    return <WorkbenchInner key={workspaceId} workspaceId={workspaceId ?? ''} />
-}
-
-function WorkbenchInner({ workspaceId }: { workspaceId: string }) {
+    const { id: workspaceId = '' } = useParams<{ id: string }>()
     const addMessage = useAgentStore((s) => s.addMessage)
     const interrupt = useAgentStore((s) => s.interrupt)
     const clearInterrupt = useAgentStore((s) => s.clearInterrupt)
@@ -36,11 +32,16 @@ function WorkbenchInner({ workspaceId }: { workspaceId: string }) {
         enabled: !!threadId && !!activeRunId,
     })
 
-    // Reset agent store on mount (i.e. workspace change via key remount)
+    // Reset agent store only when workspace changes (not on every mount)
+    const prevWorkspaceRef = useRef(workspaceId)
     useEffect(() => {
-        reset()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+        if (prevWorkspaceRef.current !== workspaceId) {
+            reset()
+            setThreadId('')
+            setActiveRunId('')
+            prevWorkspaceRef.current = workspaceId
+        }
+    }, [workspaceId, reset])
 
     const handleSendMessage = useCallback(
         async (message: string) => {

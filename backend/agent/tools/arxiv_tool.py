@@ -11,7 +11,7 @@ from backend.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-_ARXIV_API_URL = "http://export.arxiv.org/api/query"
+_ARXIV_API_URL = "https://export.arxiv.org/api/query"
 _MAX_RESULTS = 10
 
 
@@ -37,7 +37,7 @@ def search_arxiv(query: str, max_results: int = _MAX_RESULTS) -> list[dict[str, 
     }
 
     try:
-        response = httpx.get(_ARXIV_API_URL, params=params, timeout=30.0)
+        response = httpx.get(_ARXIV_API_URL, params=params, timeout=30.0, follow_redirects=True)
         response.raise_for_status()
     except httpx.HTTPError as e:
         logger.error("arxiv_search_failed", query=query, error=str(e))

@@ -49,7 +49,7 @@ export function useSSE({ threadId, runId, enabled = true }: UseSSEOptions) {
                 const parsed = JSON.parse(event.data) as RunEvent
                 useAgentStore.getState().handleSSEEvent(parsed)
 
-                if (parsed.event_type === 'run_end' || parsed.event_type === 'error') {
+                if (parsed.event_type === 'run_end') {
                     es.close()
                     useAgentStore.getState().setStreaming(false)
                 }
@@ -60,12 +60,13 @@ export function useSSE({ threadId, runId, enabled = true }: UseSSEOptions) {
 
         es.onerror = () => {
             es.close()
-            useAgentStore.getState().setStreaming(false)
 
             if (retryCountRef.current < MAX_RETRIES) {
                 retryCountRef.current += 1
                 const delay = Math.min(1000 * 2 ** retryCountRef.current, 30000)
                 retryTimerRef.current = setTimeout(() => connectRef.current(), delay)
+            } else {
+                useAgentStore.getState().setStreaming(false)
             }
         }
     }, [threadId, runId, enabled])

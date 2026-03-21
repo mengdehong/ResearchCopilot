@@ -1,6 +1,6 @@
 """Discovery WF 单元测试。"""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from backend.agent.state import PaperCard
 from backend.agent.workflows.discovery.graph import build_discovery_graph
@@ -18,11 +18,12 @@ from backend.agent.workflows.discovery.nodes import (
 # ── Fixtures ──
 
 
-def _make_mock_llm(responses: list) -> MagicMock:
+def _make_mock_llm(responses: list, *, use_async: bool = False) -> MagicMock:
     """创建 mock LLM，按序返回结构化输出。"""
     llm = MagicMock()
     structured = MagicMock()
     structured.invoke = MagicMock(side_effect=responses)
+    structured.ainvoke = AsyncMock(side_effect=responses)
     llm.with_structured_output = MagicMock(return_value=structured)
     return llm
 
@@ -87,7 +88,7 @@ def test_search_apis_calls_arxiv_tool(mock_arxiv) -> None:
 # ── filter_and_rank ──
 
 
-def test_filter_and_rank_deduplicates() -> None:
+async def test_filter_and_rank_deduplicates() -> None:
     """重复 arxiv_id 应去重。"""
     llm = _make_mock_llm(
         [
@@ -115,11 +116,11 @@ def test_filter_and_rank_deduplicates() -> None:
         ],
         "discipline": "cs",
     }
-    result = filter_and_rank(state, llm=llm)
+    result = await filter_and_rank(state, llm=llm)
     assert len(result["candidate_papers"]) == 1
 
 
-def test_filter_and_rank_sorts_by_relevance() -> None:
+async def test_filter_and_rank_sorts_by_relevance() -> None:
     """应按 relevance_score 降序排列。"""
     llm = _make_mock_llm(
         [
@@ -148,7 +149,7 @@ def test_filter_and_rank_sorts_by_relevance() -> None:
         ],
         "discipline": "cs",
     }
-    result = filter_and_rank(state, llm=llm)
+    result = await filter_and_rank(state, llm=llm)
     scores = [p.relevance_score for p in result["candidate_papers"]]
     assert scores == [0.9, 0.3]
 

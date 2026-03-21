@@ -37,16 +37,36 @@ export const useAgentStore = create<AgentState>((set, get) => ({
                 }))
                 break
 
-            case 'node_start':
-                set({
-                    currentNode: String(data.node_name ?? ''),
+            case 'node_start': {
+                const nodeName = String(data.node_name ?? '')
+                const newNode: CoTNode = {
+                    id: String(data.node_id ?? crypto.randomUUID()),
+                    name: nodeName,
+                    startTime: Date.now(),
+                    endTime: null,
+                    children: [],
+                    status: 'running',
+                }
+                set((state) => ({
+                    currentNode: nodeName,
                     isStreaming: true,
-                })
+                    cotTree: [...state.cotTree, newNode],
+                }))
                 break
+            }
 
-            case 'node_end':
-                set({ currentNode: null })
+            case 'node_end': {
+                const endNodeName = String(data.node_name ?? '')
+                set((state) => ({
+                    currentNode: null,
+                    cotTree: state.cotTree.map((n) =>
+                        n.name === endNodeName && n.status === 'running'
+                            ? { ...n, endTime: Date.now(), status: 'completed' as const }
+                            : n
+                    ),
+                }))
                 break
+            }
 
             case 'interrupt': {
                 const interrupt: InterruptData = {
@@ -69,6 +89,19 @@ export const useAgentStore = create<AgentState>((set, get) => ({
                 set((state) => ({
                     messages: [...state.messages, msg],
                     generatedContent: '',
+                }))
+                break
+            }
+
+            case 'error': {
+                const errMsg: Message = {
+                    id: crypto.randomUUID(),
+                    role: 'system',
+                    content: String(data.message ?? 'Unknown error'),
+                    timestamp: new Date().toISOString(),
+                }
+                set((state) => ({
+                    messages: [...state.messages, errMsg],
                 }))
                 break
             }
