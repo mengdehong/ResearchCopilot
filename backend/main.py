@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from backend.api.middleware import AccessLogMiddleware, RequestIDMiddleware
-from backend.api.routers import agent, auth, document, editor, health, workspace
+from backend.api.routers import agent, auth, document, editor, health, stt, workspace
 from backend.clients.langgraph_runner import LangGraphRunner
 from backend.core.config import Settings
 from backend.core.database import create_checkpointer, create_engine, create_session_factory
@@ -90,6 +90,7 @@ app.include_router(workspace.router)
 app.include_router(document.router)
 app.include_router(editor.router)
 app.include_router(agent.router)
+app.include_router(stt.router)
 
 # Prometheus metrics — auto-collect request latency/QPS/status codes
 try:

@@ -1,6 +1,8 @@
-import { useState, useCallback, useRef, type KeyboardEvent, type ChangeEvent } from 'react'
-import { Send, Loader2, Paperclip, X } from 'lucide-react'
+import { useState, useCallback, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from 'react'
+import { Send, Loader2, Paperclip, X, Mic, MicOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/i18n/useTranslation'
+import useVoiceInput from '@/hooks/useVoiceInput'
 
 interface InputAreaProps {
     onSend: (message: string, files?: File[]) => void
@@ -12,6 +14,33 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
     const [value, setValue] = useState('')
     const [files, setFiles] = useState<File[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const { t } = useTranslation()
+
+    // ─── Voice Input ───
+
+    const handleTranscript = useCallback((text: string) => {
+        setValue((prev) => (prev ? prev + ' ' + text : text))
+    }, [])
+
+    const voice = useVoiceInput(handleTranscript)
+
+    const [displayTime, setDisplayTime] = useState('0:00')
+    useEffect(() => {
+        const mins = Math.floor(voice.elapsedSeconds / 60)
+        const secs = voice.elapsedSeconds % 60
+        setDisplayTime(`${mins}:${secs.toString().padStart(2, '0')}`)
+    }, [voice.elapsedSeconds])
+
+    const handleMicClick = useCallback(async () => {
+        if (voice.status === 'recording') {
+            voice.stopRecording()
+        } else {
+            await voice.startRecording()
+        }
+    }, [voice])
+
+    const isRecording = voice.status === 'recording'
+    const isTranscribing = voice.status === 'transcribing'
 
     const handleSend = useCallback(() => {
         const trimmed = value.trim()
@@ -45,6 +74,43 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
 
     return (
         <div className="shrink-0 px-4 py-4 pb-5 border-t border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-2xl z-20">
+            {/* Recording indicator */}
+            {isRecording && (
+                <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-[var(--error-subtle,rgba(239,68,68,0.1))]">
+                    <span className="size-2 rounded-full bg-red-500 animate-[pulse-glow_2s_ease-in-out_infinite]" />
+                    <span className="text-xs text-red-500 font-medium">
+                        {t('chat.voice.recording')}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)] font-mono">{displayTime}</span>
+                    {voice.interimText && (
+                        <span className="text-xs text-[var(--text-secondary)] truncate max-w-[200px] italic">
+                            {voice.interimText}
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {/* Transcribing indicator */}
+            {isTranscribing && (
+                <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-[var(--accent-subtle)]">
+                    <Loader2 className="size-3 animate-spin text-[var(--accent)]" />
+                    <span className="text-xs text-[var(--accent)]">
+                        {t('chat.voice.transcribing')}
+                    </span>
+                </div>
+            )}
+
+            {/* Voice error */}
+            {voice.error && voice.status === 'error' && (
+                <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-[var(--error-subtle,rgba(239,68,68,0.1))]">
+                    <span className="text-xs text-red-500">
+                        {voice.error === 'mic-permission-denied'
+                            ? t('chat.voice.micPermissionDenied')
+                            : t('chat.voice.error')}
+                    </span>
+                </div>
+            )}
+
             {/* File tags */}
             {files.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -88,6 +154,27 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
                     className="shrink-0 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
                     <Paperclip className="size-4" />
+                </Button>
+
+                {/* Voice button */}
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={handleMicClick}
+                    disabled={disabled || isTranscribing}
+                    aria-label={isRecording ? 'Stop recording' : 'Start voice input'}
+                    className={`shrink-0 transition-colors ${isRecording
+                            ? 'text-red-500 hover:text-red-600 animate-[pulse-glow_2s_ease-in-out_infinite]'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        }`}
+                >
+                    {isTranscribing ? (
+                        <Loader2 className="size-4 animate-spin" />
+                    ) : isRecording ? (
+                        <MicOff className="size-4" />
+                    ) : (
+                        <Mic className="size-4" />
+                    )}
                 </Button>
 
                 <div className="flex-1 relative">

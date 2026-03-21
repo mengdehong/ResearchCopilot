@@ -58,6 +58,13 @@ export const zh: TranslationDict = {
         title: '对话',
         streaming: '流式传输中',
         idle: '空闲',
+        voice: {
+            recording: '正在录音...',
+            transcribing: '转写中...',
+            micPermissionDenied: '麦克风权限被拒绝',
+            sttUnavailable: '语音识别不可用，已切换至精确模式',
+            error: '语音识别失败',
+        },
     },
     documents: {
         title: '文档',
