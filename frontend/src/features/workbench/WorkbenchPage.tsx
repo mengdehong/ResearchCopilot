@@ -1,13 +1,11 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { useLayoutStore } from '@/stores/useLayoutStore'
+import { Group, Panel, Separator } from 'react-resizable-panels'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { useCreateThread, useCreateRun, useResumeRun } from '@/hooks/useThreads'
 import { useSSE } from '@/hooks/useSSE'
 import ChatPanel from '@/features/chat/ChatPanel'
 import CanvasPanel from '@/features/canvas/CanvasPanel'
-import StatusBar from '@/components/shared/StatusBar'
-import './WorkbenchPage.css'
 
 /**
  * Outer shell: uses key={workspaceId} to remount WorkbenchInner,
@@ -19,7 +17,6 @@ export default function WorkbenchPage() {
 }
 
 function WorkbenchInner({ workspaceId }: { workspaceId: string }) {
-    const splitRatio = useLayoutStore((s) => s.splitRatio)
     const addMessage = useAgentStore((s) => s.addMessage)
     const interrupt = useAgentStore((s) => s.interrupt)
     const clearInterrupt = useAgentStore((s) => s.clearInterrupt)
@@ -40,7 +37,6 @@ function WorkbenchInner({ workspaceId }: { workspaceId: string }) {
     })
 
     // Reset agent store on mount (i.e. workspace change via key remount)
-    // Empty deps: component remounts via key={workspaceId}, so [] is correct.
     useEffect(() => {
         reset()
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,30 +112,33 @@ function WorkbenchInner({ workspaceId }: { workspaceId: string }) {
     )
 
     return (
-        <div className="workbench-page">
-            <div className="workbench-page__panels">
-                <div
-                    className="workbench-page__chat"
-                    style={{ flexBasis: `${splitRatio * 100}%` }}
+        <div className="h-full w-full">
+            <Group
+                orientation="horizontal"
+                className="h-full"
+            >
+                <Panel
+                    defaultSize={40}
+                    minSize={25}
+                    className="h-full"
                 >
                     <ChatPanel
                         threadId={threadId}
                         onSendMessage={handleSendMessage}
                         onResumeInterrupt={handleResumeInterrupt}
                     />
-                </div>
+                </Panel>
 
-                <div className="workbench-page__divider" />
+                <Separator className="w-1 bg-[var(--border)] hover:bg-[var(--accent)]/40 active:bg-[var(--accent)]/60 transition-colors" />
 
-                <div
-                    className="workbench-page__canvas"
-                    style={{ flexBasis: `${(1 - splitRatio) * 100}%` }}
+                <Panel
+                    defaultSize={60}
+                    minSize={30}
+                    className="h-full"
                 >
                     <CanvasPanel threadId={threadId} />
-                </div>
-            </div>
-
-            <StatusBar />
+                </Panel>
+            </Group>
         </div>
     )
 }
