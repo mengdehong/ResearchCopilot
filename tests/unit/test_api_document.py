@@ -100,3 +100,25 @@ class TestDocumentRouter:
         mock_svc.retry_parse = AsyncMock(return_value=doc)
         response = await client.post(f"/api/documents/{doc.id}/retry")
         assert response.status_code == 200
+
+    @patch("backend.api.routers.document.document_service")
+    async def test_get_document_artifacts(self, mock_svc, client) -> None:
+        doc_id = uuid.uuid4()
+        mock_svc.get_document_artifacts = AsyncMock(
+            return_value={
+                "paragraphs": [{"content_text": "hello"}],
+                "figures": [],
+                "equations": [],
+                "references": [],
+            }
+        )
+        response = await client.get(f"/api/documents/{doc_id}/artifacts")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["paragraphs"]) == 1
+
+    @patch("backend.api.routers.document.document_service")
+    async def test_get_document_artifacts_not_found(self, mock_svc, client) -> None:
+        mock_svc.get_document_artifacts = AsyncMock(return_value=None)
+        response = await client.get(f"/api/documents/{uuid.uuid4()}/artifacts")
+        assert response.status_code == 404

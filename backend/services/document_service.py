@@ -4,13 +4,22 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from sqlalchemy import select
 
 from backend.core.exceptions import UploadNotFoundError
+from backend.models.base import Base
 from backend.models.document import Document
+from backend.models.equation import Equation
+from backend.models.figure import Figure
+from backend.models.paragraph import Paragraph
+from backend.models.reference import Reference
 from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
 from backend.repositories import document_repo
+
+T = TypeVar("T", bound=Base)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -95,7 +104,7 @@ async def confirm_upload(
 
     await document_repo.update_parse_status(session, doc, "pending")
 
-    from backend.workers.celery_app import celery_app
+    from backend.workers.celery_app import app as celery_app
 
     celery_app.send_task(
         "backend.workers.tasks.parse_document.run_parse_pipeline",
@@ -137,6 +146,29 @@ async def get_document(
     return doc
 
 
+async def get_document_artifacts(
+    session: AsyncSession,
+    document_id: uuid.UUID,
+    owner: User,
+) -> dict[str, list[dict[str, Any]]] | None:
+    """查询文档的解析产物 (paragraphs, figures, equations, references)。"""
+    doc = await get_document(session, document_id, owner)
+    if doc is None:
+        return None
+
+    paragraphs = await _list_by_document(session, Paragraph, document_id)
+    figures = await _list_by_document(session, Figure, document_id)
+    equations = await _list_by_document(session, Equation, document_id)
+    references = await _list_by_document(session, Reference, document_id)
+
+    return {
+        "paragraphs": [_artifact_to_dict(p) for p in paragraphs],
+        "figures": [_artifact_to_dict(f) for f in figures],
+        "equations": [_artifact_to_dict(e) for e in equations],
+        "references": [_artifact_to_dict(r) for r in references],
+    }
+
+
 async def retry_parse(
     session: AsyncSession,
     document_id: uuid.UUID,
@@ -166,3 +198,24 @@ async def delete_document(
     await session.delete(doc)
     await session.flush()
     return True
+
+
+async def _list_by_document(
+    session: AsyncSession,
+    model: type[T],
+    document_id: uuid.UUID,
+) -> list[T]:
+    """通用按 document_id 查询。"""
+    stmt = select(model).where(model.document_id == document_id)  # type: ignore[attr-defined]
+    result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+def _artifact_to_dict(obj: Base) -> dict[str, Any]:
+    """ORM 实例转 dict，排除 embedding 等重字段。"""
+    excluded = {"embedding", "_sa_instance_state"}
+    return {
+        k: (str(v) if isinstance(v, uuid.UUID) else v)
+        for k, v in vars(obj).items()
+        if k not in excluded
+    }

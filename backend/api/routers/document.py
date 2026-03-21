@@ -116,11 +116,14 @@ async def get_document_artifacts(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Get parsed artifacts (paragraphs, figures, etc.) for a document."""
-    doc = await document_service.get_document(session, document_id, current_user)
-    if doc is None:
+    result = await document_service.get_document_artifacts(
+        session,
+        document_id,
+        current_user,
+    )
+    if result is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    # TODO: query paragraph/figure/equation/reference repos
-    return {"document_id": str(doc.id), "artifacts": []}
+    return {"document_id": str(document_id), **result}
 
 
 @router.post("/{document_id}/retry", response_model=DocumentMeta)

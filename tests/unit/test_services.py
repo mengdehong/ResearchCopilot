@@ -141,6 +141,32 @@ class TestDocumentService:
         assert result is not None
         assert len(result) == 1
 
+    @patch("backend.services.document_service.select")
+    @patch("backend.services.document_service.base_repo")
+    async def test_get_document_artifacts(
+        self,
+        mock_base: MagicMock,
+        mock_select: MagicMock,
+    ) -> None:
+        from backend.services.document_service import get_document_artifacts
+
+        session = AsyncMock()
+        owner = _user()
+        ws = _ws(owner.id)
+        doc = _doc(ws.id)
+        mock_base.get_by_id = AsyncMock(side_effect=[doc, ws])
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        session.execute = AsyncMock(return_value=mock_result)
+
+        result = await get_document_artifacts(session, doc.id, owner)
+        assert result is not None
+        assert "paragraphs" in result
+        assert "figures" in result
+        assert "equations" in result
+        assert "references" in result
+
 
 # ---------------------------------------------------------------------------
 # agent_service
