@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { Outlet, NavLink, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare } from 'lucide-react'
+import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from '@/i18n/useTranslation'
@@ -14,7 +15,8 @@ import {
 
 const SIDEBAR_SPRING = { type: 'spring' as const, damping: 25, stiffness: 300 }
 const COLLAPSED_WIDTH = 56
-const EXPANDED_WIDTH = 240
+const SIDEBAR_MIN_WIDTH = 120
+const SIDEBAR_MAX_WIDTH = 480
 
 export default function AppLayout() {
     const { t } = useTranslation()
@@ -22,17 +24,49 @@ export default function AppLayout() {
     const location = useLocation()
     const { id: workspaceId } = useParams<{ id: string }>()
     const navExpanded = useLayoutStore((s) => s.navExpanded)
+    const sidebarWidth = useLayoutStore((s) => s.sidebarWidth)
+    const setSidebarWidth = useLayoutStore((s) => s.setSidebarWidth)
     const toggleNav = useLayoutStore((s) => s.toggleNav)
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault()
+        const startX = e.clientX
+        const startWidth = sidebarWidth
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const newWidth = Math.max(
+                SIDEBAR_MIN_WIDTH,
+                Math.min(SIDEBAR_MAX_WIDTH, startWidth + (moveEvent.clientX - startX))
+            )
+            setSidebarWidth(newWidth)
+        }
+
+        const onMouseUp = () => {
+            document.removeEventListener('mousemove', onMouseMove)
+            document.removeEventListener('mouseup', onMouseUp)
+        }
+
+        document.addEventListener('mousemove', onMouseMove)
+        document.addEventListener('mouseup', onMouseUp)
+    }
     const { resolvedTheme, setTheme } = useTheme()
 
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-[var(--background)]">
             {/* ─── Sidebar ─── */}
             <motion.nav
-                className="relative flex flex-col h-screen border-r border-[var(--border)] bg-[var(--surface)] overflow-hidden select-none"
-                animate={{ width: navExpanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
+                className="relative flex flex-col h-screen border-r border-[var(--border)] bg-[var(--surface)] overflow-hidden select-none shrink-0"
+                animate={{ width: navExpanded ? sidebarWidth : COLLAPSED_WIDTH }}
                 transition={SIDEBAR_SPRING}
             >
+                {/* Drag Handle */}
+                {navExpanded && (
+                    <div
+                        className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-[var(--accent)] transition-colors z-50 opacity-0 hover:opacity-100 active:opacity-100 active:bg-[var(--accent)]"
+                        onMouseDown={handleMouseDown}
+                    />
+                )}
+
                 {/* Top: Logo + Nav Items */}
                 <div className="flex flex-col items-center gap-1 pt-3 px-2">
                     {/* Logo */}
@@ -185,13 +219,22 @@ function SidebarButton({ icon, label, expanded, onClick, active = false }: Sideb
 }
 
 /* ─── ThreadList ─── */
+const COLLAPSED_LIMIT = 4
+
 interface ThreadListProps {
     readonly workspaceId: string
 }
 
 function ThreadList({ workspaceId }: ThreadListProps) {
-    const { data: threads } = useThreads(workspaceId)
+    const [expanded, setExpanded] = useState(false)
+    const { data: collapsedThreads } = useThreads(workspaceId, COLLAPSED_LIMIT)
+    const { data: allThreads } = useThreads(
+        expanded ? workspaceId : '',
+    )
     const navigate = useNavigate()
+
+    const threads = expanded ? allThreads : collapsedThreads
+    const hasMore = (collapsedThreads?.length ?? 0) >= COLLAPSED_LIMIT
 
     if (!threads?.length) {
         return (
@@ -213,6 +256,17 @@ function ThreadList({ workspaceId }: ThreadListProps) {
                     <span className="truncate">{thread.title}</span>
                 </button>
             ))}
+            {hasMore && (
+                <button
+                    onClick={() => setExpanded((prev) => !prev)}
+                    className="flex items-center justify-center gap-1 w-full py-1 mt-1 rounded-[var(--radius-sm)] text-[10px] text-[var(--text-muted)] opacity-50 hover:opacity-100 hover:bg-[var(--surface-raised)] transition-all cursor-pointer"
+                >
+                    {expanded
+                        ? <><ChevronUp className="size-3" /> 收起</>
+                        : <><ChevronDown className="size-3" /> 展开全部历史</>
+                    }
+                </button>
+            )}
         </div>
     )
 }
