@@ -7,7 +7,7 @@ import HITLCard from './HITLCard'
 
 interface ChatPanelProps {
     threadId: string
-    onSendMessage: (message: string) => void
+    onSendMessage: (message: string, files?: File[]) => void
     onResumeInterrupt: (action: string, payload?: Record<string, unknown>) => void
 }
 
