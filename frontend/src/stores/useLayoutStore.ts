@@ -6,6 +6,7 @@ export type SaveStatus = 'idle' | 'saving' | 'saved'
 interface LayoutState {
     sidebarCollapsed: boolean
     navExpanded: boolean
+    sidebarWidth: number
     splitRatio: number
     activeCanvasTab: CanvasTab
     saveStatus: SaveStatus
@@ -13,6 +14,7 @@ interface LayoutState {
     toggleSidebar: () => void
     toggleNav: () => void
     setNavExpanded: (expanded: boolean) => void
+    setSidebarWidth: (width: number) => void
     setSplitRatio: (ratio: number) => void
     setActiveCanvasTab: (tab: CanvasTab) => void
     setSaveStatus: (status: SaveStatus) => void
@@ -21,6 +23,7 @@ interface LayoutState {
 export const useLayoutStore = create<LayoutState>((set) => ({
     sidebarCollapsed: false,
     navExpanded: false,
+    sidebarWidth: 240,
     splitRatio: 0.4,
     activeCanvasTab: 'editor',
     saveStatus: 'idle',
@@ -32,6 +35,8 @@ export const useLayoutStore = create<LayoutState>((set) => ({
         set((state) => ({ navExpanded: !state.navExpanded })),
 
     setNavExpanded: (expanded) => set({ navExpanded: expanded }),
+
+    setSidebarWidth: (width) => set({ sidebarWidth: width }),
 
     setSplitRatio: (ratio) => set({ splitRatio: ratio }),
 
