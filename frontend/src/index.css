@@ -192,8 +192,8 @@
     --error: #F87171;
     --error-subtle: rgba(248, 113, 113, 0.12);
 
-    --glass-bg: rgba(18, 21, 31, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-bg: rgba(34, 35, 46, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.05);
 
     /* Dark mode: use borders instead of shadows */
     --shadow-sm: none;
