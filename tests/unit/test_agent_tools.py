@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from backend.agent.tools.arxiv_tool import search_arxiv
 from backend.agent.tools.sandbox_tool import execute_code
+from backend.services.sandbox_manager import ExecutionResult
 
 
 class TestSearchArxiv:
@@ -58,15 +59,46 @@ class TestSearchArxiv:
 class TestExecuteCode:
     """沙盒执行 Tool 测试。"""
 
-    def test_execute_code_returns_result(self) -> None:
-        """验证占位结果格式。"""
-        result = execute_code.invoke({"code": "print('hello')"})
-        assert "stdout" in result
-        assert "stderr" in result
-        assert "exit_code" in result
-        assert result["exit_code"] == 0
+    @patch("backend.agent.tools.sandbox_tool._get_executor")
+    def test_execute_code_calls_executor(self, mock_get_exec: MagicMock) -> None:
+        """验证调用 DockerExecutor 并正确映射结果。"""
+        mock_result = ExecutionResult(
+            success=True,
+            exit_code=0,
+            stdout="hello\n",
+            stderr="",
+            output_files={"plot.png": b"..."},
+            duration_seconds=1.5,
+        )
+        mock_executor = MagicMock()
+        mock_executor.execute.return_value = mock_result
+        mock_get_exec.return_value = mock_executor
 
-    def test_execute_code_with_language(self) -> None:
-        """验证带 language 参数。"""
-        result = execute_code.invoke({"code": "console.log('hi')", "language": "javascript"})
+        result = execute_code.invoke({"code": "print('hello')"})
+
+        assert result["stdout"] == "hello\n"
         assert result["exit_code"] == 0
+        assert result["artifacts"] == ["plot.png"]
+        assert result["duration_ms"] == 1500
+        mock_executor.execute.assert_called_once()
+
+    @patch("backend.agent.tools.sandbox_tool._get_executor")
+    def test_execute_code_propagates_failure(self, mock_get_exec: MagicMock) -> None:
+        """验证执行失败时返回非零 exit_code。"""
+        mock_result = ExecutionResult(
+            success=False,
+            exit_code=1,
+            stdout="",
+            stderr="NameError: name 'x' is not defined",
+            output_files={},
+            duration_seconds=0.3,
+        )
+        mock_executor = MagicMock()
+        mock_executor.execute.return_value = mock_result
+        mock_get_exec.return_value = mock_executor
+
+        result = execute_code.invoke({"code": "print(x)"})
+
+        assert result["exit_code"] == 1
+        assert "NameError" in result["stderr"]
+        assert result["artifacts"] == []
