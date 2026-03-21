@@ -12,8 +12,17 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 
-# LangGraph → SSE 事件类型映射
+# LangGraph astream_events v2 → SSE 事件类型映射
 _EVENT_MAPPING: dict[str, str] = {
+    # v2 事件类型（无 events/ 前缀）
+    "on_chain_start": "node_enter",
+    "on_chain_end": "node_exit",
+    "on_chat_model_start": "node_enter",
+    "on_chat_model_stream": "token_delta",
+    "on_chat_model_end": "node_exit",
+    "on_tool_start": "node_enter",
+    "on_tool_end": "node_exit",
+    # 兼容旧 events/ 前缀（Mock / LangGraph Platform）
     "events/metadata": "run_start",
     "events/on_chain_start": "node_enter",
     "events/on_chain_end": "node_exit",
@@ -27,6 +36,14 @@ _EVENT_MAPPING: dict[str, str] = {
 
 # 兼容旧映射（保留给已存在测试）
 EVENT_MAPPING: dict[str, str] = {
+    "on_chain_start": "chain_start",
+    "on_chain_end": "chain_end",
+    "on_chat_model_start": "chain_start",
+    "on_chat_model_stream": "token",
+    "on_chat_model_end": "chain_end",
+    "on_tool_start": "tool_start",
+    "on_tool_end": "tool_end",
+    # 兼容旧 events/ 前缀
     "events/metadata": "metadata",
     "events/on_chain_start": "chain_start",
     "events/on_chain_end": "chain_end",
