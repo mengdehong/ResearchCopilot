@@ -167,14 +167,14 @@ class TestDocumentService:
         assert "equations" in result
         assert "references" in result
 
-    @patch("backend.workers.celery_app.app")
+    @patch("backend.workers.tasks.ingest_document.ingest_document")
     @patch("backend.services.document_service.document_repo")
     @patch("backend.services.document_service.base_repo")
     async def test_retry_parse_sends_celery_task(
         self,
         mock_base: MagicMock,
         mock_doc_repo: MagicMock,
-        mock_celery: MagicMock,
+        mock_ingest: MagicMock,
     ) -> None:
         from backend.services.document_service import retry_parse
 
@@ -189,10 +189,7 @@ class TestDocumentService:
 
         assert result is not None
         assert result.id == doc.id
-        mock_celery.send_task.assert_called_once_with(
-            "backend.workers.tasks.parse_document.run_parse_pipeline",
-            kwargs={"doc_id": str(doc.id)},
-        )
+        mock_ingest.delay.assert_called_once_with(doc_id=str(doc.id))
 
 
 # ---------------------------------------------------------------------------

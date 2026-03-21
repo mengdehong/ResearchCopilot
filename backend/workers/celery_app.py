@@ -17,6 +17,7 @@ app.config_from_object(
         "task_track_started": True,
         "task_acks_late": True,
         "worker_prefetch_multiplier": 1,
+        "include": ["backend.workers.tasks.ingest_document"],
     }
 )
 

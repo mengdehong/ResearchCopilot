@@ -27,4 +27,4 @@ CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", 
 
 # ── Worker stage ──
 FROM base AS worker
-CMD ["uv", "run", "celery", "-A", "backend.workers.celery_app:celery_app", "worker", "--loglevel=info"]
+CMD ["uv", "run", "celery", "-A", "backend.workers.celery_app:app", "worker", "--loglevel=info"]

@@ -104,12 +104,9 @@ async def confirm_upload(
 
     await document_repo.update_parse_status(session, doc, "pending")
 
-    from backend.workers.celery_app import app as celery_app
+    from backend.workers.tasks.ingest_document import ingest_document
 
-    celery_app.send_task(
-        "backend.workers.tasks.parse_document.run_parse_pipeline",
-        kwargs={"doc_id": str(doc.id)},
-    )
+    ingest_document.delay(doc_id=str(doc.id))
     return doc
 
 
@@ -180,12 +177,9 @@ async def retry_parse(
         return None
     await document_repo.update_parse_status(session, doc, "pending")
 
-    from backend.workers.celery_app import app as celery_app
+    from backend.workers.tasks.ingest_document import ingest_document
 
-    celery_app.send_task(
-        "backend.workers.tasks.parse_document.run_parse_pipeline",
-        kwargs={"doc_id": str(doc.id)},
-    )
+    ingest_document.delay(doc_id=str(doc.id))
     return doc
 
 

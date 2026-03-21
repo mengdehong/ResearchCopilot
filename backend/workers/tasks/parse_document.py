@@ -41,8 +41,8 @@ async def run_parse_pipeline(
     session: object,
     fallback_parser: PdfParserLike | None = None,
     llm_enhancer: LLMEnhancerFn | None = None,
-) -> None:
-    """四阶段文档解析管道。
+) -> ClassifiedContent:
+    """四阶段文档解析管道。返回 ClassifiedContent 供调用方持久化。
 
     Args:
         doc_id: 文档 UUID
@@ -54,6 +54,7 @@ async def run_parse_pipeline(
         fallback_parser: 降级解析器 (可选)
         llm_enhancer: LLM 语义增强回调 (可选, 失败不阻塞)
     """
+
     stage_durations: dict[str, float] = {}
     parse_quality: str = ParseQuality.FULL
 
@@ -99,6 +100,8 @@ async def run_parse_pipeline(
             },
             parse_quality=parse_quality,
         )
+
+        return classified
 
     except Exception as exc:
         await update_status(doc_id, "failed")
