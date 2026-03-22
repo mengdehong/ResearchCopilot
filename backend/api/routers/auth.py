@@ -3,6 +3,7 @@
 import secrets
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_current_user, get_db, get_settings
@@ -246,10 +247,9 @@ _OAUTH_PROVIDERS: dict[str, type] = {
 @router.get("/oauth/{provider}/authorize")
 async def oauth_authorize(
     provider: str,
-    response: Response,
     settings: Settings = Depends(get_settings),
-) -> dict[str, str]:
-    """生成 OAuth 授权 URL。"""
+) -> RedirectResponse:
+    """302 重定向到 OAuth 提供商授权页。"""
     if provider not in _OAUTH_PROVIDERS:
         raise HTTPException(status_code=400, detail=f"不支持的 OAuth 提供商: {provider}")
 
@@ -260,11 +260,12 @@ async def oauth_authorize(
 
     oauth = _OAUTH_PROVIDERS[provider](client_id=client_id, client_secret=client_secret)
     state = secrets.token_urlsafe(32)
-    redirect_uri = f"{settings.oauth_redirect_base_url}/api/auth/oauth/{provider}/callback"
+    redirect_uri = f"{settings.internal_api_url}/api/auth/oauth/{provider}/callback"
     url = oauth.get_authorize_url(state=state, redirect_uri=redirect_uri)
 
-    # Store state in httpOnly cookie for CSRF validation
-    response.set_cookie(
+    # 302 redirect, store state in httpOnly cookie for CSRF validation
+    resp = RedirectResponse(url=url, status_code=302)
+    resp.set_cookie(
         key="oauth_state",
         value=state,
         httponly=True,
@@ -273,27 +274,22 @@ async def oauth_authorize(
         max_age=600,  # 10 minutes
         path="/api/auth",
     )
+    return resp
 
-    return {"authorize_url": url, "state": state}
 
-
-@router.post("/oauth/{provider}/callback", response_model=LoginResponse)
+@router.get("/oauth/{provider}/callback")
 async def oauth_callback(
     provider: str,
     code: str,
     state: str,
-    response: Response,
     oauth_state: str | None = Cookie(default=None),
     session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
-) -> LoginResponse:
-    """OAuth 回调处理。"""
+) -> RedirectResponse:
+    """OAuth 回调处理 — GET by OAuth provider, 302 redirect to frontend."""
     # Validate CSRF state
     if not oauth_state or not secrets.compare_digest(oauth_state, state):
         raise HTTPException(status_code=400, detail="OAuth state 验证失败")
-
-    # Clear state cookie
-    response.delete_cookie(key="oauth_state", path="/api/auth")
 
     if provider not in _OAUTH_PROVIDERS:
         raise HTTPException(status_code=400, detail=f"不支持的 OAuth 提供商: {provider}")
@@ -304,7 +300,7 @@ async def oauth_callback(
         raise HTTPException(status_code=500, detail=f"{provider} OAuth 未配置")
 
     oauth = _OAUTH_PROVIDERS[provider](client_id=client_id, client_secret=client_secret)
-    redirect_uri = f"{settings.oauth_redirect_base_url}/api/auth/oauth/{provider}/callback"
+    redirect_uri = f"{settings.internal_api_url}/api/auth/oauth/{provider}/callback"
 
     try:
         user_info = await oauth.exchange_code(code=code, redirect_uri=redirect_uri)
@@ -327,7 +323,10 @@ async def oauth_callback(
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
 
-    response.set_cookie(
+    # 302 redirect to frontend with access_token in URL
+    frontend_callback_url = f"{settings.frontend_url}/oauth/callback?access_token={access_token}"
+    resp = RedirectResponse(url=frontend_callback_url, status_code=302)
+    resp.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
@@ -336,10 +335,9 @@ async def oauth_callback(
         max_age=settings.refresh_token_expire_days * 86400,
         path="/api/auth",
     )
-    return LoginResponse(
-        access_token=access_token,
-        user=UserInfo(id=user.id, email=user.email, display_name=user.display_name),
-    )
+    # Clear state cookie
+    resp.delete_cookie(key="oauth_state", path="/api/auth")
+    return resp
 
 
 # ---------------------------------------------------------------------------

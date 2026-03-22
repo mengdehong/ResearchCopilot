@@ -37,7 +37,7 @@ export const zh: TranslationDict = {
     workspace: {
         title: '工作区',
         subtitle: '管理你的研究工作区',
-        newWorkspace: '+ 新建工作区',
+        newWorkspace: '新建工作区',
         createTitle: '创建工作区',
         creating: '创建中...',
         loadingWorkspaces: '加载工作区...',

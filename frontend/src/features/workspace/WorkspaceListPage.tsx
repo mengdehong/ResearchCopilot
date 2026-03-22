@@ -156,16 +156,6 @@ export default function WorkspaceListPage() {
                         </StaggerItem>
                     ))}
 
-                    {/* "New Workspace" dashed card */}
-                    <StaggerItem>
-                        <button
-                            className="flex items-center justify-center w-full h-full min-h-[120px] rounded-[var(--radius-md)] border-2 border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] hover:shadow-sm hover:bg-[var(--accent-subtle)] transition-all duration-300 ease-out active:scale-[0.98] cursor-pointer"
-                            onClick={() => setShowCreate(true)}
-                        >
-                            <Plus className="size-6 mr-2" />
-                            <span className="text-sm font-medium">{t('workspace.newWorkspace')}</span>
-                        </button>
-                    </StaggerItem>
                 </StaggerContainer>
             )}
 

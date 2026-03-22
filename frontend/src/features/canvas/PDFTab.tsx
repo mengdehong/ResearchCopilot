@@ -12,10 +12,11 @@ export default function PDFTab() {
         if (!activePdf) return
 
         let isCancelled = false
-        setLoading(true)
 
-        api.get(`/documents/${activePdf.document_id}/download`, { responseType: 'blob' })
-            .then((res) => {
+        const fetchPdf = async () => {
+            setLoading(true)
+            try {
+                const res = await api.get(`/documents/${activePdf.document_id}/download`, { responseType: 'blob' })
                 if (isCancelled) return
                 const url = URL.createObjectURL(res.data)
                 setPdfSrc((prev) => {
@@ -23,15 +24,17 @@ export default function PDFTab() {
                     return url
                 })
                 setLoading(false)
-            })
-            .catch(() => {
+            } catch {
                 if (!isCancelled) setLoading(false)
-            })
+            }
+        }
+
+        fetchPdf()
 
         return () => {
             isCancelled = true
         }
-    }, [activePdf?.document_id])
+    }, [activePdf])
 
     // Cleanup object URL on unmount
     useEffect(() => {

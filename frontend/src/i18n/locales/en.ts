@@ -35,7 +35,7 @@ export const en = {
     workspace: {
         title: 'Workspaces',
         subtitle: 'Manage your research workspaces',
-        newWorkspace: '+ New Workspace',
+        newWorkspace: 'New Workspace',
         createTitle: 'Create Workspace',
         creating: 'Creating...',
         loadingWorkspaces: 'Loading workspaces...',

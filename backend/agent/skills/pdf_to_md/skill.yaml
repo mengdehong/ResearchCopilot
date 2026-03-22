@@ -1,0 +1,36 @@
+name: pdf_to_md
+description: "通过 MinerU v4 API 将本地 PDF 文件转为高质量 Markdown，支持论文参考文献自动裁剪"
+mode: function
+
+input_schema:
+  pdf_path:
+    type: str
+    required: true
+    description: "待转换的 PDF 文件路径"
+  output_path:
+    type: str
+    required: true
+    description: "输出 Markdown 文件路径"
+  model_version:
+    type: str
+    required: false
+    default: "vlm"
+    description: "MinerU 模型版本：pipeline | vlm | MinerU-HTML"
+  paper_mode:
+    type: str
+    required: false
+    default: "auto"
+    description: "参考文献裁剪模式：auto | on | off"
+
+output_schema:
+  md_path:
+    type: str
+    description: "生成的 Markdown 文件路径"
+  char_count:
+    type: int
+    description: "输出 Markdown 字符数"
+  trimmed:
+    type: bool
+    description: "是否执行了参考文献裁剪"
+
+entrypoint: pdf_to_md.execute

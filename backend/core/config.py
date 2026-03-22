@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     # --- MinerU ---
     mineru_api_url: str = "https://mineru.net/api/v4"
     mineru_api_key: str | None = None
+    mineru_user_token: str | None = None
+    mineru_model_version: str = "vlm"
+    mineru_paper_mode: str = "auto"
+    mineru_poll_timeout: int = 300
+    mineru_poll_interval: int = 5
+    mineru_request_timeout: int = 30
     # --- Groq STT ---
     groq_api_key: str | None = None
     groq_stt_model: str = "whisper-large-v3-turbo"

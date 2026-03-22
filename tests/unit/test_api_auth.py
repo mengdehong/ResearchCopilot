@@ -19,7 +19,7 @@ def _make_settings() -> MagicMock:
     settings.resend_api_key = "re_test"
     settings.email_from = "test@test.com"
     settings.frontend_url = "http://localhost:5173"
-    settings.oauth_redirect_base_url = "http://localhost:5173"
+    settings.internal_api_url = "http://localhost:8000"
     settings.github_client_id = "gh_id"
     settings.github_client_secret = "gh_secret"
     settings.google_client_id = "g_id"
@@ -168,3 +168,67 @@ class TestLogoutEndpoint:
 
         assert response.status_code == 200
         test_client.cookies.clear()
+
+
+class TestOAuthEndpoints:
+    """OAuth 端点测试。"""
+
+    def test_oauth_authorize_redirects(self, test_client: TestClient) -> None:
+        """GET /api/auth/oauth/github/authorize 应返回 302 重定向。"""
+        response = test_client.get(
+            "/api/auth/oauth/github/authorize", follow_redirects=False
+        )
+        assert response.status_code == 302
+        location = response.headers["location"]
+        assert "github.com" in location
+        assert "client_id=gh_id" in location
+
+    def test_oauth_authorize_unknown_provider(self, test_client: TestClient) -> None:
+        """GET /api/auth/oauth/unknown/authorize 应返回 400。"""
+        response = test_client.get(
+            "/api/auth/oauth/unknown/authorize", follow_redirects=False
+        )
+        assert response.status_code == 400
+
+    @patch("backend.api.routers.auth.oauth_login_or_register")
+    @patch("backend.api.routers.auth.secrets.token_urlsafe", return_value="known_state_value")
+    def test_oauth_callback_success(
+        self,
+        _mock_token: MagicMock,
+        mock_oauth_login: AsyncMock,
+        test_client: TestClient,
+    ) -> None:
+        """GET /api/auth/oauth/github/callback 成功时应 302 跳回前端。"""
+        mock_user = MagicMock()
+        mock_user.id = uuid.uuid4()
+        mock_user.email = "test@github.com"
+        mock_user.display_name = "GH User"
+        mock_oauth_login.return_value = ("access-token", "refresh-token", mock_user)
+
+        with patch("backend.clients.oauth.github.GitHubOAuthProvider.exchange_code") as mock_exchange:
+            mock_exchange.return_value = {
+                "external_id": "github:12345",
+                "email": "test@github.com",
+                "display_name": "GH User",
+            }
+
+            # Manually set cookie that matches the mocked state
+            test_client.cookies.set("oauth_state", "known_state_value")
+            response = test_client.get(
+                "/api/auth/oauth/github/callback?code=test_code&state=known_state_value",
+                follow_redirects=False,
+            )
+            test_client.cookies.clear()
+
+        assert response.status_code == 302
+        callback_location = response.headers["location"]
+        assert "/oauth/callback" in callback_location
+        assert "access_token=access-token" in callback_location
+
+    def test_oauth_callback_invalid_state(self, test_client: TestClient) -> None:
+        """GET /api/auth/oauth/github/callback state 不匹配时应返回 400。"""
+        response = test_client.get(
+            "/api/auth/oauth/github/callback?code=test_code&state=bad_state",
+            follow_redirects=False,
+        )
+        assert response.status_code == 400
