@@ -2,7 +2,7 @@ import { Github } from 'lucide-react'
 
 export function OAuthButtons() {
     const handleOAuth = (provider: 'github' | 'google') => {
-        window.location.href = `/api/auth/oauth/${provider}/authorize`
+        window.location.href = `/api/v1/auth/oauth/${provider}/authorize`
     }
 
     return (
