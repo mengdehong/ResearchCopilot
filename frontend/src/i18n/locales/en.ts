@@ -25,6 +25,7 @@ export const en = {
         noThreads: 'No threads yet',
         deleteThread: 'Delete Thread',
         deleteThreadConfirm: 'This action cannot be undone. Are you sure you want to continue?',
+        newThread: 'New Thread',
         collapseHistory: 'Collapse',
         expandHistory: 'Expand full history',
         logout: 'Sign Out',

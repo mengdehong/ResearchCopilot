@@ -27,7 +27,6 @@ export default function WorkbenchPage() {
     const interrupt = useAgentStore((s) => s.interrupt)
     const clearInterrupt = useAgentStore((s) => s.clearInterrupt)
     const reset = useAgentStore((s) => s.reset)
-    const resetRunState = useAgentStore((s) => s.resetRunState)
 
     const [activeRunId, setActiveRunId] = useState('')
 
@@ -41,23 +40,25 @@ export default function WorkbenchPage() {
     // Load chat history from backend when threadId changes
     const { data: historyMessages } = useMessages(threadId)
     const prevThreadRef = useRef(threadId)
+    // Track whether we just created this thread (skip reset in that case)
+    const justCreatedRef = useRef(false)
 
     useEffect(() => {
         if (threadId !== prevThreadRef.current) {
-            // Only reset when switching between existing threads, not on initial creation
-            // (empty → newId means we just created a thread, run is already in progress)
-            if (prevThreadRef.current !== '') {
-                resetRunState()
+            if (justCreatedRef.current) {
+                // We just created this thread ourselves — don't wipe the running state
+                justCreatedRef.current = false
+            } else {
+                // Switching between threads: full reset so stale data is cleared out
+                reset()
                 setActiveRunId('')
             }
             prevThreadRef.current = threadId
         }
-    }, [threadId, resetRunState])
+    }, [threadId, reset])
 
     useEffect(() => {
         if (historyMessages && historyMessages.length > 0) {
-            // Only load history when store is empty (initial mount / return from navigation)
-            // to avoid overwriting in-flight SSE messages during an active run
             const currentMessages = useAgentStore.getState().messages
             if (currentMessages.length === 0) {
                 loadMessages(historyMessages)
@@ -101,6 +102,7 @@ export default function WorkbenchPage() {
                         title: message.slice(0, 50),
                     })
                     currentThreadId = thread.thread_id
+                    justCreatedRef.current = true
                     setSearchParams({ thread: currentThreadId }, { replace: true })
                 } catch {
                     addMessage({

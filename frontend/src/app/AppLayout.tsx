@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useOutlet, NavLink, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare, ChevronDown, ChevronUp, Trash2, Files } from 'lucide-react'
+import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare, ChevronDown, ChevronUp, Trash2, Files, Plus } from 'lucide-react'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from '@/i18n/useTranslation'
@@ -296,6 +296,14 @@ function ThreadList({ workspaceId }: ThreadListProps) {
 
     return (
         <>
+            {/* New Thread button */}
+            <button
+                onClick={() => navigate(`/workspace/${workspaceId}`)}
+                className="flex items-center gap-2 w-full px-2 py-1.5 mb-1 rounded-[var(--radius-sm)] text-xs text-[var(--accent)] hover:bg-[var(--accent-subtle)] transition-all duration-200 active:scale-[0.98] cursor-pointer"
+            >
+                <Plus className="size-3.5 shrink-0" />
+                <span>{t('nav.newThread')}</span>
+            </button>
             <div className="flex-1 overflow-y-auto scrollbar-hide space-y-0.5">
                 {threads.map((thread) => (
                     <div

@@ -27,6 +27,7 @@ export const zh: TranslationDict = {
         noThreads: '暂无对话',
         deleteThread: '删除对话',
         deleteThreadConfirm: '删除后不可恢复，确认继续？',
+        newThread: '新建对话',
         collapseHistory: '收起',
         expandHistory: '展开全部历史',
         logout: '退出登录',
