@@ -2,24 +2,27 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any
 
 from langchain_core.tools import tool
 
+from backend.core.config import Settings
 from backend.core.logger import get_logger
 from backend.services.sandbox_manager import DockerExecutor, ExecutionRequest
 
 logger = get_logger(__name__)
 
-_executor: DockerExecutor | None = None
 
-
+@lru_cache(maxsize=1)
 def _get_executor() -> DockerExecutor:
-    """懒初始化 DockerExecutor 单例。"""
-    global _executor
-    if _executor is None:
-        _executor = DockerExecutor()
-    return _executor
+    """懒初始化 DockerExecutor 单例（从 Settings 读取配置）。"""
+    cfg = Settings()
+    return DockerExecutor(
+        image=cfg.sandbox_image,
+        memory_limit=cfg.sandbox_memory_limit,
+        cpu_count=cfg.sandbox_cpu_count,
+    )
 
 
 @tool
@@ -35,8 +38,9 @@ def execute_code(code: str, language: str = "python") -> dict[str, Any]:
     """
     logger.info("sandbox_execute", language=language, code_length=len(code))
 
+    cfg = Settings()
     executor = _get_executor()
-    request = ExecutionRequest(code=code)
+    request = ExecutionRequest(code=code, timeout_seconds=cfg.sandbox_timeout_seconds)
     result = executor.execute(request)
 
     return {
@@ -46,3 +50,5 @@ def execute_code(code: str, language: str = "python") -> dict[str, Any]:
         "artifacts": list(result.output_files.keys()),
         "duration_ms": round(result.duration_seconds * 1000),
     }
+
+
