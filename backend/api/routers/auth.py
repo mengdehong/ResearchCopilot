@@ -1,6 +1,7 @@
 """Auth API router — 注册/登录/OAuth/密码重置 + 用户信息。"""
 
 import secrets
+from urllib.parse import quote
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
@@ -238,10 +239,17 @@ async def do_reset_password(
 # OAuth
 # ---------------------------------------------------------------------------
 
-_OAUTH_PROVIDERS: dict[str, type] = {
+_OAUTH_PROVIDERS: dict[str, type[GitHubOAuthProvider | GoogleOAuthProvider]] = {
     "github": GitHubOAuthProvider,
     "google": GoogleOAuthProvider,
 }
+
+
+def _oauth_error_redirect(frontend_url: str, msg: str) -> RedirectResponse:
+    """出错时 302 跳回前端登录页，附带 error 参数。"""
+    return RedirectResponse(
+        url=f"{frontend_url}/login?error={quote(msg)}", status_code=302
+    )
 
 
 @router.get("/oauth/{provider}/authorize")
@@ -287,17 +295,18 @@ async def oauth_callback(
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
     """OAuth 回调处理 — GET by OAuth provider, 302 redirect to frontend."""
+
     # Validate CSRF state
     if not oauth_state or not secrets.compare_digest(oauth_state, state):
-        raise HTTPException(status_code=400, detail="OAuth state 验证失败")
+        return _oauth_error_redirect(settings.frontend_url, "OAuth state 验证失败")
 
     if provider not in _OAUTH_PROVIDERS:
-        raise HTTPException(status_code=400, detail=f"不支持的 OAuth 提供商: {provider}")
+        return _oauth_error_redirect(settings.frontend_url, f"不支持的 OAuth 提供商: {provider}")
 
     client_id = getattr(settings, f"{provider}_client_id", None)
     client_secret = getattr(settings, f"{provider}_client_secret", None)
     if not client_id or not client_secret:
-        raise HTTPException(status_code=500, detail=f"{provider} OAuth 未配置")
+        return _oauth_error_redirect(settings.frontend_url, f"{provider} OAuth 未配置")
 
     oauth = _OAUTH_PROVIDERS[provider](client_id=client_id, client_secret=client_secret)
     redirect_uri = f"{settings.internal_api_url}/api/auth/oauth/{provider}/callback"
@@ -305,7 +314,7 @@ async def oauth_callback(
     try:
         user_info = await oauth.exchange_code(code=code, redirect_uri=redirect_uri)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"OAuth 授权失败: {e}") from e
+        return _oauth_error_redirect(settings.frontend_url, f"OAuth 授权失败: {e}")
 
     try:
         access_token, refresh_token, user = await oauth_login_or_register(
@@ -321,10 +330,10 @@ async def oauth_callback(
         )
         await session.commit()
     except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        return _oauth_error_redirect(settings.frontend_url, str(e))
 
-    # 302 redirect to frontend with access_token in URL
-    frontend_callback_url = f"{settings.frontend_url}/oauth/callback?access_token={access_token}"
+    # 302 redirect to frontend — token in URL fragment (不会出现在 Referer/日志中)
+    frontend_callback_url = f"{settings.frontend_url}/oauth/callback#access_token={access_token}"
     resp = RedirectResponse(url=frontend_callback_url, status_code=302)
     resp.set_cookie(
         key="refresh_token",

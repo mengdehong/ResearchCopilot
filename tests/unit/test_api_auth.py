@@ -226,9 +226,10 @@ class TestOAuthEndpoints:
         assert "access_token=access-token" in callback_location
 
     def test_oauth_callback_invalid_state(self, test_client: TestClient) -> None:
-        """GET /api/auth/oauth/github/callback state 不匹配时应返回 400。"""
+        """GET /api/auth/oauth/github/callback state 不匹配时应 302 跳回前端登录页。"""
         response = test_client.get(
             "/api/auth/oauth/github/callback?code=test_code&state=bad_state",
             follow_redirects=False,
         )
-        assert response.status_code == 400
+        assert response.status_code == 302
+        assert "/login?error=" in response.headers["location"]

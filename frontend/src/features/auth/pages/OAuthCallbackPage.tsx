@@ -1,32 +1,34 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import { useAuth } from '../useAuth'
-import api from '@/lib/api'
-import { setToken } from '@/lib/api'
+import api, { setToken } from '@/lib/api'
 import { Loader2, AlertCircle } from 'lucide-react'
 
 /**
- * OAuth 回调页面 — 从 URL query 中提取 access_token，
+ * OAuth 回调页面 — 从 URL fragment 中提取 access_token，
  * 调用 /api/auth/me 获取用户信息并完成登录。
  */
 export default function OAuthCallbackPage() {
-    const [searchParams] = useSearchParams()
     const { login } = useAuth()
     const navigate = useNavigate()
     const [error, setError] = useState('')
 
     useEffect(() => {
-        const accessToken = searchParams.get('access_token')
+        // access_token 在 URL fragment 中 (#access_token=xxx)
+        const hash = window.location.hash.substring(1)
+        const params = new URLSearchParams(hash)
+        const accessToken = params.get('access_token')
+
+        if (!accessToken) {
+            setError('OAuth 回调缺少 access_token 参数')
+            return
+        }
+
         let mounted = true
 
         const finishLogin = async () => {
-            if (!accessToken) {
-                if (mounted) setError('OAuth 回调缺少 access_token 参数')
-                return
-            }
-
             try {
-                // Set token first so /me request is authenticated
                 setToken(accessToken)
                 const res = await api.get('/auth/me')
                 if (mounted) {
@@ -35,12 +37,11 @@ export default function OAuthCallbackPage() {
                 }
             } catch (err: unknown) {
                 if (mounted) {
-                    const axiosErr = err as { response?: { data?: { detail?: string } }; message?: string }
-                    setError(
-                        axiosErr.response?.data?.detail
-                        || axiosErr.message
-                        || 'OAuth 登录失败'
-                    )
+                    if (axios.isAxiosError(err)) {
+                        setError(err.response?.data?.detail || err.message)
+                    } else {
+                        setError('OAuth 登录失败')
+                    }
                 }
             }
         }
@@ -50,7 +51,7 @@ export default function OAuthCallbackPage() {
         return () => {
             mounted = false
         }
-    }, [searchParams, login, navigate])
+    }, [login, navigate])
 
     if (error) {
         return (

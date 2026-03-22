@@ -389,15 +389,13 @@ async def oauth_login_or_register(
         existing = result.scalar_one_or_none()
 
         if existing is not None:
-            if existing.email_verified:
-                # 自动关联
-                existing.external_id = external_id
-                existing.auth_provider = provider
-                await session.flush()
-                user = existing
-                logger.info("oauth_account_linked", user_id=str(user.id), provider=provider)
-            else:
-                raise ValueError("此邮箱已注册但未验证，请先验证邮箱")
+            # OAuth 提供商已验证邮箱，可直接关联（无论本地是否已验证）
+            existing.external_id = external_id
+            existing.auth_provider = provider
+            existing.email_verified = True
+            await session.flush()
+            user = existing
+            logger.info("oauth_account_linked", user_id=str(user.id), provider=provider)
         else:
             # 新建用户
             user = User(

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
+import { toast } from 'sonner'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { getToken } from '@/lib/api'
 import type { RunEvent } from '@/types'
@@ -67,6 +68,10 @@ export function useSSE({ threadId, runId, enabled = true }: UseSSEOptions) {
                 retryTimerRef.current = setTimeout(() => connectRef.current(), delay)
             } else {
                 useAgentStore.getState().setStreaming(false)
+                toast.error('Agent connection lost', {
+                    description: 'Failed to reconnect after multiple attempts.',
+                    id: 'sse-disconnected',
+                })
             }
         }
     }, [threadId, runId, enabled])

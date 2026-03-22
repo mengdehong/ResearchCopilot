@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from '@/i18n/useTranslation'
 import { useAuth } from '../useAuth'
 import { OAuthButtons } from '../components/OAuthButtons'
@@ -12,10 +12,11 @@ export default function LoginPage() {
     const { login } = useAuth()
     const location = useLocation()
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
 
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const [error, setError] = useState('')
+    const [error, setError] = useState(searchParams.get('error') || '')
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const from = location.state?.from?.pathname || '/workspaces'

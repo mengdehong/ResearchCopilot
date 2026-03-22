@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { toast } from 'sonner'
 
 let currentToken: string | null = null
 
@@ -45,10 +46,21 @@ function onRefreshed(token: string) {
 api.interceptors.response.use(
     (response) => response,
     async (error: unknown) => {
-        const err = error as { response?: { status?: number }; config?: InternalAxiosRequestConfig & { _retry?: boolean } }
+        const err = error as { response?: { status?: number }; config?: InternalAxiosRequestConfig & { _retry?: boolean }; message?: string }
         const originalRequest = err.config
+        const status = err.response?.status
 
-        if (err.response?.status === 401 && !originalRequest?._retry) {
+        // ── 网络断开（无 response 对象）──
+        if (!err.response) {
+            toast.error('Network error', {
+                description: 'Unable to connect to the server. Please check your network.',
+                id: 'network-error', // 去重
+            })
+            return Promise.reject(error)
+        }
+
+        // ── 401: Token refresh ──
+        if (status === 401 && !originalRequest?._retry) {
             // Prevent attempting to refresh if the refresh endpoint itself or login fails
             if (originalRequest?.url === '/auth/refresh' || originalRequest?.url === '/auth/login') {
                 return Promise.reject(error)
@@ -92,6 +104,31 @@ api.interceptors.response.use(
                 return Promise.reject(refreshError)
             }
         }
+
+        // ── 403: 权限不足 ──
+        if (status === 403) {
+            toast.error('Permission denied', {
+                description: 'You do not have permission to perform this action.',
+                id: 'permission-denied',
+            })
+        }
+
+        // ── 429: 请求频率过高 ──
+        if (status === 429) {
+            toast.error('Rate limit exceeded', {
+                description: 'Too many requests. Please wait a moment and try again.',
+                id: 'rate-limit',
+            })
+        }
+
+        // ── 5xx: 服务端错误 ──
+        if (status && status >= 500) {
+            toast.error('Server error', {
+                description: 'The service is temporarily unavailable. Please try again later.',
+                id: 'server-error',
+            })
+        }
+
         return Promise.reject(error)
     },
 )
