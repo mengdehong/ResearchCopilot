@@ -10,7 +10,6 @@ from pathlib import Path
 
 import httpx
 import jwt
-from celery import Task
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import Settings
@@ -43,20 +42,23 @@ _STORAGE_BASE_DIR = Path("/tmp/research-copilot-uploads")
 # ---------------------------------------------------------------------------
 
 
-@app.task(name="tasks.ingest_document", bind=True, max_retries=2)
+@app.task(
+    name="tasks.ingest_document",
+    autoretry_for=(Exception,),
+    retry_backoff=True,  # 指数退避: 2s → 4s → 8s
+    retry_backoff_max=120,  # 最大等待 2 min
+    max_retries=3,
+    retry_jitter=True,
+)
 def ingest_document(
-    self: Task, 
-    *, 
-    doc_id: str, 
-    thread_id: str | None = None, 
-    run_id: str | None = None
+    *,
+    doc_id: str,
+    thread_id: str | None = None,
+    run_id: str | None = None,
 ) -> dict[str, str]:
     """文档解析入库入口。Celery 同步 task → asyncio.run 调用 async 管道。"""
-    try:
-        return asyncio.run(_run_ingest(doc_id, thread_id, run_id))
-    except Exception as exc:
-        logger.error("ingest_document_failed", doc_id=doc_id, error=str(exc))
-        raise self.retry(exc=exc, countdown=30) from exc
+    logger.info("ingest_document_started", doc_id=doc_id)
+    return asyncio.run(_run_ingest(doc_id, thread_id, run_id))
 
 
 # ---------------------------------------------------------------------------
@@ -65,9 +67,7 @@ def ingest_document(
 
 
 async def _run_ingest(
-    doc_id_str: str, 
-    thread_id: str | None = None, 
-    run_id: str | None = None
+    doc_id_str: str, thread_id: str | None = None, run_id: str | None = None
 ) -> dict[str, str]:
     """构造依赖 → 调用四阶段管道 → Stage 5 持久化。"""
     doc_id = uuid.UUID(doc_id_str)
@@ -109,7 +109,7 @@ async def _run_ingest(
         # --- Stage 5: 持久化到 PostgreSQL ---
         await _persist_classified_content(session, classified)
         await session.commit()
-        
+
         # --- Stage 6: Webhook Callback to Agent ---
         if thread_id and run_id:
             try:
@@ -130,7 +130,9 @@ async def _run_ingest(
                     resp.raise_for_status()
                 logger.info("resumed_agent_after_ingestion", thread_id=thread_id, run_id=run_id)
             except Exception as e:
-                logger.warning("failed_to_resume_agent", error=str(e), thread_id=thread_id, run_id=run_id)
+                logger.warning(
+                    "failed_to_resume_agent", error=str(e), thread_id=thread_id, run_id=run_id
+                )
 
     await engine.dispose()
 

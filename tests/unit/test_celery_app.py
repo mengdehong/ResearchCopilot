@@ -77,3 +77,33 @@ def test_clear_trace_id_on_task_postrun() -> None:
 
     ctx = structlog.contextvars.get_contextvars()
     assert "trace_id" not in ctx
+
+
+def test_celery_app_time_limit() -> None:
+    """task_time_limit 必须大于 0，防止 Worker 永久挂起。"""
+    from backend.workers.celery_app import app
+
+    assert app.conf.task_time_limit > 0
+    assert app.conf.task_soft_time_limit > 0
+    assert app.conf.task_soft_time_limit < app.conf.task_time_limit
+
+
+def test_celery_app_result_expires() -> None:
+    """result_expires 必须大于 0，防止 Redis 无限堆积。"""
+    from backend.workers.celery_app import app
+
+    assert app.conf.result_expires > 0
+
+
+def test_celery_app_reject_on_worker_lost() -> None:
+    """Worker 崩溃时应拒绝任务，确保死信队列追踪。"""
+    from backend.workers.celery_app import app
+
+    assert app.conf.task_reject_on_worker_lost is True
+
+
+def test_celery_app_acks_on_failure_or_timeout() -> None:
+    """失败或超时时不 ack，配合 acks_late 确保任务不丢失。"""
+    from backend.workers.celery_app import app
+
+    assert app.conf.task_acks_on_failure_or_timeout is False

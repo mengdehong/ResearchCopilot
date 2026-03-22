@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     # --- Celery ---
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
+    celery_task_time_limit: int = 1800  # 硬超时 30 min；防止 Worker 永久挂起
+    celery_task_soft_time_limit: int = 1500  # 软超时 25 min；给任务清理机会
+    celery_result_expires: int = 86400  # 结果 TTL 24 h；防止 Redis 无限堆积
     # Internal service URL (override in Docker/K8s with container hostname)
     internal_api_url: str = "http://localhost:8000"
     # Secret for signing system-to-system JWT tokens (falls back to jwt_secret)
