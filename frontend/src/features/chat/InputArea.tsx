@@ -68,7 +68,7 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
     }, [])
 
     return (
-        <div className="shrink-0 px-4 py-4 pb-5 border-t border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-2xl z-20">
+        <div className="shrink-0 px-4 py-2 border-t border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-2xl z-20">
             {/* Recording indicator */}
             {isRecording && (
                 <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-[var(--error-subtle,rgba(239,68,68,0.1))]">
@@ -128,7 +128,7 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
                 </div>
             )}
 
-            <div className="flex items-end gap-2">
+            <div className="flex items-center gap-2">
                 {/* Hidden file input */}
                 <input
                     ref={fileInputRef}
@@ -172,9 +172,9 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
                     )}
                 </Button>
 
-                <div className="flex-1 relative">
+                <div className="flex-1 relative flex">
                     <textarea
-                        className="w-full resize-none rounded-3xl border border-[var(--border)] bg-[var(--background)] px-5 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-[3px] focus:ring-[var(--accent-subtle)] transition-all shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] focus:shadow-[var(--shadow-md)] disabled:opacity-50"
+                        className="w-full resize-none rounded-3xl border border-[var(--border)] bg-[var(--background)] px-4 sm:px-5 py-2.5 h-[40px] m-0 overflow-hidden text-sm leading-5 text-[var(--text-primary)] placeholder:text-xs placeholder:leading-5 placeholder:text-[var(--text-muted)] placeholder:truncate focus:border-[var(--accent)] focus:outline-none focus:ring-[3px] focus:ring-[var(--accent-subtle)] transition-all shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] focus:shadow-[var(--shadow-md)] disabled:opacity-50"
                         placeholder="Type your research question..."
                         value={value}
                         onChange={(e) => setValue(e.target.value)}
@@ -188,7 +188,7 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
                     onClick={handleSend}
                     disabled={disabled || !value.trim()}
                     aria-label="Send message"
-                    className="shrink-0 transition-all duration-200 active:scale-[0.85] rounded-full h-10 w-10 shadow-[var(--shadow-sm)]"
+                    className="shrink-0 transition-all duration-200 active:scale-[0.85] rounded-full h-10 w-10 shadow-[var(--shadow-sm)] m-0"
                 >
                     {disabled ? (
                         <Loader2 className="size-4 animate-spin" />
@@ -197,10 +197,6 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
                     )}
                 </Button>
             </div>
-            <p className="text-[10px] text-[var(--text-muted)] mt-1.5 text-center">
-                Press <kbd className="px-1 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text-secondary)] font-mono text-[9px]">Enter</kbd> to send,{' '}
-                <kbd className="px-1 py-0.5 rounded bg-[var(--surface-raised)] text-[var(--text-secondary)] font-mono text-[9px]">Shift+Enter</kbd> for new line
-            </p>
         </div>
     )
 }
