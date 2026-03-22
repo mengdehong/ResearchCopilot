@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useOutlet, NavLink, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LayoutGrid, Settings, Sun, Moon, PanelLeftClose, PanelLeftOpen, MessageSquare, ChevronDown, ChevronUp, Trash2, Files } from 'lucide-react'
 import { useLayoutStore } from '@/stores/useLayoutStore'
@@ -7,6 +7,7 @@ import { useTheme } from '@/hooks/useTheme'
 import { useTranslation } from '@/i18n/useTranslation'
 import { useThreads, useDeleteThread } from '@/hooks/useThreads'
 import { ConfirmDeleteDialog, useConfirmDelete } from '@/components/ui/confirm-delete-dialog'
+
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 import {
@@ -24,6 +25,7 @@ export default function AppLayout() {
     const { t } = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
+    const outlet = useOutlet()
     const { id: workspaceId } = useParams<{ id: string }>()
     const navExpanded = useLayoutStore((s) => s.navExpanded)
     const sidebarWidth = useLayoutStore((s) => s.sidebarWidth)
@@ -191,7 +193,7 @@ export default function AppLayout() {
                         exit={{ opacity: 0, y: -4 }}
                         transition={{ duration: 0.15, ease: 'easeOut' }}
                     >
-                        <Outlet />
+                        {outlet}
                     </motion.div>
                 </AnimatePresence>
             </main>
@@ -332,4 +334,3 @@ function ThreadList({ workspaceId }: ThreadListProps) {
         </>
     )
 }
-
