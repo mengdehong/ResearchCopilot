@@ -5,7 +5,10 @@ import { useAuth } from '../useAuth'
 import { OAuthButtons } from '../components/OAuthButtons'
 import { PasswordInput } from '../components/PasswordInput'
 import api from '@/lib/api'
+import { createLogger } from '@/lib/logger'
 import { Loader2, AlertCircle, Sparkles, ArrowRight } from 'lucide-react'
+
+const log = createLogger('Auth')
 
 export default function LoginPage() {
     const { t } = useTranslation()
@@ -30,6 +33,7 @@ export default function LoginPage() {
             const res = await api.post('/auth/login', { email, password })
             const { access_token, user } = res.data
             login(access_token, user)
+            log.info('login success', { email })
             navigate(from, { replace: true })
         } catch (err: unknown) {
             let errorMsg = t('auth.login_error')
@@ -43,6 +47,7 @@ export default function LoginPage() {
                 errorMsg = axiosErr.message
             }
             setError(errorMsg)
+            log.error('login failed', { email, error: errorMsg })
         } finally {
             setIsSubmitting(false)
         }

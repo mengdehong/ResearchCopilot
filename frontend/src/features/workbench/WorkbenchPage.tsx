@@ -9,6 +9,9 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import ChatPanel from '@/features/chat/ChatPanel'
 import CanvasPanel from '@/features/canvas/CanvasPanel'
 import { useTranslation } from '@/i18n/useTranslation'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('Workbench')
 
 /**
  * Workbench page — threadId is always derived from URL `?thread=`.
@@ -50,6 +53,7 @@ export default function WorkbenchPage() {
                 justCreatedRef.current = false
             } else {
                 // Switching between threads: full reset so stale data is cleared out
+                log.debug('thread switched', { from: prevThreadRef.current, to: threadId })
                 reset()
                 setActiveRunId('')
             }
@@ -70,6 +74,7 @@ export default function WorkbenchPage() {
     const prevWorkspaceRef = useRef(workspaceId)
     useEffect(() => {
         if (workspaceId !== prevWorkspaceRef.current) {
+            log.debug('workspace switched', { from: prevWorkspaceRef.current, to: workspaceId })
             prevWorkspaceRef.current = workspaceId
             setActiveRunId('')
             reset()
@@ -85,6 +90,7 @@ export default function WorkbenchPage() {
 
     const handleSendMessage = useCallback(
         async (message: string) => {
+            log.info('send message', { threadId, messageLength: message.length })
             addMessage({
                 id: crypto.randomUUID(),
                 role: 'user',
@@ -102,9 +108,11 @@ export default function WorkbenchPage() {
                         title: message.slice(0, 50),
                     })
                     currentThreadId = thread.thread_id
+                    log.info('thread created', { threadId: currentThreadId })
                     justCreatedRef.current = true
                     setSearchParams({ thread: currentThreadId }, { replace: true })
                 } catch {
+                    log.error('thread creation failed', { workspaceId })
                     addMessage({
                         id: crypto.randomUUID(),
                         role: 'system',
@@ -122,8 +130,10 @@ export default function WorkbenchPage() {
                     threadId: currentThreadId,
                     body: { message },
                 })
+                log.info('run created', { threadId: currentThreadId, runId: result.run_id })
                 setActiveRunId(result.run_id)
             } catch {
+                log.error('run creation failed', { threadId: currentThreadId })
                 addMessage({
                     id: crypto.randomUUID(),
                     role: 'system',
@@ -138,6 +148,7 @@ export default function WorkbenchPage() {
     const handleResumeInterrupt = useCallback(
         async (action: string, payload?: Record<string, unknown>) => {
             if (!interrupt) return
+            log.info('resume interrupt', { action, runId: interrupt.run_id })
             try {
                 const result = await resumeRun.mutateAsync({
                     threadId: interrupt.thread_id,
@@ -147,6 +158,7 @@ export default function WorkbenchPage() {
                 clearInterrupt()
                 setActiveRunId(result.run_id)
             } catch {
+                log.error('resume interrupt failed', { runId: interrupt.run_id })
                 // Keep interrupt visible so user can retry
             }
         },
@@ -155,6 +167,7 @@ export default function WorkbenchPage() {
 
     const handleCancelRun = useCallback(async () => {
         if (!threadId || !activeRunId) return
+        log.info('cancel run', { threadId, runId: activeRunId })
         try {
             await cancelRun.mutateAsync({ threadId, runId: activeRunId })
         } finally {

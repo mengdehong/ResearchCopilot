@@ -7,6 +7,9 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import api from '@/lib/api'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('Voice')
 
 // ─── Types ───
 
@@ -146,6 +149,7 @@ export default function useVoiceInput(
     const startWebSpeech = useCallback(async () => {
         const Ctor = getSpeechRecognitionCtor()
         if (!Ctor) {
+            log.error('web speech not available')
             setError('Web Speech API not available')
             setStatus('error')
             return
@@ -170,12 +174,14 @@ export default function useVoiceInput(
                 }
             }
             if (final) {
+                log.debug('transcript received', { length: final.length })
                 onTranscriptRef.current(final)
             }
             setInterimText(interim)
         }
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+            log.error('web speech error', { error: event.error })
             if (event.error === 'not-allowed') {
                 setError('mic-permission-denied')
             } else {
@@ -206,6 +212,7 @@ export default function useVoiceInput(
 
         try {
             recognition.start()
+            log.info('recording start', { engine: 'web-speech' })
             setStatus('recording')
             setError(null)
             startTimer()
@@ -258,10 +265,12 @@ export default function useVoiceInput(
                     })
                     const text = response.data.text as string
                     if (text.trim()) {
+                        log.info('transcription success', { length: text.trim().length })
                         onTranscriptRef.current(text.trim())
                     }
                     setStatus('idle')
-                } catch {
+                } catch (err) {
+                    log.error('transcription failed', { error: (err as Error).message })
                     setError('transcription-failed')
                     setStatus('error')
                 } finally {
@@ -270,6 +279,7 @@ export default function useVoiceInput(
             }
 
             recorder.start(1000) // collect data every second
+            log.info('recording start', { engine: 'groq-whisper' })
             setStatus('recording')
             setError(null)
             startTimer()
@@ -282,8 +292,10 @@ export default function useVoiceInput(
         } catch (err) {
             const e = err as DOMException
             if (e.name === 'NotAllowedError') {
+                log.error('mic permission denied')
                 setError('mic-permission-denied')
             } else {
+                log.error('mic access failed', { error: e.message })
                 setError('Failed to access microphone')
             }
             setStatus('error')
@@ -307,6 +319,7 @@ export default function useVoiceInput(
 
     const stopRecording = useCallback(() => {
         if (status !== 'recording') return
+        log.info('recording stop', { engine: engineType })
 
         if (engineType === 'web-speech' && recognitionRef.current) {
             manualStopRef.current = true
@@ -317,6 +330,7 @@ export default function useVoiceInput(
     }, [status, engineType])
 
     const cancelRecording = useCallback(() => {
+        log.info('recording cancelled')
         manualStopRef.current = true
         chunksRef.current = [] // discard recorded data
         cleanup()

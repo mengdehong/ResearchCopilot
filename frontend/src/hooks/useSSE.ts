@@ -2,7 +2,10 @@ import { useEffect, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { getToken } from '@/lib/api'
+import { createLogger } from '@/lib/logger'
 import type { RunEvent } from '@/types'
+
+const log = createLogger('SSE')
 
 interface UseSSEOptions {
     threadId: string
@@ -34,6 +37,7 @@ export function useSSE({ threadId, runId, enabled = true }: UseSSEOptions) {
         if (lastEventIdRef.current) params.set('last_event_id', lastEventIdRef.current)
 
         const url = `/api/v1/agent/threads/${threadId}/runs/${runId}/stream?${params}`
+        log.debug('connecting', { threadId, runId })
         const es = new EventSource(url)
         eventSourceRef.current = es
 
@@ -48,6 +52,7 @@ export function useSSE({ threadId, runId, enabled = true }: UseSSEOptions) {
 
             try {
                 const parsed = JSON.parse(event.data) as RunEvent
+                log.debug('event', { type: parsed.event_type })
                 useAgentStore.getState().handleSSEEvent(parsed)
 
                 if (parsed.event_type === 'run_end') {
@@ -55,7 +60,7 @@ export function useSSE({ threadId, runId, enabled = true }: UseSSEOptions) {
                     useAgentStore.getState().setStreaming(false)
                 }
             } catch {
-                // Ignore unparseable events
+                log.warn('parse error', { data: event.data })
             }
         }
 
@@ -65,8 +70,10 @@ export function useSSE({ threadId, runId, enabled = true }: UseSSEOptions) {
             if (retryCountRef.current < MAX_RETRIES) {
                 retryCountRef.current += 1
                 const delay = Math.min(1000 * 2 ** retryCountRef.current, 30000)
+                log.warn('reconnecting', { attempt: retryCountRef.current, delay })
                 retryTimerRef.current = setTimeout(() => connectRef.current(), delay)
             } else {
+                log.error('connection lost', { retries: MAX_RETRIES })
                 useAgentStore.getState().setStreaming(false)
                 toast.error('Agent connection lost', {
                     description: 'Failed to reconnect after multiple attempts.',

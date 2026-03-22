@@ -1,5 +1,8 @@
 import axios from 'axios'
 import { toast } from 'sonner'
+import { createLogger } from './logger'
+
+const log = createLogger('API')
 
 let currentToken: string | null = null
 
@@ -25,10 +28,17 @@ const api = axios.create({
 
 import type { InternalAxiosRequestConfig } from 'axios'
 
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+interface TimedRequestConfig extends InternalAxiosRequestConfig {
+    _startTime?: number
+    _retry?: boolean
+}
+
+api.interceptors.request.use((config: TimedRequestConfig) => {
     if (currentToken) {
         config.headers.Authorization = `Bearer ${currentToken}`
     }
+    config._startTime = Date.now()
+    log.debug('request', { method: config.method?.toUpperCase(), url: config.url })
     return config
 })
 
@@ -46,14 +56,26 @@ function onRefreshed(token: string) {
 }
 
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        const config = response.config as TimedRequestConfig
+        const duration = config._startTime ? Date.now() - config._startTime : undefined
+        log.debug('response', {
+            method: config.method?.toUpperCase(),
+            url: config.url,
+            status: response.status,
+            duration_ms: duration,
+        })
+        return response
+    },
     async (error: unknown) => {
-        const err = error as { response?: { status?: number }; config?: InternalAxiosRequestConfig & { _retry?: boolean }; message?: string }
+        const err = error as { response?: { status?: number }; config?: TimedRequestConfig; message?: string }
         const originalRequest = err.config
         const status = err.response?.status
+        const duration = originalRequest?._startTime ? Date.now() - originalRequest._startTime : undefined
 
         // ── 网络断开（无 response 对象）──
         if (!err.response) {
+            log.error('network error', { url: originalRequest?.url, message: err.message, duration_ms: duration })
             toast.error('Network error', {
                 description: 'Unable to connect to the server. Please check your network.',
                 id: 'network-error', // 去重
@@ -92,6 +114,7 @@ api.interceptors.response.use(
                 setToken(access_token)
                 isRefreshing = false
                 onRefreshed(access_token)
+                log.info('token refreshed')
 
                 if (originalRequest) {
                     originalRequest.headers.Authorization = `Bearer ${access_token}`
@@ -101,6 +124,7 @@ api.interceptors.response.use(
             } catch (refreshError) {
                 isRefreshing = false
                 clearToken()
+                log.warn('token refresh failed')
                 // Do not redirect blindly here to allow AuthGuard to handle navigation Reactively
                 refreshSubscribers = []
                 return Promise.reject(refreshError)
@@ -125,6 +149,7 @@ api.interceptors.response.use(
 
         // ── 5xx: 服务端错误 ──
         if (status && status >= 500) {
+            log.error('server error', { status, url: originalRequest?.url, duration_ms: duration })
             toast.error('Server error', {
                 description: 'The service is temporarily unavailable. Please try again later.',
                 id: 'server-error',

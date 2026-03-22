@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 import type { Message, CoTNode, InterruptData, RunEvent, PdfHighlight, SandboxResult } from '@/types'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('Store')
 
 interface AgentState {
     messages: Message[]
@@ -42,6 +45,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
     handleSSEEvent: (event) => {
         const { event_type, data } = event
+        log.debug('event', { event_type })
 
         switch (event_type) {
             case 'token':
@@ -107,6 +111,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             }
 
             case 'error': {
+                log.error('agent error', { message: data.message })
                 const errMsg: Message = {
                     id: crypto.randomUUID(),
                     role: 'system',
@@ -158,6 +163,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             }
 
             default:
+                log.warn('unknown event', { event_type })
                 break
         }
     },

@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import api, { clearToken, setToken } from '@/lib/api'
+import { createLogger } from '@/lib/logger'
 import { AuthContext, type User } from './useAuth'
+
+const log = createLogger('Auth')
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
@@ -28,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             } catch (err: unknown) {
                 // Not authenticated or refresh token expired
-                console.debug('Session restore failed or no session:', err)
+                log.debug('session restore failed', { error: err })
                 if (mounted) {
                     setUser(null)
                     setIsAuthenticated(false)
@@ -56,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             await api.post('/auth/logout')
         } catch (error: unknown) {
-            console.error('Failed to restore session:', error)
+            log.error('logout request failed', { error })
         } finally {
             clearToken()
             setUser(null)

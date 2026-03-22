@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { useAuth } from '../useAuth'
 import api, { setToken } from '@/lib/api'
+import { createLogger } from '@/lib/logger'
 import { Loader2, AlertCircle } from 'lucide-react'
+
+const log = createLogger('Auth')
 
 /**
  * OAuth 回调页面 — 从 URL fragment 中提取 access_token，
@@ -21,6 +24,7 @@ export default function OAuthCallbackPage() {
         const accessToken = params.get('access_token')
 
         if (!accessToken) {
+            log.error('oauth callback missing access_token')
             setError('OAuth 回调缺少 access_token 参数')
             return
         }
@@ -33,15 +37,16 @@ export default function OAuthCallbackPage() {
                 const res = await api.get('/auth/me')
                 if (mounted) {
                     login(accessToken, res.data)
+                    log.info('oauth login success')
                     navigate('/workspaces', { replace: true })
                 }
             } catch (err: unknown) {
                 if (mounted) {
-                    if (axios.isAxiosError(err)) {
-                        setError(err.response?.data?.detail || err.message)
-                    } else {
-                        setError('OAuth 登录失败')
-                    }
+                    const errorMsg = axios.isAxiosError(err)
+                        ? (err.response?.data?.detail || err.message)
+                        : 'OAuth 登录失败'
+                    log.error('oauth login failed', { error: errorMsg })
+                    setError(errorMsg)
                 }
             }
         }

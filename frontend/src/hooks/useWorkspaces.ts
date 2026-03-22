@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import type { Workspace, WorkspaceCreate, WorkspaceSummary } from '@/types'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('Workspace')
 
 export function useWorkspaces() {
     return useQuery<Workspace[]>({
@@ -41,8 +44,12 @@ export function useCreateWorkspace() {
             const { data } = await api.post('/workspaces', body)
             return data as Workspace
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
+            log.info('workspace created', { id: data.id, name: data.name })
             queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+        },
+        onError: (error: Error) => {
+            log.error('workspace creation failed', { error: error.message })
         },
     })
 }
@@ -53,8 +60,12 @@ export function useDeleteWorkspace() {
         mutationFn: async (id: string) => {
             await api.delete(`/workspaces/${id}`)
         },
-        onSuccess: () => {
+        onSuccess: (_data, id) => {
+            log.info('workspace deleted', { id })
             queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+        },
+        onError: (error: Error) => {
+            log.error('workspace deletion failed', { error: error.message })
         },
     })
 }
