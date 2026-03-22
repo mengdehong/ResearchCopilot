@@ -15,8 +15,13 @@ class Settings(BaseSettings):
     # --- App ---
     app_name: str = "Research Copilot"
     debug: bool = False
+    allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     # --- Database ---
     database_url: str
+    db_pool_size: int = 30
+    db_max_overflow: int = 20
+    db_pool_timeout: int = 30
+    db_pool_recycle: int = 1800
     redis_url: str = "redis://localhost:6379/0"
     # --- Auth ---
     jwt_secret: str
@@ -72,3 +77,12 @@ class Settings(BaseSettings):
     # --- Groq STT ---
     groq_api_key: str | None = None
     groq_stt_model: str = "whisper-large-v3-turbo"
+    # --- Rate Limiting ---
+    rate_limit_enabled: bool = True
+    rate_limit_storage_uri: str | None = None  # fallback → redis_url
+    rate_limit_default: str = "120/minute"
+    rate_limit_auth_login: str = "10/minute"
+    rate_limit_auth_register: str = "5/minute"
+    rate_limit_auth_password: str = "3/minute"
+    rate_limit_agent_run: str = "10/minute"
+    rate_limit_agent_sse: str = "20/minute"

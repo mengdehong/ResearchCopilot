@@ -16,13 +16,23 @@ if TYPE_CHECKING:
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 
-def create_engine(database_url: str, *, echo: bool = False) -> AsyncEngine:
+def create_engine(
+    database_url: str,
+    *,
+    echo: bool = False,
+    pool_size: int = 30,
+    max_overflow: int = 20,
+    pool_timeout: int = 30,
+    pool_recycle: int = 1800,
+) -> AsyncEngine:
     """创建 SQLAlchemy 异步引擎。"""
     return create_async_engine(
         database_url,
         echo=echo,
-        pool_size=20,
-        max_overflow=10,
+        pool_size=pool_size,
+        max_overflow=max_overflow,
+        pool_timeout=pool_timeout,
+        pool_recycle=pool_recycle,
         pool_pre_ping=True,
     )
 

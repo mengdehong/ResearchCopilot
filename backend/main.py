@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.middleware import AccessLogMiddleware, RequestIDMiddleware
 from backend.api.routers import agent, auth, document, editor, health, quota, stt, workspace
@@ -35,7 +36,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = Settings()
     setup_logging(debug=settings.debug)
 
-    engine = create_engine(settings.database_url, echo=settings.debug)
+    engine = create_engine(
+        settings.database_url,
+        echo=settings.debug,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
+        pool_timeout=settings.db_pool_timeout,
+        pool_recycle=settings.db_pool_recycle,
+    )
     app.state.session_factory = create_session_factory(engine)
     app.state.settings = settings
 
@@ -81,6 +89,16 @@ app.add_exception_handler(AppError, app_error_handler)
 
 # Middleware (order matters: outermost first)
 app.add_middleware(AccessLogMiddleware)
+
+# CORS — must be outermost to handle preflight before other middleware
+_settings = Settings()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_settings.allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(RequestIDMiddleware)
 
 # Routers
