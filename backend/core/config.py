@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     # --- Celery ---
     celery_broker_url: str = "redis://localhost:6379/0"
     celery_result_backend: str = "redis://localhost:6379/1"
+    # Internal service URL (override in Docker/K8s with container hostname)
+    internal_api_url: str = "http://localhost:8000"
+    # Secret for signing system-to-system JWT tokens (falls back to jwt_secret)
+    internal_token_secret: str | None = None
     # --- LangSmith ---
     langsmith_api_key: str | None = None
     # --- MinerU ---

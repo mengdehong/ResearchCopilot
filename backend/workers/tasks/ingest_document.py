@@ -8,6 +8,8 @@ import asyncio
 import uuid
 from pathlib import Path
 
+import httpx
+import jwt
 from celery import Task
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -111,14 +113,19 @@ async def _run_ingest(
         # --- Stage 6: Webhook Callback to Agent ---
         if thread_id and run_id:
             try:
-                import httpx
-                # 默认情况下bff使用 localhost:8000
-                bff_base_url = "http://localhost:8000"
+                secret = settings.internal_token_secret or settings.jwt_secret
+                system_token = jwt.encode(
+                    {"sub": "system", "role": "system_worker"},
+                    secret,
+                    algorithm="HS256",
+                )
+                bff_base_url = settings.internal_api_url
                 async with httpx.AsyncClient() as client:
                     resp = await client.post(
                         f"{bff_base_url}/api/agent/threads/{thread_id}/runs/{run_id}/resume",
                         json={"action": "ingestion_complete", "document_id": doc_id_str},
-                        timeout=5.0
+                        headers={"Authorization": f"Bearer {system_token}"},
+                        timeout=5.0,
                     )
                     resp.raise_for_status()
                 logger.info("resumed_agent_after_ingestion", thread_id=thread_id, run_id=run_id)
