@@ -1,0 +1,140 @@
+import { describe, it, expect, beforeEach } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/test/server'
+import api, { setToken, clearToken, getToken } from './api'
+
+// toast 已在 setup.ts 中全局 mock
+
+describe('api module', () => {
+    beforeEach(() => {
+        clearToken()
+    })
+
+    // ── token 管理 ──
+    describe('token management', () => {
+        it('getToken returns null initially', () => {
+            expect(getToken()).toBeNull()
+        })
+
+        it('setToken / getToken round-trips', () => {
+            setToken('abc-123')
+            expect(getToken()).toBe('abc-123')
+        })
+
+        it('clearToken resets to null', () => {
+            setToken('abc-123')
+            clearToken()
+            expect(getToken()).toBeNull()
+        })
+    })
+
+    // ── 请求拦截器：注入 Authorization ──
+    describe('request interceptor', () => {
+        it('adds Bearer token to request headers', async () => {
+            let capturedAuth: string | undefined
+            server.use(
+                http.get('/api/test-auth', ({ request }) => {
+                    capturedAuth = request.headers.get('Authorization') ?? undefined
+                    return HttpResponse.json({ ok: true })
+                }),
+            )
+            setToken('my-token')
+            await api.get('/test-auth')
+            expect(capturedAuth).toBe('Bearer my-token')
+        })
+
+        it('does not add Authorization when no token is set', async () => {
+            let capturedAuth: string | null = null
+            server.use(
+                http.get('/api/test-no-auth', ({ request }) => {
+                    capturedAuth = request.headers.get('Authorization')
+                    return HttpResponse.json({ ok: true })
+                }),
+            )
+            await api.get('/test-no-auth')
+            expect(capturedAuth).toBeNull()
+        })
+    })
+
+    // ── 401 → token refresh ──
+    describe('401 token refresh', () => {
+        it('refreshes token and retries original request on 401', async () => {
+            let callCount = 0
+            server.use(
+                http.get('/api/protected', () => {
+                    callCount++
+                    if (callCount === 1) {
+                        return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 })
+                    }
+                    return HttpResponse.json({ data: 'success' })
+                }),
+                http.post('/api/auth/refresh', () =>
+                    HttpResponse.json({ access_token: 'refreshed-token' }),
+                ),
+            )
+            setToken('expired-token')
+            const response = await api.get('/protected')
+            expect(response.data).toEqual({ data: 'success' })
+            expect(getToken()).toBe('refreshed-token')
+        })
+
+        it('rejects when refresh itself fails', async () => {
+            server.use(
+                http.get('/api/protected-fail', () =>
+                    HttpResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+                ),
+                http.post('/api/auth/refresh', () =>
+                    HttpResponse.json({ error: 'expired' }, { status: 401 }),
+                ),
+            )
+            setToken('expired-token')
+            await expect(api.get('/protected-fail')).rejects.toThrow()
+            expect(getToken()).toBeNull()
+        })
+
+        it('does not attempt refresh on login endpoint 401', async () => {
+            server.use(
+                http.post('/api/auth/login', () =>
+                    HttpResponse.json({ error: 'bad credentials' }, { status: 401 }),
+                ),
+            )
+            await expect(api.post('/auth/login', {})).rejects.toThrow()
+        })
+    })
+
+    // ── 错误状态 toast ──
+    describe('error status handling', () => {
+        it('handles 403 response', async () => {
+            const { toast } = await import('sonner')
+            server.use(
+                http.get('/api/forbidden', () =>
+                    HttpResponse.json({ error: 'forbidden' }, { status: 403 }),
+                ),
+            )
+            await expect(api.get('/forbidden')).rejects.toThrow()
+            expect(toast.error).toHaveBeenCalledWith('Permission denied', expect.any(Object))
+        })
+
+        it('handles 429 response', async () => {
+            const { toast } = await import('sonner')
+            server.use(
+                http.get('/api/rate-limited', () =>
+                    HttpResponse.json({ error: 'too many' }, { status: 429 }),
+                ),
+            )
+            await expect(api.get('/rate-limited')).rejects.toThrow()
+            expect(toast.error).toHaveBeenCalledWith('Rate limit exceeded', expect.any(Object))
+        })
+
+        it('handles 500 response', async () => {
+            const { toast } = await import('sonner')
+            server.use(
+                http.get('/api/server-err', () =>
+                    HttpResponse.json({ error: 'internal' }, { status: 500 }),
+                ),
+            )
+            await expect(api.get('/server-err')).rejects.toThrow()
+            expect(toast.error).toHaveBeenCalledWith('Server error', expect.any(Object))
+        })
+    })
+})
