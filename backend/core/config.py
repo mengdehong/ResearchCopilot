@@ -17,7 +17,11 @@ class Settings(BaseSettings):
     # --- App ---
     app_name: str = "Research Copilot"
     debug: bool = False
-    allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    allowed_origins: list[str] = [
+        "https://rc.wenmou.site",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
     # --- Database ---
     database_url: str
     db_pool_size: int = 30
@@ -35,11 +39,11 @@ class Settings(BaseSettings):
     github_client_secret: str | None = None
     google_client_id: str | None = None
     google_client_secret: str | None = None
-    oauth_redirect_base_url: str = "http://localhost:5173"
+    oauth_redirect_base_url: str = "https://rc.wenmou.site"
     # --- Email ---
     resend_api_key: str | None = None
     email_from: str = "noreply@researchcopilot.com"
-    frontend_url: str = "http://localhost:5173"
+    frontend_url: str = "https://rc.wenmou.site"
     # --- LLM ---
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
