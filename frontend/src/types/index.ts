@@ -136,7 +136,7 @@ export interface CoTNode {
     status: 'running' | 'completed' | 'error'
 }
 
-export type HITLAction = 'select_papers' | 'confirm_execute' | 'confirm_finalize'
+export type HITLAction = 'select_papers' | 'confirm_execute' | 'confirm_finalize' | 'wait_for_ingestion'
 
 export interface InterruptData {
     action: HITLAction

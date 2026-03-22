@@ -116,6 +116,60 @@ async def confirm_upload(
     return doc
 
 
+async def create_from_arxiv(
+    session: AsyncSession,
+    storage: StorageClient,
+    *,
+    arxiv_id: str,
+    workspace_id: uuid.UUID,
+    owner: User,
+    title: str | None = None,
+    thread_id: str | None = None,
+    run_id: str | None = None,
+) -> Document | None:
+    """从 ArXiv 下载 PDF 并创建 Document 记录，触发 Celery 解析。
+
+    Args:
+        arxiv_id: ArXiv 论文 ID（如 '2301.00001v1'）。
+        workspace_id: 目标 workspace。
+        owner: 当前用户。
+        title: 可选论文标题，缺省用 arxiv_id。
+        thread_id: 可选 agent thread ID（传递给 ingestion）。
+        run_id: 可选 agent run ID（传递给 ingestion）。
+    """
+    from backend.services.arxiv_downloader import download_arxiv_pdf
+
+    ws = await _verify_workspace_ownership(session, workspace_id, owner)
+    if ws is None:
+        return None
+
+    # 下载 PDF
+    storage_base = storage._base_dir
+    doc_dir = storage_base / "workspaces" / str(workspace_id) / "documents"
+    pdf_path = download_arxiv_pdf(arxiv_id, doc_dir)
+
+    # 存储相对路径（相对于 storage base）
+    relative_path = str(pdf_path.relative_to(storage_base))
+
+    doc = Document()
+    doc.workspace_id = workspace_id
+    doc.title = title or arxiv_id
+    doc.file_path = relative_path
+    doc.parse_status = "pending"
+    doc.source = "arxiv"
+    doc.include_appendix = False
+    created = await base_repo.create(session, doc)
+
+    from backend.workers.tasks.ingest_document import ingest_document
+
+    ingest_document.delay(
+        doc_id=str(created.id),
+        thread_id=thread_id,
+        run_id=run_id,
+    )
+    return created
+
+
 async def list_documents(
     session: AsyncSession,
     workspace_id: uuid.UUID,

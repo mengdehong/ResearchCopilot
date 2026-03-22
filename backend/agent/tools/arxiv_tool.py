@@ -16,20 +16,24 @@ _MAX_RESULTS = 10
 
 
 @tool
-def search_arxiv(query: str, max_results: int = _MAX_RESULTS) -> list[dict[str, Any]]:
+def search_arxiv(
+    query: str, max_results: int = _MAX_RESULTS, category: str | None = None
+) -> list[dict[str, Any]]:
     """Search ArXiv for academic papers matching the query.
 
     Args:
         query: Search query string (supports ArXiv search syntax).
         max_results: Maximum number of results to return (default 10).
+        category: Optional ArXiv category filter (e.g. 'cs.CL', 'cs.CV').
 
     Returns:
         List of paper metadata dictionaries.
     """
     import xml.etree.ElementTree as ET
 
+    search_query = f"cat:{category} AND all:{query}" if category else f"all:{query}"
     params = {
-        "search_query": f"all:{query}",
+        "search_query": search_query,
         "start": 0,
         "max_results": max_results,
         "sortBy": "relevance",

@@ -175,11 +175,22 @@ def test_present_candidates_returns_selected_ids() -> None:
 def test_trigger_ingestion_creates_task_ids(mock_httpx) -> None:
     mock_response = MagicMock()
     mock_response.raise_for_status = MagicMock()
+    # 模拟 BFF 返回的 DocumentMeta（包含 document_id）
+    doc_ids = ["doc-uuid-1", "doc-uuid-2"]
+    mock_response.json.side_effect = [{"id": doc_ids[0]}, {"id": doc_ids[1]}]
     mock_httpx.post.return_value = mock_response
-    state = {"selected_paper_ids": ["p1", "p2"]}
-    result = trigger_ingestion(state)
+    state = {
+        "selected_paper_ids": ["p1", "p2"],
+        "candidate_papers": [],
+        "workspace_id": "ws-1",
+    }
+    config = {"configurable": {"thread_id": "t1", "run_id": "r1"}}
+    result = trigger_ingestion(state, config)
     assert len(result["ingestion_task_ids"]) == 2
-    assert result["ingestion_task_ids"] == ["p1", "p2"]
+    assert result["ingestion_task_ids"] == doc_ids
+    # 验证调用的是 from-arxiv 端点
+    call_args = mock_httpx.post.call_args_list[0]
+    assert "from-arxiv" in call_args.args[0]
 
 
 # ── write_artifacts ──

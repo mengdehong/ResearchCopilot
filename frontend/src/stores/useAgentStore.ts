@@ -17,6 +17,7 @@ interface AgentState {
     clearInterrupt: () => void
     reset: () => void
     setStreaming: (streaming: boolean) => void
+    setActivePdf: (pdf: PdfHighlight | null) => void
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -32,6 +33,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
     addMessage: (msg) =>
         set((state) => ({ messages: [...state.messages, msg] })),
+
+    setActivePdf: (pdf) => set({ activePdf: pdf }),
 
     handleSSEEvent: (event) => {
         const { event_type, data } = event

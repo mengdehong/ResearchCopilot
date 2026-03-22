@@ -122,7 +122,7 @@ async def _run_ingest(
                 bff_base_url = settings.internal_api_url
                 async with httpx.AsyncClient() as client:
                     resp = await client.post(
-                        f"{bff_base_url}/api/agent/threads/{thread_id}/runs/{run_id}/resume",
+                        f"{bff_base_url}/api/v1/agent/threads/{thread_id}/runs/{run_id}/resume",
                         json={"action": "ingestion_complete", "document_id": doc_id_str},
                         headers={"Authorization": f"Bearer {system_token}"},
                         timeout=5.0,

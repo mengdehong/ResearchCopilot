@@ -114,11 +114,11 @@ class TestAgentRouter:
         mock_runner.get_event_stream = failing_stream
 
         tid = uuid.uuid4()
-        response = await client.get(f"/api/agent/threads/{tid}/runs/r1/stream")
+        response = await client.get(f"/api/v1/agent/threads/{tid}/runs/r1/stream")
         assert response.status_code == 200
 
         lines = response.text.strip().split("\n")
-        data_lines = [l for l in lines if l.startswith("data: ")]
+        data_lines = [line for line in lines if line.startswith("data: ")]
         assert len(data_lines) >= 2
 
         error_evt = _json.loads(data_lines[-2].removeprefix("data: "))

@@ -69,6 +69,34 @@ async def confirm_upload(
     return DocumentMeta.model_validate(doc)
 
 
+@router.post("/from-arxiv", response_model=DocumentMeta, status_code=201)
+async def create_from_arxiv(
+    arxiv_id: str,
+    workspace_id: uuid.UUID,
+    title: str | None = None,
+    thread_id: str | None = None,
+    run_id: str | None = None,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    storage: StorageClient = Depends(_get_storage),
+) -> DocumentMeta:
+    """Download ArXiv PDF and create document record."""
+    doc = await document_service.create_from_arxiv(
+        session,
+        storage,
+        arxiv_id=arxiv_id,
+        workspace_id=workspace_id,
+        owner=current_user,
+        title=title,
+        thread_id=thread_id,
+        run_id=run_id,
+    )
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    await session.commit()
+    return DocumentMeta.model_validate(doc)
+
+
 @router.get("", response_model=list[DocumentMeta])
 async def list_documents(
     workspace_id: uuid.UUID,

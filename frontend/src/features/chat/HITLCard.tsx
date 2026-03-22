@@ -3,7 +3,7 @@ import { useTranslation } from '@/i18n/useTranslation'
 import type { LocaleContextValue } from '@/i18n/LocaleContext'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { FileText, Zap, FileEdit, AlertCircle } from 'lucide-react'
+import { FileText, Zap, FileEdit, AlertCircle, Loader2 } from 'lucide-react'
 
 interface HITLCardProps {
     interrupt: InterruptData
@@ -100,6 +100,17 @@ function ConfirmFinalizeCard({ interrupt, onResume, t }: HITLInternalProps) {
     )
 }
 
+function WaitForIngestionCard({ t }: HITLInternalProps) {
+    return (
+        <div className="mx-6 my-4 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent-subtle)]/50 backdrop-blur-xl px-5 py-4 flex items-center gap-3 shadow-[var(--shadow-sm)]">
+            <Loader2 className="size-5 text-[var(--accent)] shrink-0 animate-spin" />
+            <p className="text-sm text-[var(--text-secondary)]">
+                {t('hitl.waitForIngestion') || 'Waiting for papers to be parsed...'}
+            </p>
+        </div>
+    )
+}
+
 export default function HITLCard(props: HITLCardProps) {
     const { t } = useTranslation()
 
@@ -110,6 +121,8 @@ export default function HITLCard(props: HITLCardProps) {
             return <ConfirmExecuteCard {...props} t={t} />
         case 'confirm_finalize':
             return <ConfirmFinalizeCard {...props} t={t} />
+        case 'wait_for_ingestion':
+            return <WaitForIngestionCard {...props} t={t} />
         default:
             return (
                 <div className="mx-6 my-3 p-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] flex items-center gap-2">

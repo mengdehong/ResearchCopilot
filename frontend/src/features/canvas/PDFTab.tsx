@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { FileImage, Loader2 } from 'lucide-react'
 import { useAgentStore } from '@/stores/useAgentStore'
 import api from '@/lib/api'
+import DocumentListPopover from './DocumentListPopover'
 
 export default function PDFTab() {
     const activePdf = useAgentStore((s) => s.activePdf)
     const [pdfSrc, setPdfSrc] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+    const { id: workspaceId = '' } = useParams<{ id: string }>()
 
     useEffect(() => {
         if (!activePdf) return
@@ -65,6 +68,8 @@ export default function PDFTab() {
         <div className="flex flex-col h-full bg-[var(--surface-raised)]">
             <div className="p-3 border-b border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--text-secondary)] flex justify-between items-center">
                 <div className="flex gap-2 items-center">
+                    <DocumentListPopover workspaceId={workspaceId} />
+                    <span className="w-px h-4 bg-[var(--border)]" />
                     <FileImage className="size-4 text-[var(--text-muted)]" />
                     <span className="font-mono">Doc: {activePdf.document_id.split('-')[0]}</span>
                     {activePdf.page > 0 && <span className="bg-[var(--accent-subtle)] text-[var(--accent)] px-2 py-0.5 rounded-full">Page {activePdf.page}</span>}
