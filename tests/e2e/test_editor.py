@@ -18,7 +18,7 @@ async def _create_thread(
 ) -> str:
     """Helper: 创建 thread 并返回 thread_id。"""
     resp = await client.post(
-        "/api/agent/threads",
+        "/api/v1/agent/threads",
         headers=headers,
         params={"workspace_id": workspace_id, "title": title},
     )
@@ -41,7 +41,7 @@ async def test_save_and_load_draft(
 
     # save_draft: thread_id 是 query param，content 是 str
     save_resp = await test_client.put(
-        "/api/editor/draft",
+        "/api/v1/editor/draft",
         headers=auth_headers,
         params={"thread_id": thread_id},
         json={"content": "E2E draft content"},
@@ -52,7 +52,7 @@ async def test_save_and_load_draft(
 
     # load_draft
     load_resp = await test_client.get(
-        f"/api/editor/draft/{thread_id}",
+        f"/api/v1/editor/draft/{thread_id}",
         headers=auth_headers,
     )
     assert load_resp.status_code == 200
@@ -75,7 +75,7 @@ async def test_update_draft(
 
     # v1
     await test_client.put(
-        "/api/editor/draft",
+        "/api/v1/editor/draft",
         headers=auth_headers,
         params={"thread_id": thread_id},
         json={"content": "v1"},
@@ -83,14 +83,14 @@ async def test_update_draft(
 
     # v2
     await test_client.put(
-        "/api/editor/draft",
+        "/api/v1/editor/draft",
         headers=auth_headers,
         params={"thread_id": thread_id},
         json={"content": "v2"},
     )
 
     load_resp = await test_client.get(
-        f"/api/editor/draft/{thread_id}",
+        f"/api/v1/editor/draft/{thread_id}",
         headers=auth_headers,
     )
     assert load_resp.status_code == 200
@@ -105,7 +105,7 @@ async def test_load_draft_not_found(
     fake_thread_id = uuid.uuid4()
 
     response = await test_client.get(
-        f"/api/editor/draft/{fake_thread_id}",
+        f"/api/v1/editor/draft/{fake_thread_id}",
         headers=auth_headers,
     )
 

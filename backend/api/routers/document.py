@@ -12,7 +12,7 @@ from backend.clients.storage_client import StorageClient
 from backend.models.user import User
 from backend.services import document_service
 
-router = APIRouter(prefix="/api/documents", tags=["documents"])
+router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 def _get_storage() -> StorageClient:
@@ -112,11 +112,11 @@ async def download_document(
     doc = await document_service.get_document(session, document_id, current_user)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
-    
+
     file_path = storage._base_dir / doc.file_path
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on storage")
-    
+
     return FileResponse(file_path, filename=f"{doc.title}.pdf")
 
 

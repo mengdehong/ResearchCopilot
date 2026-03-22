@@ -10,7 +10,7 @@ from backend.api.schemas.editor import DraftLoad, DraftSave
 from backend.models.user import User
 from backend.services import editor_service
 
-router = APIRouter(prefix="/api/editor/draft", tags=["editor"])
+router = APIRouter(prefix="/editor/draft", tags=["editor"])
 
 
 @router.put("", response_model=DraftLoad)

@@ -29,7 +29,7 @@ describe('AuthProvider', () => {
 
     it('initializes as unauthenticated when refresh fails', async () => {
         server.use(
-            http.post('/api/auth/refresh', () =>
+            http.post('/api/v1/auth/refresh', () =>
                 HttpResponse.json({ error: 'expired' }, { status: 401 }),
             ),
         )
@@ -46,7 +46,7 @@ describe('AuthProvider', () => {
 
     it('login sets user and token', async () => {
         server.use(
-            http.post('/api/auth/refresh', () =>
+            http.post('/api/v1/auth/refresh', () =>
                 HttpResponse.json({ error: 'no session' }, { status: 401 }),
             ),
         )
@@ -73,7 +73,7 @@ describe('AuthProvider', () => {
     it('logout clears state and calls API', async () => {
         const logoutSpy = vi.fn()
         server.use(
-            http.post('/api/auth/logout', () => {
+            http.post('/api/v1/auth/logout', () => {
                 logoutSpy()
                 return HttpResponse.json({ ok: true })
             }),

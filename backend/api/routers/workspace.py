@@ -10,7 +10,7 @@ from backend.api.schemas.workspace import WorkspaceCreate, WorkspaceDetail
 from backend.models.user import User
 from backend.services import workspace_service
 
-router = APIRouter(prefix="/api/workspaces", tags=["workspaces"])
+router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
 
 @router.post("", response_model=WorkspaceDetail, status_code=201)

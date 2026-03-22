@@ -17,7 +17,7 @@ async def _create_thread(
 ) -> str:
     """Helper: 创建 thread 并返回 thread_id。"""
     resp = await client.post(
-        "/api/agent/threads",
+        "/api/v1/agent/threads",
         headers=headers,
         params={"workspace_id": workspace_id, "title": title},
     )
@@ -32,7 +32,7 @@ async def test_create_thread(
 ) -> None:
     """POST /api/agent/threads — 创建 thread。"""
     response = await test_client.post(
-        "/api/agent/threads",
+        "/api/v1/agent/threads",
         headers=auth_headers,
         params={
             "workspace_id": str(seed_data.workspace_id),
@@ -60,7 +60,7 @@ async def test_list_threads(
     )
 
     response = await test_client.get(
-        "/api/agent/threads",
+        "/api/v1/agent/threads",
         headers=auth_headers,
         params={"workspace_id": str(seed_data.workspace_id)},
     )
@@ -85,7 +85,7 @@ async def test_get_thread(
     )
 
     response = await test_client.get(
-        f"/api/agent/threads/{thread_id}",
+        f"/api/v1/agent/threads/{thread_id}",
         headers=auth_headers,
     )
 
@@ -108,13 +108,13 @@ async def test_delete_thread(
     )
 
     del_resp = await test_client.delete(
-        f"/api/agent/threads/{thread_id}",
+        f"/api/v1/agent/threads/{thread_id}",
         headers=auth_headers,
     )
     assert del_resp.status_code == 204
 
     get_resp = await test_client.get(
-        f"/api/agent/threads/{thread_id}",
+        f"/api/v1/agent/threads/{thread_id}",
         headers=auth_headers,
     )
     assert get_resp.status_code == 404
@@ -135,7 +135,7 @@ async def test_create_run(
     )
 
     response = await test_client.post(
-        f"/api/agent/threads/{thread_id}/runs",
+        f"/api/v1/agent/threads/{thread_id}/runs",
         headers=auth_headers,
         json={"message": "请帮我搜索量子计算论文"},
     )
@@ -162,14 +162,14 @@ async def test_list_runs(
 
     # 先创建一个 run
     create_resp = await test_client.post(
-        f"/api/agent/threads/{thread_id}/runs",
+        f"/api/v1/agent/threads/{thread_id}/runs",
         headers=auth_headers,
         json={"message": "test"},
     )
     assert create_resp.status_code == 202, f"create_run: {create_resp.text}"
 
     response = await test_client.get(
-        f"/api/agent/threads/{thread_id}/runs",
+        f"/api/v1/agent/threads/{thread_id}/runs",
         headers=auth_headers,
     )
 
@@ -194,7 +194,7 @@ async def test_stream_run_events(
     )
 
     run_resp = await test_client.post(
-        f"/api/agent/threads/{thread_id}/runs",
+        f"/api/v1/agent/threads/{thread_id}/runs",
         headers=auth_headers,
         json={"message": "test stream"},
     )
@@ -202,7 +202,7 @@ async def test_stream_run_events(
     run_id = run_resp.json()["run_id"]
 
     response = await test_client.get(
-        f"/api/agent/threads/{thread_id}/runs/{run_id}/stream",
+        f"/api/v1/agent/threads/{thread_id}/runs/{run_id}/stream",
         headers=auth_headers,
     )
 

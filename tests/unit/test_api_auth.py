@@ -52,7 +52,7 @@ class TestRegisterEndpoint:
         mock_register.return_value = mock_user
 
         response = test_client.post(
-            "/api/auth/register",
+            "/api/v1/auth/register",
             json={
                 "email": "new@test.com",
                 "password": "Password123",
@@ -69,7 +69,7 @@ class TestRegisterEndpoint:
         mock_register.side_effect = ValueError("邮箱已注册")
 
         response = test_client.post(
-            "/api/auth/register",
+            "/api/v1/auth/register",
             json={
                 "email": "existing@test.com",
                 "password": "Password123",
@@ -91,7 +91,7 @@ class TestLoginEndpoint:
         mock_login.return_value = ("access-token", "refresh-token", mock_user)
 
         response = test_client.post(
-            "/api/auth/login",
+            "/api/v1/auth/login",
             json={"email": "test@test.com", "password": "Password123"},
         )
         assert response.status_code == 200
@@ -104,7 +104,7 @@ class TestLoginEndpoint:
         mock_login.side_effect = ValueError("密码错误")
 
         response = test_client.post(
-            "/api/auth/login",
+            "/api/v1/auth/login",
             json={"email": "test@test.com", "password": "Wrong123"},
         )
         assert response.status_code == 401
@@ -118,7 +118,7 @@ class TestVerifyEmailEndpoint:
         mock_verify.return_value = None
 
         response = test_client.post(
-            "/api/auth/verify-email",
+            "/api/v1/auth/verify-email",
             json={"token": "valid-token"},
         )
         assert response.status_code == 200
@@ -130,7 +130,7 @@ class TestVerifyEmailEndpoint:
         mock_verify.side_effect = ValueError("无效或过期的验证令牌")
 
         response = test_client.post(
-            "/api/auth/verify-email",
+            "/api/v1/auth/verify-email",
             json={"token": "bad-token"},
         )
         assert response.status_code == 400
@@ -144,7 +144,7 @@ class TestTokenRefreshEndpoint:
         mock_refresh.return_value = "new-access-token"
 
         test_client.cookies.set("refresh_token", "valid-refresh-token")
-        response = test_client.post("/api/auth/refresh")
+        response = test_client.post("/api/v1/auth/refresh")
 
         assert response.status_code == 200
         assert response.json()["access_token"] == "new-access-token"
@@ -152,7 +152,7 @@ class TestTokenRefreshEndpoint:
 
     @patch("backend.api.routers.auth.refresh_access_token")
     def test_refresh_no_cookie(self, mock_refresh: AsyncMock, test_client: TestClient) -> None:
-        response = test_client.post("/api/auth/refresh")
+        response = test_client.post("/api/v1/auth/refresh")
         assert response.status_code == 401
 
 
@@ -164,7 +164,7 @@ class TestLogoutEndpoint:
         mock_logout.return_value = None
 
         test_client.cookies.set("refresh_token", "valid-refresh-token")
-        response = test_client.post("/api/auth/logout")
+        response = test_client.post("/api/v1/auth/logout")
 
         assert response.status_code == 200
         test_client.cookies.clear()
@@ -175,9 +175,7 @@ class TestOAuthEndpoints:
 
     def test_oauth_authorize_redirects(self, test_client: TestClient) -> None:
         """GET /api/auth/oauth/github/authorize 应返回 302 重定向。"""
-        response = test_client.get(
-            "/api/auth/oauth/github/authorize", follow_redirects=False
-        )
+        response = test_client.get("/api/v1/auth/oauth/github/authorize", follow_redirects=False)
         assert response.status_code == 302
         location = response.headers["location"]
         assert "github.com" in location
@@ -185,9 +183,7 @@ class TestOAuthEndpoints:
 
     def test_oauth_authorize_unknown_provider(self, test_client: TestClient) -> None:
         """GET /api/auth/oauth/unknown/authorize 应返回 400。"""
-        response = test_client.get(
-            "/api/auth/oauth/unknown/authorize", follow_redirects=False
-        )
+        response = test_client.get("/api/v1/auth/oauth/unknown/authorize", follow_redirects=False)
         assert response.status_code == 400
 
     @patch("backend.api.routers.auth.oauth_login_or_register")
@@ -205,7 +201,9 @@ class TestOAuthEndpoints:
         mock_user.display_name = "GH User"
         mock_oauth_login.return_value = ("access-token", "refresh-token", mock_user)
 
-        with patch("backend.clients.oauth.github.GitHubOAuthProvider.exchange_code") as mock_exchange:
+        with patch(
+            "backend.clients.oauth.github.GitHubOAuthProvider.exchange_code"
+        ) as mock_exchange:
             mock_exchange.return_value = {
                 "external_id": "github:12345",
                 "email": "test@github.com",
@@ -215,7 +213,7 @@ class TestOAuthEndpoints:
             # Manually set cookie that matches the mocked state
             test_client.cookies.set("oauth_state", "known_state_value")
             response = test_client.get(
-                "/api/auth/oauth/github/callback?code=test_code&state=known_state_value",
+                "/api/v1/auth/oauth/github/callback?code=test_code&state=known_state_value",
                 follow_redirects=False,
             )
             test_client.cookies.clear()
@@ -228,7 +226,7 @@ class TestOAuthEndpoints:
     def test_oauth_callback_invalid_state(self, test_client: TestClient) -> None:
         """GET /api/auth/oauth/github/callback state 不匹配时应 302 跳回前端登录页。"""
         response = test_client.get(
-            "/api/auth/oauth/github/callback?code=test_code&state=bad_state",
+            "/api/v1/auth/oauth/github/callback?code=test_code&state=bad_state",
             follow_redirects=False,
         )
         assert response.status_code == 302

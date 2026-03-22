@@ -107,7 +107,7 @@ async def trigger_run(
         run_id=run_id,
         thread_id=str(thread_id),
         status="running",
-        stream_url=f"/api/agent/threads/{thread_id}/runs/{run_id}/stream",
+        stream_url=f"/api/v1/agent/threads/{thread_id}/runs/{run_id}/stream",
     )
 
 

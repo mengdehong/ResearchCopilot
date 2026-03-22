@@ -3,7 +3,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -111,14 +111,17 @@ app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 
 # Routers
-app.include_router(health.router)
-app.include_router(auth.router)
-app.include_router(workspace.router)
-app.include_router(document.router)
-app.include_router(editor.router)
-app.include_router(agent.router)
-app.include_router(stt.router)
-app.include_router(quota.router)
+app.include_router(health.router)  # /api/health — 无版本，基础设施探针
+
+v1_router = APIRouter(prefix="/api/v1")
+v1_router.include_router(auth.router)
+v1_router.include_router(workspace.router)
+v1_router.include_router(document.router)
+v1_router.include_router(editor.router)
+v1_router.include_router(agent.router)
+v1_router.include_router(stt.router)
+v1_router.include_router(quota.router)
+app.include_router(v1_router)
 
 # Prometheus metrics — auto-collect request latency/QPS/status codes
 try:

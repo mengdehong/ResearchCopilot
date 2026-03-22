@@ -16,7 +16,7 @@ export function clearToken(): void {
 }
 
 const api = axios.create({
-    baseURL: '/api',
+    baseURL: '/api/v1',
     headers: { 'Content-Type': 'application/json' },
     withCredentials: true, // required for httpOnly cookies like refresh_token
 })
@@ -85,7 +85,7 @@ api.interceptors.response.use(
             isRefreshing = true
 
             try {
-                const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
+                const response = await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true })
                 const { access_token } = response.data
                 setToken(access_token)
                 isRefreshing = false

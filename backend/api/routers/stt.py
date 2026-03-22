@@ -11,7 +11,7 @@ from backend.models.user import User
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/stt", tags=["stt"])
+router = APIRouter(prefix="/stt", tags=["stt"])
 
 ALLOWED_CONTENT_TYPES = {
     "audio/webm",

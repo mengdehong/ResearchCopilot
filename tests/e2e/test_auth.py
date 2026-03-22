@@ -6,12 +6,12 @@ import pytest
 pytestmark = pytest.mark.e2e
 
 PROTECTED_ENDPOINTS = [
-    ("GET", "/api/workspaces"),
-    ("POST", "/api/workspaces"),
-    ("GET", "/api/workspaces/00000000-0000-0000-0000-000000000000"),
-    ("GET", "/api/documents?workspace_id=00000000-0000-0000-0000-000000000000"),
-    ("GET", "/api/agent/threads?workspace_id=00000000-0000-0000-0000-000000000000"),
-    ("GET", "/api/editor/draft/00000000-0000-0000-0000-000000000000"),
+    ("GET", "/api/v1/workspaces"),
+    ("POST", "/api/v1/workspaces"),
+    ("GET", "/api/v1/workspaces/00000000-0000-0000-0000-000000000000"),
+    ("GET", "/api/v1/documents?workspace_id=00000000-0000-0000-0000-000000000000"),
+    ("GET", "/api/v1/agent/threads?workspace_id=00000000-0000-0000-0000-000000000000"),
+    ("GET", "/api/v1/editor/draft/00000000-0000-0000-0000-000000000000"),
 ]
 
 
@@ -32,7 +32,7 @@ async def test_invalid_token_returns_401(
 ) -> None:
     """携带无效 token 应返回 401。"""
     headers = {"Authorization": "Bearer invalid-token-000"}
-    response = await test_client.get("/api/workspaces", headers=headers)
+    response = await test_client.get("/api/v1/workspaces", headers=headers)
 
     assert response.status_code == 401
 
@@ -57,6 +57,6 @@ async def test_expired_token_returns_401(
     token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
     headers = {"Authorization": f"Bearer {token}"}
-    response = await test_client.get("/api/workspaces", headers=headers)
+    response = await test_client.get("/api/v1/workspaces", headers=headers)
 
     assert response.status_code == 401

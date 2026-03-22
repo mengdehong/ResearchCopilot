@@ -54,19 +54,19 @@ class TestEditorRouter:
     @patch("backend.api.routers.editor.editor_service")
     async def test_load_draft(self, mock_svc, client) -> None:
         tid = uuid.uuid4()
-        
+
         class MockThread:
             updated_at = datetime.now(tz=UTC)
-            
+
         mock_svc.load_draft = AsyncMock(return_value=(MockThread(), _draft(tid)))
-        response = await client.get(f"/api/editor/draft/{tid}")
+        response = await client.get(f"/api/v1/editor/draft/{tid}")
         assert response.status_code == 200
         assert response.json()["content"] == "draft content"
 
     @patch("backend.api.routers.editor.editor_service")
     async def test_load_draft_not_found(self, mock_svc, client) -> None:
         mock_svc.load_draft = AsyncMock(return_value=None)
-        response = await client.get(f"/api/editor/draft/{uuid.uuid4()}")
+        response = await client.get(f"/api/v1/editor/draft/{uuid.uuid4()}")
         assert response.status_code == 404
 
     @patch("backend.api.routers.editor.editor_service")
@@ -74,7 +74,7 @@ class TestEditorRouter:
         tid = uuid.uuid4()
         mock_svc.save_draft = AsyncMock(return_value=_draft(tid))
         response = await client.put(
-            f"/api/editor/draft?thread_id={tid}",
+            f"/api/v1/editor/draft?thread_id={tid}",
             json={"content": "new content"},
         )
         assert response.status_code == 200

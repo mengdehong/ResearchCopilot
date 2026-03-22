@@ -26,7 +26,7 @@ from backend.services.event_translator import translate_to_run_event
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/agent/threads", tags=["agent"])
+router = APIRouter(prefix="/agent/threads", tags=["agent"])
 
 
 async def _verify_thread_ownership(
@@ -387,7 +387,7 @@ async def resume_run(
         "run_id": new_run_id,
         "thread_id": str(thread_id),
         "status": "running",
-        "stream_url": f"/api/agent/threads/{thread_id}/runs/{new_run_id}/stream",
+        "stream_url": f"/api/v1/agent/threads/{thread_id}/runs/{new_run_id}/stream",
     }
 
 

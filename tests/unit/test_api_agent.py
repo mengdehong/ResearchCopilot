@@ -67,11 +67,11 @@ class TestAgentRouter:
                 run_id="r1",
                 thread_id=str(tid),
                 status="running",
-                stream_url=f"/api/agent/threads/{tid}/runs/r1/stream",
+                stream_url=f"/api/v1/agent/threads/{tid}/runs/r1/stream",
             ),
         )
         response = await client.post(
-            f"/api/agent/threads/{tid}/runs",
+            f"/api/v1/agent/threads/{tid}/runs",
             json={"message": "hello"},
         )
         assert response.status_code == 202
@@ -81,7 +81,7 @@ class TestAgentRouter:
     async def test_create_run_not_found(self, mock_svc, client) -> None:
         mock_svc.trigger_run = AsyncMock(return_value=None)
         response = await client.post(
-            f"/api/agent/threads/{uuid.uuid4()}/runs",
+            f"/api/v1/agent/threads/{uuid.uuid4()}/runs",
             json={"message": "hello"},
         )
         assert response.status_code == 404
@@ -90,12 +90,12 @@ class TestAgentRouter:
     async def test_cancel_run(self, mock_svc, client) -> None:
         mock_svc.cancel_run = AsyncMock(return_value=True)
         tid = uuid.uuid4()
-        response = await client.post(f"/api/agent/threads/{tid}/runs/r1/cancel")
+        response = await client.post(f"/api/v1/agent/threads/{tid}/runs/r1/cancel")
         assert response.status_code == 204
 
     @patch("backend.api.routers.agent._verify_thread_ownership", new_callable=AsyncMock)
     async def test_stream_returns_sse(self, mock_verify, client) -> None:
         tid = uuid.uuid4()
-        response = await client.get(f"/api/agent/threads/{tid}/runs/r1/stream")
+        response = await client.get(f"/api/v1/agent/threads/{tid}/runs/r1/stream")
         assert response.status_code == 200
         assert "text/event-stream" in response.headers.get("content-type", "")
