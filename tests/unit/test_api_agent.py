@@ -99,3 +99,31 @@ class TestAgentRouter:
         response = await client.get(f"/api/agent/threads/{tid}/runs/r1/stream")
         assert response.status_code == 200
         assert "text/event-stream" in response.headers.get("content-type", "")
+
+    @patch("backend.api.routers.agent._verify_thread_ownership", new_callable=AsyncMock)
+    async def test_stream_error_sends_error_and_run_end(
+        self, mock_verify, client, mock_runner
+    ) -> None:
+        """Runner 抛异常时 SSE 应先发 error 事件再发 run_end。"""
+        import json as _json
+
+        async def failing_stream(run_id):
+            raise RuntimeError("db connection lost")
+            yield  # noqa: unreachable — keeps it an async generator
+
+        mock_runner.get_event_stream = failing_stream
+
+        tid = uuid.uuid4()
+        response = await client.get(f"/api/agent/threads/{tid}/runs/r1/stream")
+        assert response.status_code == 200
+
+        lines = response.text.strip().split("\n")
+        data_lines = [l for l in lines if l.startswith("data: ")]
+        assert len(data_lines) >= 2
+
+        error_evt = _json.loads(data_lines[-2].removeprefix("data: "))
+        assert error_evt["event_type"] == "error"
+        assert error_evt["data"]["error_type"] == "INTERNAL_ERROR"
+
+        end_evt = _json.loads(data_lines[-1].removeprefix("data: "))
+        assert end_evt["event_type"] == "run_end"

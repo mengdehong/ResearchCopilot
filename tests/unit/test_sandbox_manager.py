@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import docker.errors
 import requests.exceptions
 
@@ -72,3 +74,22 @@ def test_execute_timeout(mock_docker: MagicMock) -> None:
     assert result.exit_code == 137
     assert "timed out" in result.stderr
     container.kill.assert_called_once()
+
+
+@patch("backend.services.sandbox_manager.docker")
+def test_execute_docker_exception_wrapped(mock_docker: MagicMock) -> None:
+    """DockerException 被包装为 SandboxError, 原始异常保留在 __cause__ 中。"""
+    from backend.core.exceptions import SandboxError
+
+    mock_docker.errors = docker.errors
+    container = MagicMock()
+    mock_docker.from_env.return_value.containers.create.side_effect = (
+        docker.errors.DockerException("daemon not running")
+    )
+
+    executor = DockerExecutor()
+    with pytest.raises(SandboxError, match="DockerException") as exc_info:
+        executor.execute(ExecutionRequest(code="print('hello')"))
+
+    assert exc_info.value.__cause__ is not None
+    assert isinstance(exc_info.value.__cause__, docker.errors.DockerException)
