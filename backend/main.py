@@ -13,7 +13,7 @@ from backend.api.middleware import AccessLogMiddleware, RequestIDMiddleware
 from backend.api.rate_limit import limiter
 from backend.api.routers import agent, auth, document, editor, health, quota, stt, workspace
 from backend.clients.langgraph_runner import LangGraphRunner
-from backend.core.config import Settings
+from backend.core.config import Settings, get_settings, settings as _settings
 from backend.core.database import create_checkpointer, create_engine, create_session_factory
 from backend.core.exceptions import AppError, app_error_handler
 from backend.core.logger import get_logger, setup_logging
@@ -37,7 +37,7 @@ def _build_llm(settings: Settings) -> object:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifecycle: init resources on startup, cleanup on shutdown."""
-    settings = Settings()
+    settings = get_settings()
     setup_logging(debug=settings.debug)
 
     engine = create_engine(

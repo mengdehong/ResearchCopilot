@@ -18,7 +18,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from starlette.requests import Request
 
-from backend.core.config import Settings
+from backend.core.config import settings as _settings
 
 # ---------------------------------------------------------------------------
 # Key 函数
@@ -54,7 +54,6 @@ def get_user_id_or_ip(request: Request) -> str:
 # Limiter 单例
 # ---------------------------------------------------------------------------
 
-_settings = Settings()
 # NOTE: auth 端点使用 get_remote_address(按 IP 限流)，在反向代理（Nginx/Traefik）后
 # 部署时需确保 Uvicorn 启用 --proxy-headers，否则 request.client.host 会返回代理 IP。
 

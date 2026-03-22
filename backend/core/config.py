@@ -1,5 +1,7 @@
 """全局配置加载。基于 Pydantic BaseSettings, 支持 .env 文件和环境变量。"""
 
+from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -89,3 +91,12 @@ class Settings(BaseSettings):
     rate_limit_auth_password: str = "3/minute"
     rate_limit_agent_run: str = "10/minute"
     rate_limit_agent_sse: str = "20/minute"
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """返回全局 Settings 单例。首次调用时读取 .env 和环境变量，后续复用缓存。"""
+    return Settings()
+
+
+settings = get_settings()
