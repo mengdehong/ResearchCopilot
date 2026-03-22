@@ -100,6 +100,41 @@ describe('api module', () => {
             )
             await expect(api.post('/auth/login', {})).rejects.toThrow()
         })
+
+        it('concurrent 401s trigger only one refresh and retry all requests', async () => {
+            let refreshCallCount = 0
+            let protectedCallCount = 0
+
+            server.use(
+                http.get('/api/concurrent-protected', () => {
+                    const call = ++protectedCallCount
+                    if (call <= 2) {
+                        // First two calls (original requests) → 401
+                        return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 })
+                    }
+                    // Retries succeed
+                    return HttpResponse.json({ data: 'success' })
+                }),
+                http.post('/api/auth/refresh', () => {
+                    refreshCallCount++
+                    return HttpResponse.json({ access_token: 'concurrent-refreshed-token' })
+                }),
+            )
+
+            setToken('expired-token')
+
+            // Fire two requests concurrently
+            const [r1, r2] = await Promise.all([
+                api.get('/concurrent-protected'),
+                api.get('/concurrent-protected'),
+            ])
+
+            expect(r1.data).toEqual({ data: 'success' })
+            expect(r2.data).toEqual({ data: 'success' })
+            // Only one refresh should have been called despite two concurrent 401s
+            expect(refreshCallCount).toBe(1)
+            expect(getToken()).toBe('concurrent-refreshed-token')
+        })
     })
 
     // ── 错误状态 toast ──

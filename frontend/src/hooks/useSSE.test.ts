@@ -124,7 +124,7 @@ describe('useSSE - EventSource behavior', () => {
         expect(useAgentStore.getState().isStreaming).toBe(false)
     })
 
-    it('retries on error with exponential backoff', async () => {
+    it('retries on error with exponential backoff (multi-level)', async () => {
         vi.useFakeTimers()
 
         const { renderHook } = await import('@testing-library/react')
@@ -132,13 +132,30 @@ describe('useSSE - EventSource behavior', () => {
 
         renderHook(() => useSSE({ threadId: 'th-1', runId: 'run-1' }))
 
+        // Retry 1: delay = min(1000 * 2^1, 30000) = 2000ms
         const es1 = MockEventSource.instances[0]
         es1.simulateError()
+        expect(MockEventSource.instances).toHaveLength(1)
+        vi.advanceTimersByTime(1999)
+        expect(MockEventSource.instances).toHaveLength(1) // Not yet
+        vi.advanceTimersByTime(1)
+        expect(MockEventSource.instances).toHaveLength(2) // Reconnected
 
-        // 第一次重试延迟 2000ms
-        expect(MockEventSource.instances).toHaveLength(1) // 还没重连
-        vi.advanceTimersByTime(2000)
-        expect(MockEventSource.instances).toHaveLength(2) // 重连了
+        // Retry 2: delay = min(1000 * 2^2, 30000) = 4000ms
+        const es2 = MockEventSource.instances[1]
+        es2.simulateError()
+        vi.advanceTimersByTime(3999)
+        expect(MockEventSource.instances).toHaveLength(2) // Not yet at 4000ms
+        vi.advanceTimersByTime(1)
+        expect(MockEventSource.instances).toHaveLength(3) // Reconnected
+
+        // Retry 3: delay = min(1000 * 2^3, 30000) = 8000ms
+        const es3 = MockEventSource.instances[2]
+        es3.simulateError()
+        vi.advanceTimersByTime(7999)
+        expect(MockEventSource.instances).toHaveLength(3) // Not yet at 8000ms
+        vi.advanceTimersByTime(1)
+        expect(MockEventSource.instances).toHaveLength(4) // Reconnected
 
         vi.useRealTimers()
     })
