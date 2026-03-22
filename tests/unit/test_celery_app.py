@@ -107,3 +107,10 @@ def test_celery_app_acks_on_failure_or_timeout() -> None:
     from backend.workers.celery_app import app
 
     assert app.conf.task_acks_on_failure_or_timeout is False
+
+
+def test_celery_worker_sigterm_remapped() -> None:
+    """SIGTERM 应 remap 为 SIGQUIT 触发 warm shutdown，等待当前任务完成后再退出。"""
+    from backend.workers.celery_app import app
+
+    assert app.conf.worker_remap_sigterm == "SIGQUIT"

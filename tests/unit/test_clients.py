@@ -124,6 +124,34 @@ class TestLangGraphRunner:
         config = call_args[0][0]
         assert config["configurable"]["thread_id"] == "t1"
 
+    async def test_shutdown_cancels_all_runs(self) -> None:
+        """shutdown() 应取消所有活跃 run 并清空 _active_runs。"""
+        graph = MagicMock()
+
+        async def slow_stream(input_data, *, config=None, version="v2"):
+            await asyncio.sleep(60)
+            yield {"event": "events/metadata", "data": {}}
+
+        graph.astream_events = slow_stream
+        runner = LangGraphRunner(graph)
+
+        await runner.start_run(run_id="r1", thread_id="t1", input_data={})
+        await runner.start_run(run_id="r2", thread_id="t2", input_data={})
+        assert len(runner._active_runs) == 2
+
+        await runner.shutdown()
+
+        assert len(runner._active_runs) == 0
+
+    async def test_shutdown_event_is_set(self) -> None:
+        """shutdown() 後 _shutdown_event 必須設置，以便通知 SSE 消費者。"""
+        graph = _make_mock_graph()
+        runner = LangGraphRunner(graph)
+
+        assert not runner._shutdown_event.is_set()
+        await runner.shutdown()
+        assert runner._shutdown_event.is_set()
+
 
 class TestStorageClient:
     async def test_generate_upload_url(self, tmp_path) -> None:

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -39,11 +40,15 @@ class LangGraphRunner:
 
     每次 start_run 启动一个 asyncio.Task，通过 astream_events
     将事件写入 per-run 的 asyncio.Queue，SSE 端点从 Queue 消费。
+
+    Attributes:
+        _shutdown_event: 应用退出时设置，供 SSE event_generator 检测并主动终止。
     """
 
     def __init__(self, graph: CompiledStateGraph) -> None:
         self._graph = graph
         self._active_runs: dict[str, RunHandle] = {}
+        self._shutdown_event: asyncio.Event = asyncio.Event()
 
     async def start_run(
         self,
@@ -126,7 +131,8 @@ class LangGraphRunner:
     async def get_event_stream(self, run_id: str) -> AsyncIterator[dict]:
         """从指定 run 的 Queue 消费事件。
 
-        Yields LangGraph 原始事件 dict 直到 run 结束（收到 sentinel）。
+        Yields LangGraph 原始事件 dict 直到 run 结束（收到 sentinel）
+        或应用 shutdown（_shutdown_event 被设置）。
         """
         handle = self._active_runs.get(run_id)
         if handle is None:
@@ -134,7 +140,28 @@ class LangGraphRunner:
             return
 
         while True:
-            event = await handle.queue.get()
+            # Race: 下一个队列事件 vs 应用 shutdown
+            queue_task: asyncio.Task[dict | None] = asyncio.create_task(handle.queue.get())
+            shutdown_task: asyncio.Task[bool] = asyncio.create_task(self._shutdown_event.wait())
+
+            done, pending = await asyncio.wait(
+                {queue_task, shutdown_task},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            # 清理未完成的任务，避免资源泄漏
+            for t in pending:
+                t.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await t  # type: ignore[misc]
+
+            if shutdown_task in done:
+                # 应用正在退出 — 提前终止流，finally 块负责发送 run_end
+                logger.info("sse_stream_aborted_on_shutdown", run_id=run_id)
+                break
+
+            # queue_task 先完成
+            event = queue_task.result()
             if event is _SENTINEL:
                 break
             yield event
@@ -143,17 +170,29 @@ class LangGraphRunner:
         self._active_runs.pop(run_id, None)
 
     async def cancel_run(self, run_id: str) -> None:
-        """取消活跃 run。"""
+        """取消活跃 run，等待 task 真正结束。"""
         handle = self._active_runs.pop(run_id, None)
         if handle is None:
             return
         handle.task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await asyncio.shield(handle.task)
         logger.info("run_cancelled", run_id=run_id)
 
     async def shutdown(self) -> None:
-        """关闭所有活跃 run（应用退出时调用）。"""
-        for run_id in list(self._active_runs):
-            await self.cancel_run(run_id)
+        """关闭所有活跃 run（应用退出时调用）。
+
+        1. 设置 _shutdown_event 通知所有 SSE 消费者主动退出。
+        2. 并发 cancel 所有活跃 task 并等待其真正结束。
+        """
+        self._shutdown_event.set()
+        run_ids = list(self._active_runs)
+        if run_ids:
+            await asyncio.gather(
+                *(self.cancel_run(rid) for rid in run_ids),
+                return_exceptions=True,
+            )
+        logger.info("langgraph_runner_shutdown", cancelled_runs=len(run_ids))
 
     async def _execute(
         self,
