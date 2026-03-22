@@ -1,9 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { MessageSquare, FileText } from 'lucide-react'
 import { useAgentStore } from '@/stores/useAgentStore'
-import { useCreateThread, useCreateRun, useResumeRun, useCancelRun } from '@/hooks/useThreads'
+import { useCreateThread, useCreateRun, useResumeRun, useCancelRun, useMessages } from '@/hooks/useThreads'
 import { useSSE } from '@/hooks/useSSE'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import ChatPanel from '@/features/chat/ChatPanel'
@@ -11,20 +11,24 @@ import CanvasPanel from '@/features/canvas/CanvasPanel'
 import { useTranslation } from '@/i18n/useTranslation'
 
 /**
- * Workbench page — no key-based remount; uses ref comparison
- * to reset agent store only when workspace actually changes.
+ * Workbench page — threadId is always derived from URL `?thread=`.
+ * Navigating away and back preserves thread since the URL is stable.
  */
 export default function WorkbenchPage() {
     const { t } = useTranslation()
     const { id: workspaceId = '' } = useParams<{ id: string }>()
-    const [searchParams] = useSearchParams()
-    const threadParam = searchParams.get('thread') ?? ''
+    const [searchParams, setSearchParams] = useSearchParams()
+
+    // threadId is URL-driven: always read from ?thread=
+    const threadId = searchParams.get('thread') ?? ''
+
     const addMessage = useAgentStore((s) => s.addMessage)
+    const loadMessages = useAgentStore((s) => s.loadMessages)
     const interrupt = useAgentStore((s) => s.interrupt)
     const clearInterrupt = useAgentStore((s) => s.clearInterrupt)
     const reset = useAgentStore((s) => s.reset)
+    const resetRunState = useAgentStore((s) => s.resetRunState)
 
-    const [threadId, setThreadId] = useState(threadParam)
     const [activeRunId, setActiveRunId] = useState('')
 
     const createThread = useCreateThread()
@@ -34,31 +38,49 @@ export default function WorkbenchPage() {
     const isMobile = useMediaQuery('(max-width: 768px)')
     const [mobileTab, setMobileTab] = useState<'chat' | 'canvas'>('chat')
 
+    // Load chat history from backend when threadId changes
+    const { data: historyMessages } = useMessages(threadId)
+    const prevThreadRef = useRef(threadId)
+
+    useEffect(() => {
+        if (threadId !== prevThreadRef.current) {
+            // Only reset when switching between existing threads, not on initial creation
+            // (empty → newId means we just created a thread, run is already in progress)
+            if (prevThreadRef.current !== '') {
+                resetRunState()
+                setActiveRunId('')
+            }
+            prevThreadRef.current = threadId
+        }
+    }, [threadId, resetRunState])
+
+    useEffect(() => {
+        if (historyMessages && historyMessages.length > 0) {
+            // Only load history when store is empty (initial mount / return from navigation)
+            // to avoid overwriting in-flight SSE messages during an active run
+            const currentMessages = useAgentStore.getState().messages
+            if (currentMessages.length === 0) {
+                loadMessages(historyMessages)
+            }
+        }
+    }, [historyMessages, loadMessages])
+
+    // Reset everything when workspace changes
+    const prevWorkspaceRef = useRef(workspaceId)
+    useEffect(() => {
+        if (workspaceId !== prevWorkspaceRef.current) {
+            prevWorkspaceRef.current = workspaceId
+            setActiveRunId('')
+            reset()
+        }
+    }, [workspaceId, reset])
+
     // Wire SSE: connect when we have a threadId + activeRunId
     useSSE({
         threadId,
         runId: activeRunId,
         enabled: !!threadId && !!activeRunId,
     })
-
-    // Reset agent store only when workspace changes (not on every mount)
-    // Synchronous state initialization for render sync (React 18 compatible derived state pattern)
-    const [prevWorkspace, setPrevWorkspace] = useState(workspaceId)
-    if (workspaceId !== prevWorkspace) {
-        setPrevWorkspace(workspaceId)
-        setThreadId('')
-        setActiveRunId('')
-        reset()
-    }
-
-    // Sync threadId from URL query param when thread changes
-    const [prevThreadParam, setPrevThreadParam] = useState(threadParam)
-    if (threadParam && threadParam !== prevThreadParam) {
-        setPrevThreadParam(threadParam)
-        setThreadId(threadParam)
-        setActiveRunId('')
-        reset()
-    }
 
     const handleSendMessage = useCallback(
         async (message: string) => {
@@ -79,7 +101,7 @@ export default function WorkbenchPage() {
                         title: message.slice(0, 50),
                     })
                     currentThreadId = thread.thread_id
-                    setThreadId(currentThreadId)
+                    setSearchParams({ thread: currentThreadId }, { replace: true })
                 } catch {
                     addMessage({
                         id: crypto.randomUUID(),
@@ -108,7 +130,7 @@ export default function WorkbenchPage() {
                 })
             }
         },
-        [addMessage, threadId, workspaceId, createThread, createRun],
+        [addMessage, threadId, workspaceId, createThread, createRun, setSearchParams],
     )
 
     const handleResumeInterrupt = useCallback(

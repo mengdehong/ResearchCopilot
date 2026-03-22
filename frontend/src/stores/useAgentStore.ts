@@ -13,9 +13,11 @@ interface AgentState {
     sandboxResult: SandboxResult | null
 
     addMessage: (msg: Message) => void
+    loadMessages: (msgs: Message[]) => void
     handleSSEEvent: (event: RunEvent) => void
     clearInterrupt: () => void
     reset: () => void
+    resetRunState: () => void
     setStreaming: (streaming: boolean) => void
     setActivePdf: (pdf: PdfHighlight | null) => void
 }
@@ -33,6 +35,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
     addMessage: (msg) =>
         set((state) => ({ messages: [...state.messages, msg] })),
+
+    loadMessages: (msgs) => set({ messages: msgs }),
 
     setActivePdf: (pdf) => set({ activePdf: pdf }),
 
@@ -171,6 +175,15 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             contentBlock: null,
             activePdf: null,
             sandboxResult: null,
+        }),
+
+    resetRunState: () =>
+        set({
+            cotTree: [],
+            interrupt: null,
+            isStreaming: false,
+            currentNode: null,
+            generatedContent: '',
         }),
 
     setStreaming: (streaming) => set({ isStreaming: streaming }),

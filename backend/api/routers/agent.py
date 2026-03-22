@@ -112,6 +112,42 @@ async def get_thread(
     }
 
 
+@router.get("/{thread_id}/messages")
+async def get_thread_messages(
+    thread_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    """从 RunSnapshot 重建 thread 的聊天历史。"""
+    await _verify_thread_ownership(session, thread_id, current_user)
+    snapshots = await run_snapshot_repo.list_by_thread(session, thread_id)
+    # list_by_thread 返回 created_at DESC，这里需要正序
+    snapshots.reverse()
+    messages: list[dict] = []
+    for snap in snapshots:
+        messages.append(
+            {
+                "id": str(snap.run_id),
+                "role": "user",
+                "content": snap.user_message,
+                "timestamp": snap.created_at.isoformat() if snap.created_at else None,
+            }
+        )
+        # 如果 run 已完成，添加 assistant 占位消息
+        if snap.status == "completed":
+            messages.append(
+                {
+                    "id": f"{snap.run_id}-reply",
+                    "role": "assistant",
+                    "content": "[已完成]",
+                    "timestamp": (snap.completed_at or snap.created_at).isoformat()
+                    if (snap.completed_at or snap.created_at)
+                    else None,
+                }
+            )
+    return messages
+
+
 @router.delete("/{thread_id}", status_code=204)
 async def delete_thread(
     thread_id: uuid.UUID,
