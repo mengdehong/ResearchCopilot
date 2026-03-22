@@ -53,6 +53,22 @@ class UploadNotFoundError(AppError):
     message = "File not found in storage after upload"
 
 
+class SandboxError(AppError):
+    """沙箱执行服务错误（Docker 不可用/操作失败）。"""
+
+    status_code = 502
+    error_code = "SANDBOX_ERROR"
+    message = "Code execution service error"
+
+
+class LLMServiceError(AppError):
+    """所有 LLM Provider 均不可用。"""
+
+    status_code = 502
+    error_code = "LLM_UNAVAILABLE"
+    message = "LLM service is temporarily unavailable"
+
+
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     """全局异常处理器。挂载到 FastAPI app。"""
     trace_id = getattr(request.state, "trace_id", "unknown")

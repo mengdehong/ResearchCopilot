@@ -12,6 +12,7 @@ import docker
 import requests
 from docker.models.containers import Container
 
+from backend.core.exceptions import SandboxError
 from backend.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -102,8 +103,15 @@ class DockerExecutor:
                 duration_seconds=duration,
             )
         except docker.errors.DockerException as exc:
-            logger.error("sandbox_execution_failed", error=str(exc))
-            raise
+            logger.error(
+                "sandbox_execution_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                exc_info=True,
+            )
+            raise SandboxError(
+                f"Sandbox execution failed: {type(exc).__name__}"
+            ) from exc
         finally:
             if container:
                 self._destroy_container(container)

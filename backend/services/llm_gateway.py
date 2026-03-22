@@ -10,6 +10,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel
 
+from backend.core.exceptions import LLMServiceError
 from backend.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -57,8 +58,8 @@ class LLMConfig(BaseModel):
     retry_multiplier: float = 2.0
 
 
-class LLMUnavailableError(Exception):
-    """所有 Provider 均不可用。"""
+class LLMUnavailableError(LLMServiceError):
+    """保持向后兼容：下游代码 catch LLMUnavailableError 继续有效。"""
 
 
 class StructuredOutputError(Exception):
