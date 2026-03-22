@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, select
 
 from backend.core.exceptions import QuotaExceededError
+from backend.core.metrics import llm_requests_total, llm_tokens_total
 from backend.models.quota_record import QuotaRecord
 
 if TYPE_CHECKING:
@@ -117,7 +118,11 @@ async def check_and_consume(
     """Check quota and record consumption. Raises QuotaExceededError if over limit."""
     total = input_tokens + output_tokens
     status = await get_quota_status(session, workspace_id, monthly_limit=monthly_limit)
+    ws_label = str(workspace_id)
     if status.remaining_tokens < total:
+        llm_requests_total.labels(
+            model=model_name, workspace_id=ws_label, status="quota_exceeded"
+        ).inc()
         raise QuotaExceededError()
 
     record = QuotaRecord()
@@ -128,4 +133,14 @@ async def check_and_consume(
     record.model_name = model_name
     session.add(record)
     await session.flush()
+
+    # Prometheus metrics — 成功路径
+    llm_tokens_total.labels(model=model_name, workspace_id=ws_label, token_type="input").inc(
+        input_tokens
+    )
+    llm_tokens_total.labels(model=model_name, workspace_id=ws_label, token_type="output").inc(
+        output_tokens
+    )
+    llm_requests_total.labels(model=model_name, workspace_id=ws_label, status="ok").inc()
+
     return record
