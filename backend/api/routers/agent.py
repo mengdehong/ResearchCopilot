@@ -1,5 +1,6 @@
 import json
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -133,13 +134,13 @@ async def get_thread_messages(
                 "timestamp": snap.created_at.isoformat() if snap.created_at else None,
             }
         )
-        # 如果 run 已完成，添加 assistant 占位消息
-        if snap.status == "completed":
+        # 如果有 assistant 回复，添加 assistant 消息
+        if snap.assistant_response:
             messages.append(
                 {
                     "id": f"{snap.run_id}-reply",
                     "role": "assistant",
-                    "content": "[已完成]",
+                    "content": snap.assistant_response,
                     "timestamp": (snap.completed_at or snap.created_at).isoformat()
                     if (snap.completed_at or snap.created_at)
                     else None,
@@ -397,6 +398,26 @@ async def stream_run_events(
             }
             yield f"id: {seq}\ndata: {json.dumps(error_event)}\n\n"
         finally:
+            # 保存 assistant_response 到 RunSnapshot
+            assistant_text = last_ai_content
+            if not assistant_text and completed_nodes:
+                assistant_text = f"已完成工作流：{' → '.join(completed_nodes)}"
+            if assistant_text:
+                try:
+                    factory = request.app.state.session_factory
+                    async with factory() as db:
+                        snap = await run_snapshot_repo.get_by_run_id(db, uuid.UUID(run_id))
+                        if snap:
+                            snap.assistant_response = assistant_text
+                            snap.status = "completed"
+                            snap.completed_at = datetime.utcnow()
+                            await db.commit()
+                except Exception as save_exc:
+                    logger.warning(
+                        "assistant_response_save_failed",
+                        run_id=run_id,
+                        error=str(save_exc),
+                    )
             # 确保任何异常路径都能通知前端关闭连接
             seq += 1
             end_event = {"event_type": "run_end", "data": {"run_id": run_id}}

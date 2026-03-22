@@ -27,6 +27,7 @@ class RunSnapshot(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         nullable=True,
     )
     user_message: Mapped[str] = mapped_column(Text, nullable=False)
+    assistant_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     editor_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     attachment_ids: Mapped[list[uuid.UUID] | None] = mapped_column(
         ARRAY(UUID(as_uuid=True)),
