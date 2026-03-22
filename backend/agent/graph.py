@@ -31,6 +31,9 @@ WORKFLOW_NAMES = ["discovery", "extraction", "ideation", "execution", "critique"
 # 审查目标推断顺序：按 pipeline 倒序，取最近有产出的 WF
 _CRITIQUE_TARGET_ORDER = ["execution", "ideation", "extraction", "discovery"]
 
+# Critique 打回最大迭代次数（蓝图要求 max 2 轮）
+MAX_CRITIQUE_ROUNDS = 2
+
 
 def _infer_critique_target(state: dict) -> str:
     """推断 critique 应审查的目标 WF。取 artifacts 中最新的非空 WF 命名空间。"""
@@ -174,6 +177,18 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
         critique_results = state.get("artifacts", {}).get("critique", {})
         for target_wf, result in critique_results.items():
             if isinstance(result, dict) and result.get("verdict") == "revise":
+                critique_round = result.get("round", 1)
+
+                # 迭代上限检查：超出则视为通过，防止死循环
+                if critique_round >= MAX_CRITIQUE_ROUNDS:
+                    logger.warning(
+                        "critique_max_rounds_reached",
+                        target=target_wf,
+                        round=critique_round,
+                        max_rounds=MAX_CRITIQUE_ROUNDS,
+                    )
+                    continue
+
                 feedbacks = result.get("feedbacks", [])
                 feedback_text = "\n".join(
                     f"- [{fb.get('severity', 'unknown')}] {fb.get('category', '')}: "
@@ -192,10 +207,12 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
                     step_index=step_index,
                     action="critique_revise",
                     target=target_wf,
+                    round=critique_round,
                 )
                 return {
                     "messages": [revision_message],
                     "routing_decision": target_wf,
+                    "critique_round": critique_round + 1,
                     "plan": None,
                     # Bug-2 fix: mark as handled to break re-scan loop
                     "artifacts": {
