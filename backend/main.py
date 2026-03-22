@@ -13,7 +13,8 @@ from backend.api.middleware import AccessLogMiddleware, RequestIDMiddleware
 from backend.api.rate_limit import limiter
 from backend.api.routers import agent, auth, document, editor, health, quota, stt, workspace
 from backend.clients.langgraph_runner import LangGraphRunner
-from backend.core.config import Settings, get_settings, settings as _settings
+from backend.core.config import Settings, get_settings
+from backend.core.config import settings as _settings
 from backend.core.database import create_checkpointer, create_engine, create_session_factory
 from backend.core.exceptions import AppError, app_error_handler
 from backend.core.logger import get_logger, setup_logging
@@ -65,9 +66,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         compiled = graph.compile(checkpointer=checkpointer)
         app.state.lg_runner = LangGraphRunner(compiled)
         logger.info("langgraph_compiled", model=settings.default_llm_model)
-    except (ValueError, ImportError):
+    except (ValueError, ImportError) as exc:
         logger.warning(
-            "langgraph_runner_init_skipped", reason="LLM key or agent package unavailable"
+            "langgraph_runner_init_skipped",
+            reason=str(exc),
+        )
+        app.state.lg_runner = None
+        checkpointer_ctx = None
+    except Exception as exc:
+        logger.error(
+            "langgraph_runner_init_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
         )
         app.state.lg_runner = None
         checkpointer_ctx = None
@@ -95,11 +106,16 @@ app.add_exception_handler(AppError, app_error_handler)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
-# Middleware (order matters: outermost first)
+# Middleware — registered in innermost-first order (Starlette LIFO: last added = outermost).
+# Execution order (outermost → innermost):
+#   CORSMiddleware → SlowAPIMiddleware → RequestIDMiddleware → AccessLogMiddleware
 app.add_middleware(AccessLogMiddleware)
+app.add_middleware(RequestIDMiddleware)
+app.add_middleware(SlowAPIMiddleware)
 
-# CORS — must be outermost to handle preflight before other middleware
-_settings = Settings()
+# CORS must be outermost (registered last) so preflight OPTIONS is handled
+# before SlowAPI can return a 429, which would strip CORS headers.
+# _settings imported from backend.core.config
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_settings.allowed_origins,
@@ -107,8 +123,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(RequestIDMiddleware)
-app.add_middleware(SlowAPIMiddleware)
 
 # Routers
 app.include_router(health.router)
