@@ -290,6 +290,28 @@ async def stream_run_events(
                         )
                         yield f"id: {seq}\ndata: {json.dumps(content_event)}\n\n"
 
+                    # execution WF 完成时：注入 sandbox_result 事件供前端 SandboxTab 展示
+                    if node_name == "execution" and wf_artifacts:
+                        exec_results = wf_artifacts.get("results", {})
+                        sandbox_event = {
+                            "event_type": "sandbox_result",
+                            "data": {
+                                "code": wf_artifacts.get("code", ""),
+                                "stdout": exec_results.get("stdout", ""),
+                                "stderr": exec_results.get("stderr", ""),
+                                "exit_code": exec_results.get("exit_code", -1),
+                                "duration_ms": 0,
+                                "artifacts": wf_artifacts.get("output_files", []),
+                            },
+                        }
+                        seq += 1
+                        logger.debug(
+                            "sse_sandbox_result_injected",
+                            run_id=run_id,
+                            exit_code=exec_results.get("exit_code"),
+                        )
+                        yield f"id: {seq}\ndata: {json.dumps(sandbox_event)}\n\n"
+
         # 发送 assistant_message（仅在非 interrupt 时）：
         # interrupt 时不发 assistant_message，前端会显示 HITL 卡片
         if not was_interrupted:
