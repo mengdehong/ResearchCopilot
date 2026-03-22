@@ -5,8 +5,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from backend.api.middleware import AccessLogMiddleware, RequestIDMiddleware
+from backend.api.rate_limit import limiter
 from backend.api.routers import agent, auth, document, editor, health, quota, stt, workspace
 from backend.clients.langgraph_runner import LangGraphRunner
 from backend.core.config import Settings
@@ -87,6 +91,10 @@ app = FastAPI(
 
 app.add_exception_handler(AppError, app_error_handler)
 
+# SlowAPI — rate limiting (must be before routers are mounted)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
 # Middleware (order matters: outermost first)
 app.add_middleware(AccessLogMiddleware)
 
@@ -100,6 +108,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(RequestIDMiddleware)
+app.add_middleware(SlowAPIMiddleware)
 
 # Routers
 app.include_router(health.router)

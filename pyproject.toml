@@ -39,6 +39,8 @@ dependencies = [
     # --- Storage ---
     "boto3>=1.35.0",
     "prometheus-fastapi-instrumentator>=7.1.0",
+    # --- Rate Limiting ---
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

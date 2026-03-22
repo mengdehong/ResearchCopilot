@@ -3,11 +3,13 @@
 import secrets
 from urllib.parse import quote
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_current_user, get_db, get_settings
+from backend.api.rate_limit import _settings as _rate_limit_settings
+from backend.api.rate_limit import limiter
 from backend.api.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
@@ -60,7 +62,9 @@ def get_email_service(settings: Settings = Depends(get_settings)) -> EmailServic
 
 
 @router.post("/register", response_model=MessageResponse, status_code=201)
+@limiter.limit(_rate_limit_settings.rate_limit_auth_register)
 async def register(
+    request: Request,
     body: RegisterRequest,
     session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -85,7 +89,9 @@ async def register(
 
 
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit(_rate_limit_settings.rate_limit_auth_login)
 async def login(
+    request: Request,
     body: LoginRequest,
     response: Response,
     session: AsyncSession = Depends(get_db),
@@ -196,7 +202,9 @@ async def verify_email(
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
+@limiter.limit(_rate_limit_settings.rate_limit_auth_password)
 async def forgot_password(
+    request: Request,
     body: ForgotPasswordRequest,
     session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -215,7 +223,9 @@ async def forgot_password(
 
 
 @router.post("/reset-password", response_model=MessageResponse)
+@limiter.limit(_rate_limit_settings.rate_limit_auth_password)
 async def do_reset_password(
+    request: Request,
     body: ResetPasswordRequest,
     session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -247,13 +257,13 @@ _OAUTH_PROVIDERS: dict[str, type[GitHubOAuthProvider | GoogleOAuthProvider]] = {
 
 def _oauth_error_redirect(frontend_url: str, msg: str) -> RedirectResponse:
     """出错时 302 跳回前端登录页，附带 error 参数。"""
-    return RedirectResponse(
-        url=f"{frontend_url}/login?error={quote(msg)}", status_code=302
-    )
+    return RedirectResponse(url=f"{frontend_url}/login?error={quote(msg)}", status_code=302)
 
 
 @router.get("/oauth/{provider}/authorize")
+@limiter.limit(_rate_limit_settings.rate_limit_auth_login)
 async def oauth_authorize(
+    request: Request,
     provider: str,
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:

@@ -1,7 +1,7 @@
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,8 @@ from backend.api.dependencies import (
     get_db,
     get_lg_runner,
 )
+from backend.api.rate_limit import _settings as _rate_limit_settings
+from backend.api.rate_limit import get_user_id_or_ip, limiter
 from backend.api.schemas.agent import InterruptResponse, RunRequest
 from backend.clients.langgraph_runner import LangGraphRunner
 from backend.core.logger import get_logger
@@ -133,7 +135,9 @@ async def delete_thread(
 
 
 @router.post("/{thread_id}/runs", status_code=202)
+@limiter.limit(_rate_limit_settings.rate_limit_agent_run, key_func=get_user_id_or_ip)
 async def create_run(
+    request: Request,
     thread_id: uuid.UUID,
     body: RunRequest,
     session: AsyncSession = Depends(get_db),
@@ -204,7 +208,9 @@ async def get_run(
 
 
 @router.get("/{thread_id}/runs/{run_id}/stream")
+@limiter.limit(_rate_limit_settings.rate_limit_agent_sse, key_func=get_user_id_or_ip)
 async def stream_run_events(
+    request: Request,
     thread_id: uuid.UUID,
     run_id: str,
     session: AsyncSession = Depends(get_db),
