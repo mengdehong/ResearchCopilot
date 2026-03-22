@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getToken, setToken, clearToken } from '@/lib/api'
 import { useTranslation } from '@/i18n/useTranslation'
 import type { LocaleContextValue } from '@/i18n/LocaleContext'
@@ -6,12 +7,14 @@ import { DISCIPLINES } from '@/types'
 import type { Locale } from '@/i18n/types'
 import { useTheme, type Theme } from '@/hooks/useTheme'
 import { useQuotaStatus } from '@/hooks/useQuotaStatus'
+import { useAuth } from '@/features/auth/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { FadeIn } from '@/components/shared/MotionWrappers'
-import { Sun, Moon, Monitor, Check, Zap } from 'lucide-react'
+import { Sun, Moon, Monitor, Check, Zap, LogOut } from 'lucide-react'
 
 /* ─── Settings Card ─── */
 interface SettingsCardProps {
@@ -164,6 +167,79 @@ function QuotaUsageCard({ quota, loading, error, t }: QuotaUsageCardProps) {
     )
 }
 
+/* ─── Avatar Gradient ─── */
+const AVATAR_HUES = [210, 250, 280, 320, 160, 30, 190, 140, 350, 50] as const
+
+function avatarGradient(seed: string, dark: boolean): string {
+    let hash = 0
+    for (let i = 0; i < seed.length; i++) {
+        hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0
+    }
+    const idx = Math.abs(hash) % AVATAR_HUES.length
+    const hue = AVATAR_HUES[idx]
+    const hue2 = (hue + 40) % 360
+    // Light: muted pastels — Dark: slate / deep blue-gray
+    const [sat, lit1, lit2] = dark ? [15, 42, 38] : [30, 78, 72]
+    return `linear-gradient(135deg, hsl(${hue} ${sat}% ${lit1}%), hsl(${hue2} ${sat}% ${lit2}%))`
+}
+
+/* ─── Account Card ─── */
+function AccountCard() {
+    const { t } = useTranslation()
+    const { user, logout } = useAuth()
+    const { resolvedTheme } = useTheme()
+    const navigate = useNavigate()
+
+    if (!user) return null
+
+    const initials = user.display_name
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+
+    const handleLogout = async () => {
+        await logout()
+        navigate('/login')
+    }
+
+    return (
+        <section className="mb-10">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-sm)] p-5">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 min-w-0">
+                        <Avatar className="size-11 text-sm ring-1 ring-[var(--border)] ring-offset-2 ring-offset-[var(--surface)]">
+                            {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.display_name} />}
+                            <AvatarFallback
+                                className="font-semibold text-white/80"
+                                style={{ background: avatarGradient(user.email, resolvedTheme === 'dark') }}
+                            >
+                                {initials}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                                {user.display_name}
+                            </p>
+                            <p className="text-xs text-[var(--text-muted)] truncate">
+                                {user.email}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-[var(--radius-sm)] text-sm font-medium text-red-500 hover:bg-red-500/10 active:scale-[0.97] transition-all cursor-pointer shrink-0"
+                    >
+                        <LogOut className="size-4" />
+                        {t('nav.logout')}
+                    </button>
+                </div>
+            </div>
+        </section>
+    )
+}
+
 /* ─── Main Settings Page ─── */
 export default function SettingsPage() {
     const [apiKey, setApiKey] = useState(getToken() ?? '')
@@ -194,6 +270,9 @@ export default function SettingsPage() {
                             {t('settings.subtitle')}
                         </p>
                     </div>
+
+                    {/* Account */}
+                    <AccountCard />
 
                     {/* Token Usage */}
                     <QuotaUsageCard quota={quota} loading={quotaLoading} error={quotaError} t={t} />

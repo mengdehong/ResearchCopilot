@@ -29,6 +29,8 @@ export const zh: TranslationDict = {
         deleteThreadConfirm: '删除后不可恢复，确认继续？',
         collapseHistory: '收起',
         expandHistory: '展开全部历史',
+        logout: '退出登录',
+        logoutConfirm: '确认要退出当前账户吗？',
     },
     workbench: {
         chat: '对话',

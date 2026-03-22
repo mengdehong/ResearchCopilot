@@ -27,6 +27,8 @@ export const en = {
         deleteThreadConfirm: 'This action cannot be undone. Are you sure you want to continue?',
         collapseHistory: 'Collapse',
         expandHistory: 'Expand full history',
+        logout: 'Sign Out',
+        logoutConfirm: 'Are you sure you want to sign out?',
     },
     workbench: {
         chat: 'Chat',
