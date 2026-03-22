@@ -18,7 +18,7 @@ async def _initiate_upload(
 ) -> str:
     """Helper: 发起上传并返回 document_id。"""
     resp = await client.post(
-        "/api/documents/upload-url",
+        "/api/v1/documents/upload-url",
         headers=headers,
         json={
             "workspace_id": workspace_id,
@@ -37,7 +37,7 @@ async def test_initiate_upload(
 ) -> None:
     """POST /api/documents/upload-url — 发起上传。"""
     response = await test_client.post(
-        "/api/documents/upload-url",
+        "/api/v1/documents/upload-url",
         headers=auth_headers,
         json={
             "workspace_id": str(seed_data.workspace_id),
@@ -69,14 +69,14 @@ async def test_confirm_upload_then_get(
 
     # 确认上传（document_id 是 query parameter）
     confirm_resp = await test_client.post(
-        f"/api/documents/confirm?document_id={doc_id}",
+        f"/api/v1/documents/confirm?document_id={doc_id}",
         headers=auth_headers,
     )
     assert confirm_resp.status_code == 200
 
     # 获取详情
     get_resp = await test_client.get(
-        f"/api/documents/{doc_id}",
+        f"/api/v1/documents/{doc_id}",
         headers=auth_headers,
     )
     assert get_resp.status_code == 200
@@ -91,7 +91,7 @@ async def test_list_documents(
 ) -> None:
     """GET /api/documents?workspace_id=... — 列出文档。"""
     response = await test_client.get(
-        "/api/documents",
+        "/api/v1/documents",
         headers=auth_headers,
         params={"workspace_id": str(seed_data.workspace_id)},
     )
@@ -106,7 +106,7 @@ async def test_get_document_not_found(
 ) -> None:
     """GET /api/documents/{id} — 不存在的文档返回 404。"""
     response = await test_client.get(
-        f"/api/documents/{uuid.uuid4()}",
+        f"/api/v1/documents/{uuid.uuid4()}",
         headers=auth_headers,
     )
 
@@ -127,7 +127,7 @@ async def test_get_document_status(
     )
 
     response = await test_client.get(
-        f"/api/documents/{doc_id}/status",
+        f"/api/v1/documents/{doc_id}/status",
         headers=auth_headers,
     )
 
@@ -150,7 +150,7 @@ async def test_get_document_artifacts(
     )
 
     response = await test_client.get(
-        f"/api/documents/{doc_id}/artifacts",
+        f"/api/v1/documents/{doc_id}/artifacts",
         headers=auth_headers,
     )
 
@@ -173,13 +173,13 @@ async def test_delete_document(
     )
 
     del_resp = await test_client.delete(
-        f"/api/documents/{doc_id}",
+        f"/api/v1/documents/{doc_id}",
         headers=auth_headers,
     )
     assert del_resp.status_code == 204
 
     get_resp = await test_client.get(
-        f"/api/documents/{doc_id}",
+        f"/api/v1/documents/{doc_id}",
         headers=auth_headers,
     )
     assert get_resp.status_code == 404

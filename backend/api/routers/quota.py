@@ -10,7 +10,7 @@ from backend.models.user import User
 from backend.models.workspace import Workspace
 from backend.services.quota_service import batch_quota_status
 
-router = APIRouter(prefix="/api/quota", tags=["quota"])
+router = APIRouter(prefix="/quota", tags=["quota"])
 
 
 @router.get("/status", response_model=QuotaStatusResponse)
@@ -56,4 +56,3 @@ async def quota_status(
         usage_percent=round(usage_percent, 2),
         workspaces=ws_quotas,
     )
-

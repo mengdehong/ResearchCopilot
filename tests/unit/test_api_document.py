@@ -62,7 +62,7 @@ class TestDocumentRouter:
     async def test_list_documents(self, mock_svc, client, current_user) -> None:
         ws_id = uuid.uuid4()
         mock_svc.list_documents = AsyncMock(return_value=[_doc(ws_id)])
-        response = await client.get(f"/api/documents?workspace_id={ws_id}")
+        response = await client.get(f"/api/v1/documents?workspace_id={ws_id}")
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -70,35 +70,35 @@ class TestDocumentRouter:
     async def test_get_document(self, mock_svc, client) -> None:
         doc = _doc(uuid.uuid4())
         mock_svc.get_document = AsyncMock(return_value=doc)
-        response = await client.get(f"/api/documents/{doc.id}")
+        response = await client.get(f"/api/v1/documents/{doc.id}")
         assert response.status_code == 200
         assert response.json()["title"] == "Doc"
 
     @patch("backend.api.routers.document.document_service")
     async def test_get_document_not_found(self, mock_svc, client) -> None:
         mock_svc.get_document = AsyncMock(return_value=None)
-        response = await client.get(f"/api/documents/{uuid.uuid4()}")
+        response = await client.get(f"/api/v1/documents/{uuid.uuid4()}")
         assert response.status_code == 404
 
     @patch("backend.api.routers.document.document_service")
     async def test_get_document_status(self, mock_svc, client) -> None:
         doc = _doc(uuid.uuid4())
         mock_svc.get_document = AsyncMock(return_value=doc)
-        response = await client.get(f"/api/documents/{doc.id}/status")
+        response = await client.get(f"/api/v1/documents/{doc.id}/status")
         assert response.status_code == 200
         assert response.json()["parse_status"] == "pending"
 
     @patch("backend.api.routers.document.document_service")
     async def test_delete_document(self, mock_svc, client) -> None:
         mock_svc.delete_document = AsyncMock(return_value=True)
-        response = await client.delete(f"/api/documents/{uuid.uuid4()}")
+        response = await client.delete(f"/api/v1/documents/{uuid.uuid4()}")
         assert response.status_code == 204
 
     @patch("backend.api.routers.document.document_service")
     async def test_retry_parse(self, mock_svc, client) -> None:
         doc = _doc(uuid.uuid4())
         mock_svc.retry_parse = AsyncMock(return_value=doc)
-        response = await client.post(f"/api/documents/{doc.id}/retry")
+        response = await client.post(f"/api/v1/documents/{doc.id}/retry")
         assert response.status_code == 200
 
     @patch("backend.api.routers.document.document_service")
@@ -112,7 +112,7 @@ class TestDocumentRouter:
                 "references": [],
             }
         )
-        response = await client.get(f"/api/documents/{doc_id}/artifacts")
+        response = await client.get(f"/api/v1/documents/{doc_id}/artifacts")
         assert response.status_code == 200
         data = response.json()
         assert len(data["paragraphs"]) == 1
@@ -120,5 +120,5 @@ class TestDocumentRouter:
     @patch("backend.api.routers.document.document_service")
     async def test_get_document_artifacts_not_found(self, mock_svc, client) -> None:
         mock_svc.get_document_artifacts = AsyncMock(return_value=None)
-        response = await client.get(f"/api/documents/{uuid.uuid4()}/artifacts")
+        response = await client.get(f"/api/v1/documents/{uuid.uuid4()}/artifacts")
         assert response.status_code == 404

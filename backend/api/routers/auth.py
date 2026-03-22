@@ -39,7 +39,7 @@ from backend.services.auth_service import (
     verify_email_token,
 )
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +118,7 @@ async def login(
             secure=True,
             samesite="lax",
             max_age=settings.refresh_token_expire_days * 86400,
-            path="/api/auth",
+            path="/api/v1/auth",
         )
 
         return LoginResponse(
@@ -166,7 +166,7 @@ async def logout(
         await session.commit()
 
     response.delete_cookie(
-        key="refresh_token", path="/api/auth", httponly=True, secure=True, samesite="lax"
+        key="refresh_token", path="/api/v1/auth", httponly=True, secure=True, samesite="lax"
     )
     return MessageResponse(message="已登出")
 
@@ -278,7 +278,7 @@ async def oauth_authorize(
 
     oauth = _OAUTH_PROVIDERS[provider](client_id=client_id, client_secret=client_secret)
     state = secrets.token_urlsafe(32)
-    redirect_uri = f"{settings.internal_api_url}/api/auth/oauth/{provider}/callback"
+    redirect_uri = f"{settings.internal_api_url}/api/v1/auth/oauth/{provider}/callback"
     url = oauth.get_authorize_url(state=state, redirect_uri=redirect_uri)
 
     # 302 redirect, store state in httpOnly cookie for CSRF validation
@@ -290,7 +290,7 @@ async def oauth_authorize(
         secure=True,
         samesite="lax",
         max_age=600,  # 10 minutes
-        path="/api/auth",
+        path="/api/v1/auth",
     )
     return resp
 
@@ -319,7 +319,7 @@ async def oauth_callback(
         return _oauth_error_redirect(settings.frontend_url, f"{provider} OAuth 未配置")
 
     oauth = _OAUTH_PROVIDERS[provider](client_id=client_id, client_secret=client_secret)
-    redirect_uri = f"{settings.internal_api_url}/api/auth/oauth/{provider}/callback"
+    redirect_uri = f"{settings.internal_api_url}/api/v1/auth/oauth/{provider}/callback"
 
     try:
         user_info = await oauth.exchange_code(code=code, redirect_uri=redirect_uri)
@@ -352,10 +352,10 @@ async def oauth_callback(
         secure=True,
         samesite="lax",
         max_age=settings.refresh_token_expire_days * 86400,
-        path="/api/auth",
+        path="/api/v1/auth",
     )
     # Clear state cookie
-    resp.delete_cookie(key="oauth_state", path="/api/auth")
+    resp.delete_cookie(key="oauth_state", path="/api/v1/auth")
     return resp
 
 

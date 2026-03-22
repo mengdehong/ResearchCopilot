@@ -171,13 +171,13 @@ async def seed_data(
         await session.commit()
 
     ws_a = await test_client.post(
-        "/api/workspaces",
+        "/api/v1/workspaces",
         headers=headers_a,
         json={"name": "E2E Test Workspace", "discipline": "computer_science"},
     )
     assert ws_a.status_code == 201, f"seed ws_a: {ws_a.text}"
     ws_b = await test_client.post(
-        "/api/workspaces",
+        "/api/v1/workspaces",
         headers=headers_b,
         json={"name": "E2E User B Workspace", "discipline": "biology"},
     )

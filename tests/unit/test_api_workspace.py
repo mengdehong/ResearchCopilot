@@ -58,7 +58,7 @@ class TestWorkspaceRouter:
         ws = _ws(current_user.id)
         mock_svc.create_workspace = AsyncMock(return_value=ws)
         response = await client.post(
-            "/api/workspaces",
+            "/api/v1/workspaces",
             json={"name": "WS", "discipline": "cs"},
         )
         assert response.status_code == 201
@@ -66,20 +66,20 @@ class TestWorkspaceRouter:
     @patch("backend.api.routers.workspace.workspace_service")
     async def test_list_workspaces(self, mock_svc, client, current_user) -> None:
         mock_svc.list_workspaces = AsyncMock(return_value=[_ws(current_user.id)])
-        response = await client.get("/api/workspaces")
+        response = await client.get("/api/v1/workspaces")
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     @patch("backend.api.routers.workspace.workspace_service")
     async def test_get_workspace_not_found(self, mock_svc, client) -> None:
         mock_svc.get_workspace = AsyncMock(return_value=None)
-        response = await client.get(f"/api/workspaces/{uuid.uuid4()}")
+        response = await client.get(f"/api/v1/workspaces/{uuid.uuid4()}")
         assert response.status_code == 404
 
     @patch("backend.api.routers.workspace.workspace_service")
     async def test_delete_workspace(self, mock_svc, client) -> None:
         mock_svc.delete_workspace = AsyncMock(return_value=True)
-        response = await client.delete(f"/api/workspaces/{uuid.uuid4()}")
+        response = await client.delete(f"/api/v1/workspaces/{uuid.uuid4()}")
         assert response.status_code == 204
 
     @patch("backend.api.routers.workspace.workspace_service")
@@ -95,7 +95,7 @@ class TestWorkspaceRouter:
                 doc_status_counts=DocStatusCounts(completed=2, pending=1),
             ),
         )
-        response = await client.get(f"/api/workspaces/{uuid.uuid4()}/summary")
+        response = await client.get(f"/api/v1/workspaces/{uuid.uuid4()}/summary")
         assert response.status_code == 200
         data = response.json()
         assert data["document_count"] == 3

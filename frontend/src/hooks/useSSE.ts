@@ -33,7 +33,7 @@ export function useSSE({ threadId, runId, enabled = true }: UseSSEOptions) {
         if (token) params.set('token', token)
         if (lastEventIdRef.current) params.set('last_event_id', lastEventIdRef.current)
 
-        const url = `/api/agent/threads/${threadId}/runs/${runId}/stream?${params}`
+        const url = `/api/v1/agent/threads/${threadId}/runs/${runId}/stream?${params}`
         const es = new EventSource(url)
         eventSourceRef.current = es
 

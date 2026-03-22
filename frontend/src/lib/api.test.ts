@@ -33,7 +33,7 @@ describe('api module', () => {
         it('adds Bearer token to request headers', async () => {
             let capturedAuth: string | undefined
             server.use(
-                http.get('/api/test-auth', ({ request }) => {
+                http.get('/api/v1/test-auth', ({ request }) => {
                     capturedAuth = request.headers.get('Authorization') ?? undefined
                     return HttpResponse.json({ ok: true })
                 }),
@@ -46,7 +46,7 @@ describe('api module', () => {
         it('does not add Authorization when no token is set', async () => {
             let capturedAuth: string | null = null
             server.use(
-                http.get('/api/test-no-auth', ({ request }) => {
+                http.get('/api/v1/test-no-auth', ({ request }) => {
                     capturedAuth = request.headers.get('Authorization')
                     return HttpResponse.json({ ok: true })
                 }),
@@ -61,14 +61,14 @@ describe('api module', () => {
         it('refreshes token and retries original request on 401', async () => {
             let callCount = 0
             server.use(
-                http.get('/api/protected', () => {
+                http.get('/api/v1/protected', () => {
                     callCount++
                     if (callCount === 1) {
                         return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 })
                     }
                     return HttpResponse.json({ data: 'success' })
                 }),
-                http.post('/api/auth/refresh', () =>
+                http.post('/api/v1/auth/refresh', () =>
                     HttpResponse.json({ access_token: 'refreshed-token' }),
                 ),
             )
@@ -80,10 +80,10 @@ describe('api module', () => {
 
         it('rejects when refresh itself fails', async () => {
             server.use(
-                http.get('/api/protected-fail', () =>
+                http.get('/api/v1/protected-fail', () =>
                     HttpResponse.json({ error: 'Unauthorized' }, { status: 401 }),
                 ),
-                http.post('/api/auth/refresh', () =>
+                http.post('/api/v1/auth/refresh', () =>
                     HttpResponse.json({ error: 'expired' }, { status: 401 }),
                 ),
             )
@@ -94,7 +94,7 @@ describe('api module', () => {
 
         it('does not attempt refresh on login endpoint 401', async () => {
             server.use(
-                http.post('/api/auth/login', () =>
+                http.post('/api/v1/auth/login', () =>
                     HttpResponse.json({ error: 'bad credentials' }, { status: 401 }),
                 ),
             )
@@ -106,7 +106,7 @@ describe('api module', () => {
             let protectedCallCount = 0
 
             server.use(
-                http.get('/api/concurrent-protected', () => {
+                http.get('/api/v1/concurrent-protected', () => {
                     const call = ++protectedCallCount
                     if (call <= 2) {
                         // First two calls (original requests) → 401
@@ -115,7 +115,7 @@ describe('api module', () => {
                     // Retries succeed
                     return HttpResponse.json({ data: 'success' })
                 }),
-                http.post('/api/auth/refresh', () => {
+                http.post('/api/v1/auth/refresh', () => {
                     refreshCallCount++
                     return HttpResponse.json({ access_token: 'concurrent-refreshed-token' })
                 }),
@@ -142,7 +142,7 @@ describe('api module', () => {
         it('handles 403 response', async () => {
             const { toast } = await import('sonner')
             server.use(
-                http.get('/api/forbidden', () =>
+                http.get('/api/v1/forbidden', () =>
                     HttpResponse.json({ error: 'forbidden' }, { status: 403 }),
                 ),
             )
@@ -153,7 +153,7 @@ describe('api module', () => {
         it('handles 429 response', async () => {
             const { toast } = await import('sonner')
             server.use(
-                http.get('/api/rate-limited', () =>
+                http.get('/api/v1/rate-limited', () =>
                     HttpResponse.json({ error: 'too many' }, { status: 429 }),
                 ),
             )
@@ -164,7 +164,7 @@ describe('api module', () => {
         it('handles 500 response', async () => {
             const { toast } = await import('sonner')
             server.use(
-                http.get('/api/server-err', () =>
+                http.get('/api/v1/server-err', () =>
                     HttpResponse.json({ error: 'internal' }, { status: 500 }),
                 ),
             )

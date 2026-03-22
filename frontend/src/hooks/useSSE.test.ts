@@ -71,7 +71,7 @@ describe('useSSE - EventSource behavior', () => {
 
         expect(MockEventSource.instances).toHaveLength(1)
         const es = MockEventSource.instances[0]
-        expect(es.url).toContain('/api/agent/threads/th-1/runs/run-1/stream')
+        expect(es.url).toContain('/api/v1/agent/threads/th-1/runs/run-1/stream')
         expect(es.url).toContain('token=test-sse-token')
 
         setToken(null)
