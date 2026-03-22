@@ -1,7 +1,7 @@
 """Discovery WF 节点函数。寻源初筛：扩展查询 → 搜索 → 筛选排序 → HITL 勾选 → 触发 ingestion → 写 artifacts。"""
 
-import asyncio
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 from langchain_core.language_models import BaseChatModel
@@ -26,6 +26,7 @@ class ExpandedQueries(BaseModel):
     """LLM 扩展后的搜索查询列表。"""
 
     queries: list[str]
+    category: str | None = None  # ArXiv 分类号（如 cs.CL）
 
 
 class RelevanceComment(BaseModel):
@@ -63,18 +64,22 @@ def expand_query(state: DiscoveryState, *, llm: BaseChatModel) -> dict:
         ]
     )
 
-    logger.info("expand_query_done", query_count=len(result.queries))
-    return {"search_queries": result.queries}
+    logger.info("expand_query_done", query_count=len(result.queries), category=result.category)
+    return {"search_queries": result.queries, "search_category": result.category}
 
 
 def search_apis(state: DiscoveryState) -> dict:
     """调 ArXiv API 搜索论文。"""
     queries = state.get("search_queries", [])
+    category = state.get("search_category")
     raw_results: list[dict] = []
 
     for query in queries:
         try:
-            papers = search_arxiv.invoke({"query": query, "max_results": 10})
+            invoke_args: dict = {"query": query, "max_results": 15}
+            if category:
+                invoke_args["category"] = category
+            papers = search_arxiv.invoke(invoke_args)
             raw_results.extend(papers)
             logger.info("search_api_call", query=query, source="arxiv", count=len(papers))
         except Exception:
@@ -85,7 +90,7 @@ def search_apis(state: DiscoveryState) -> dict:
     return {"raw_results": raw_results}
 
 
-async def filter_and_rank(
+def filter_and_rank(
     state: DiscoveryState,
     *,
     llm: BaseChatModel,
@@ -105,62 +110,61 @@ async def filter_and_rank(
             seen.add(arxiv_id)
             unique.append(r)
 
-    # 并发 LLM 评估相关性（限制并发 10）
-    sem = asyncio.Semaphore(10)
-
-    async def _evaluate_paper(paper: dict) -> PaperCard | None:
-        async with sem:
-            try:
-                dspy_module = dspy_registry.get("filter_rank")
-                if dspy_module is not None:
-                    result = await asyncio.to_thread(
-                        dspy_module,
-                        discipline=discipline,
-                        user_search_intent=user_message,
-                        paper_title=paper.get("title", ""),
-                        paper_abstract=paper.get("abstract", ""),
-                    )
-                    evaluation_score = result.relevance_score
-                    evaluation_comment = result.relevance_comment
-                else:
-                    prompt = load_prompt(
-                        "discovery/prompts",
-                        key="filter_and_rank",
-                        variables={
-                            "discipline": discipline,
-                            "paper_json": json.dumps(
-                                {
-                                    "title": paper.get("title", ""),
-                                    "abstract": paper.get("abstract", ""),
-                                },
-                                ensure_ascii=False,
-                            ),
-                        },
-                    )
-                    evaluation = await llm.with_structured_output(RelevanceComment).ainvoke(
-                        [
-                            SystemMessage(content=prompt["system"]),
-                            HumanMessage(content=prompt["user"]),
-                        ]
-                    )
-                    evaluation_score = evaluation.relevance_score
-                    evaluation_comment = evaluation.relevance_comment
-                return PaperCard(
-                    arxiv_id=paper.get("arxiv_id", ""),
-                    title=paper.get("title", ""),
-                    authors=paper.get("authors", []),
-                    abstract=paper.get("abstract", ""),
-                    year=int(paper.get("year", 0) or 0),
-                    citation_count=paper.get("citation_count"),
-                    relevance_score=evaluation_score,
-                    relevance_comment=evaluation_comment,
-                    source=paper.get("source", "unknown"),
+    def _evaluate_paper(paper: dict) -> PaperCard | None:
+        try:
+            dspy_module = dspy_registry.get("filter_rank")
+            if dspy_module is not None:
+                result = dspy_module(
+                    discipline=discipline,
+                    user_search_intent=user_message,
+                    paper_title=paper.get("title", ""),
+                    paper_abstract=paper.get("abstract", ""),
                 )
-            except Exception:
-                logger.warning("filter_rank_skip_paper", arxiv_id=paper.get("arxiv_id"))
-                return None
+                evaluation_score = result.relevance_score
+                evaluation_comment = result.relevance_comment
+            else:
+                prompt = load_prompt(
+                    "discovery/prompts",
+                    key="filter_and_rank",
+                    variables={
+                        "discipline": discipline,
+                        "user_message": user_message,
+                        "paper_json": json.dumps(
+                            {
+                                "title": paper.get("title", ""),
+                                "abstract": paper.get("abstract", ""),
+                            },
+                            ensure_ascii=False,
+                        ),
+                    },
+                )
+                evaluation = llm.with_structured_output(RelevanceComment).invoke(
+                    [
+                        SystemMessage(content=prompt["system"]),
+                        HumanMessage(content=prompt["user"]),
+                    ]
+                )
+                evaluation_score = evaluation.relevance_score
+                evaluation_comment = evaluation.relevance_comment
+            return PaperCard(
+                arxiv_id=paper.get("arxiv_id", ""),
+                title=paper.get("title", ""),
+                authors=paper.get("authors", []),
+                abstract=paper.get("abstract", ""),
+                year=int(paper.get("year", 0) or 0),
+                citation_count=paper.get("citation_count"),
+                relevance_score=evaluation_score,
+                relevance_comment=evaluation_comment,
+                source=paper.get("source", "unknown"),
+            )
+        except Exception:
+            logger.warning("filter_rank_skip_paper", arxiv_id=paper.get("arxiv_id"))
+            return None
 
-    results = await asyncio.gather(*[_evaluate_paper(p) for p in unique])
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = [pool.submit(_evaluate_paper, p) for p in unique]
+        results = [f.result() for f in futures]
+
     candidate_papers = [p for p in results if p is not None]
 
     # 按 relevance_score 降序排列
@@ -193,6 +197,8 @@ def present_candidates(state: DiscoveryState) -> dict:
             ],
         }
     )
+    if not isinstance(response, dict):
+        response = {}
     selected_ids: list[str] = response.get("selected_ids", [])
 
     # HITL 反馈采集：写入业务表供 DSPy 离线训练
@@ -253,19 +259,20 @@ def _save_discovery_feedback(
             ensure_ascii=False,
         )
 
-        with Session(engine) as session:
-            feedback = DiscoveryFeedback(
-                workspace_id=workspace_id,
-                thread_id=thread_id,
-                user_query=user_query,
-                discipline=discipline,
-                candidates_json=candidates_json,
-                selected_paper_ids=json.dumps(selected_ids),
-            )
-            session.add(feedback)
-            session.commit()
-
-        engine.dispose()
+        try:
+            with Session(engine) as session:
+                feedback = DiscoveryFeedback(
+                    workspace_id=workspace_id,
+                    thread_id=thread_id,
+                    user_query=user_query,
+                    discipline=discipline,
+                    candidates_json=candidates_json,
+                    selected_paper_ids=json.dumps(selected_ids),
+                )
+                session.add(feedback)
+                session.commit()
+        finally:
+            engine.dispose()
 
         logger.info(
             "discovery_feedback_saved",
@@ -279,35 +286,63 @@ def _save_discovery_feedback(
         )
 
 
+_INGESTION_POLL_INTERVAL_S = 5
+_INGESTION_TIMEOUT_S = 600  # 10 分钟
+
+
 def trigger_ingestion(state: DiscoveryState, config: RunnableConfig) -> dict:
     """对选中论文触发 ingestion pipeline。
 
-    通过 httpx 调用 BFF document confirm 端点触发 Celery 解析。
+    通过 httpx 调用 BFF from-arxiv 端点下载 PDF 并触发 Celery 解析。
+    返回 ingestion_task_ids 为 document_id 列表（用于后续轮询状态）。
     """
     selected_ids = state.get("selected_paper_ids", [])
-    bff_base_url = state.get("bff_base_url", "http://localhost:8000")
-    
+    candidate_papers = state.get("candidate_papers", [])
+    workspace_id = state.get("workspace_id", "")
+
     configurable = config.get("configurable", {})
+    bff_base_url = configurable.get("bff_base_url", "http://localhost:8000")
     thread_id = configurable.get("thread_id")
     run_id = configurable.get("run_id")
-    
+    auth_token = configurable.get("auth_token")
+
+    # 构建 arxiv_id -> title 映射
+    title_map: dict[str, str] = {}
+    for paper in candidate_papers:
+        paper_obj = paper if isinstance(paper, dict) else paper.model_dump()
+        title_map[paper_obj.get("arxiv_id", "")] = paper_obj.get("title", "")
+
     task_ids: list[str] = []
 
     for paper_id in selected_ids:
         try:
-            params = {"document_id": paper_id}
+            params: dict[str, str] = {
+                "arxiv_id": paper_id,
+                "workspace_id": str(workspace_id),
+            }
+            title = title_map.get(paper_id)
+            if title:
+                params["title"] = title
             if thread_id and run_id:
-                params["thread_id"] = thread_id
-                params["run_id"] = run_id
-                
+                params["thread_id"] = str(thread_id)
+                params["run_id"] = str(run_id)
+
+            headers: dict[str, str] = {}
+            if auth_token:
+                headers["Authorization"] = auth_token
+
             resp = httpx.post(
-                f"{bff_base_url}/api/documents/confirm",
+                f"{bff_base_url}/api/v1/documents/from-arxiv",
                 params=params,
-                timeout=10.0,
+                headers=headers,
+                timeout=90.0,  # ArXiv PDF 下载可能较慢
             )
             resp.raise_for_status()
-            task_ids.append(paper_id)
-            logger.info("trigger_ingestion_paper", paper_id=paper_id, status="ok")
+            doc_id = resp.json().get("id", paper_id)
+            task_ids.append(str(doc_id))
+            logger.info(
+                "trigger_ingestion_paper", paper_id=paper_id, document_id=doc_id, status="ok"
+            )
         except httpx.HTTPError:
             logger.warning("trigger_ingestion_failed", paper_id=paper_id)
             task_ids.append(f"failed_{paper_id}")
@@ -316,17 +351,62 @@ def trigger_ingestion(state: DiscoveryState, config: RunnableConfig) -> dict:
     return {"ingestion_task_ids": task_ids}
 
 
-def wait_for_ingestion(state: DiscoveryState) -> dict:
-    """暂停等待文档解析完成。由 Celery 解析完毕后调用 /resume 唤醒。"""
+def wait_for_ingestion(state: DiscoveryState, config: RunnableConfig) -> dict:
+    """轮询等待所有文档解析完成（completed / failed）。
+
+    不使用 interrupt，保持图执行和 SSE 流活跃。
+    每 5 秒轮询一次 BFF /documents/{id}/status 端点，
+    超时 10 分钟后自动放弃等待。
+    """
+    import time
+
     task_ids = state.get("ingestion_task_ids", [])
     if not task_ids:
         return {}
-        
-    response = interrupt({
-        "action": "wait_for_ingestion",
-        "ingestion_task_ids": task_ids
-    })
-    return {"ingestion_responses": response}
+
+    # 过滤掉触发失败的 task
+    valid_ids = [tid for tid in task_ids if not tid.startswith("failed_")]
+    if not valid_ids:
+        logger.warning("wait_for_ingestion_no_valid_tasks")
+        return {}
+
+    bff_base_url = state.get("bff_base_url", "http://localhost:8000")
+    configurable = config.get("configurable", {})
+    auth_token = configurable.get("auth_token")
+    headers: dict[str, str] = {}
+    if auth_token:
+        headers["Authorization"] = auth_token
+
+    pending: set[str] = set(valid_ids)
+    results: dict[str, str] = {}
+    deadline = time.monotonic() + _INGESTION_TIMEOUT_S
+
+    logger.info("wait_for_ingestion_start", doc_ids=valid_ids)
+
+    while pending and time.monotonic() < deadline:
+        time.sleep(_INGESTION_POLL_INTERVAL_S)
+        for doc_id in list(pending):
+            try:
+                resp = httpx.get(
+                    f"{bff_base_url}/api/v1/documents/{doc_id}/status",
+                    headers=headers,
+                    timeout=10.0,
+                )
+                resp.raise_for_status()
+                status = resp.json().get("parse_status", "pending")
+                if status in ("completed", "failed"):
+                    pending.discard(doc_id)
+                    results[doc_id] = status
+                    logger.info("wait_for_ingestion_done", doc_id=doc_id, status=status)
+            except httpx.HTTPError:
+                logger.warning("wait_for_ingestion_poll_error", doc_id=doc_id)
+
+    if pending:
+        logger.warning("wait_for_ingestion_timeout", timed_out_ids=list(pending))
+        for doc_id in pending:
+            results[doc_id] = "timeout"
+
+    return {"ingestion_results": results}
 
 
 def write_artifacts(state: DiscoveryState) -> dict:

@@ -16,6 +16,7 @@ from backend.api.rate_limit import get_user_id_or_ip, limiter
 from backend.api.schemas.agent import InterruptResponse, RunRequest
 from backend.clients.langgraph_runner import LangGraphRunner
 from backend.core.logger import get_logger
+from backend.models.run_snapshot import RunSnapshot
 from backend.models.user import User
 from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
@@ -145,6 +146,8 @@ async def create_run(
     runner: LangGraphRunner = Depends(get_lg_runner),
 ) -> dict:
     """Trigger an agent run."""
+    auth_token = request.headers.get("Authorization")
+
     result = await agent_service.trigger_run(
         session,
         runner,
@@ -152,6 +155,7 @@ async def create_run(
         message=body.message,
         owner=current_user,
         discipline=body.discipline,
+        auth_token=auth_token,
     )
     if result is None:
         raise HTTPException(status_code=404, detail="Thread not found")
@@ -396,6 +400,16 @@ async def resume_run(
         resume_payload["feedback"] = body.feedback
 
     new_run_id = str(uuid.uuid4())
+
+    # 保存 resume 快照（与 create_run 对称），避免 GET /runs/{run_id} 404
+    snapshot = RunSnapshot()
+    snapshot.thread_id = thread_id
+    snapshot.run_id = uuid.UUID(new_run_id)
+    snapshot.user_message = f"[resume] {body.action}"
+    snapshot.status = "running"
+    await base_repo.create(session, snapshot)
+    await session.commit()
+
     await runner.resume_run(
         run_id=new_run_id,
         thread_id=str(thread_id),

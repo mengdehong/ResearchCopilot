@@ -132,6 +132,8 @@ def request_finalization(state: PublishState) -> dict:
             "outline": [s.title for s in state.get("outline", [])],
         }
     )
+    if not isinstance(response, dict):
+        response = {}
 
     # approve: {} 或 {"decision": "approve"}
     # reject→Canvas→手改→回流: {"modified_markdown": "..."}
@@ -175,27 +177,35 @@ def render_presentation(state: PublishState) -> dict:
         slides=slides,
     )
 
-    # 渲染
-    renderer = create_renderer("typst")
-    template_dir = TEMPLATES_DIR / "typst" / "academic_blue"
-    result = renderer.render(schema, template_dir=template_dir, output_dir=PPT_OUTPUT_DIR)
+    # 渲染（Typst 未安装时优雅降级）
+    try:
+        renderer = create_renderer("typst")
+        template_dir = TEMPLATES_DIR / "typst" / "academic_blue"
+        result = renderer.render(schema, template_dir=template_dir, output_dir=PPT_OUTPUT_DIR)
 
-    if result.source_path:
-        output_files.append("presentation.typ")
-    if result.pdf_path:
-        output_files.append("presentation.pdf")
+        if result.source_path:
+            output_files.append("presentation.typ")
+        if result.pdf_path:
+            output_files.append("presentation.pdf")
 
-    logger.info(
-        "render_presentation",
-        status="typst",
-        slide_count=result.slide_count,
-        pdf_available=result.pdf_path is not None,
-    )
-    return {
-        "output_files": output_files,
-        "presentation_schema": schema.model_dump(),
-        "rendered_presentation": result.model_dump(),
-    }
+        logger.info(
+            "render_presentation",
+            status="typst",
+            slide_count=result.slide_count,
+            pdf_available=result.pdf_path is not None,
+        )
+        return {
+            "output_files": output_files,
+            "presentation_schema": schema.model_dump(),
+            "rendered_presentation": result.model_dump(),
+        }
+    except Exception as exc:
+        logger.warning("render_presentation_fallback", error=str(exc))
+        return {
+            "output_files": output_files,
+            "presentation_schema": schema.model_dump(),
+            "rendered_presentation": None,
+        }
 
 
 def package_zip(state: PublishState) -> dict:

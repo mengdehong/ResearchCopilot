@@ -6,6 +6,8 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from langchain_core.messages import HumanMessage
+
 from backend.models.run_snapshot import RunSnapshot
 from backend.models.thread import Thread
 from backend.models.workspace import Workspace
@@ -71,6 +73,7 @@ async def trigger_run(
     owner: User,
     workspace_id: str | None = None,
     discipline: str | None = None,
+    auth_token: str | None = None,
 ) -> RunResult | None:
     """Store snapshot → start graph execution via Runner → return run_id."""
     thread = await _verify_thread_ownership(session, thread_id, owner)
@@ -89,18 +92,27 @@ async def trigger_run(
 
     # Build graph input (SharedState fields)
     input_data: dict = {
-        "messages": [{"role": "user", "content": message}],
+        "messages": [HumanMessage(content=message)],
         "workspace_id": workspace_id or str(thread.workspace_id),
         "discipline": discipline or "",
         "artifacts": {},
     }
+
+    config = {
+        "configurable": {
+            "thread_id": str(thread_id),
+            "run_id": run_id,
+        }
+    }
+    if auth_token:
+        config["configurable"]["auth_token"] = auth_token
 
     # Start real graph execution
     await runner.start_run(
         run_id=run_id,
         thread_id=str(thread_id),
         input_data=input_data,
-        config={"configurable": {"thread_id": str(thread_id), "run_id": run_id}},
+        config=config,
     )
 
     return RunResult(

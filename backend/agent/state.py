@@ -31,13 +31,20 @@ def merge_dicts(left: dict, right: dict) -> dict:
 # ── SharedState ──
 
 
-class SharedState(TypedDict):
-    """所有图的共享基座。只包含 4 个字段，永不扩充。"""
+class _SharedBase(TypedDict):
+    """永不扩充的必须字段。"""
 
     messages: Annotated[list, add_messages]
     workspace_id: str
     discipline: str
     artifacts: Annotated[dict, merge_dicts]
+
+
+class SharedState(_SharedBase, total=False):
+    """共享基座。_SharedBase 为必须字段，此层为跨 WF 可选协调字段。"""
+
+    target_workflow: str
+    critique_round: int
 
 
 # ── Supervisor State ──
@@ -75,8 +82,9 @@ class PaperCard(BaseModel):
     source: str
 
 
-class DiscoveryState(SharedState):
+class DiscoveryState(SharedState, total=False):
     search_queries: list[str]
+    search_category: str | None  # ArXiv 分类号过滤
     raw_results: list[dict]
     candidate_papers: list[PaperCard]
     selected_paper_ids: list[str]  # 用户 HITL 勾选的论文 ID
@@ -101,7 +109,7 @@ class ComparisonEntry(BaseModel):
     key_difference: str
 
 
-class ExtractionState(SharedState):
+class ExtractionState(SharedState, total=False):
     paper_ids: list[str]
     reading_notes: list[ReadingNote]
     comparison_matrix: list[ComparisonEntry]
@@ -123,7 +131,7 @@ class ExperimentDesign(BaseModel):
     expected_outcome: str
 
 
-class IdeationState(SharedState):
+class IdeationState(SharedState, total=False):
     research_gaps: list[ResearchGap]
     experiment_designs: list[ExperimentDesign]
     selected_design_index: int | None
@@ -137,7 +145,7 @@ class SandboxExecutionResult(BaseModel):
     execution_time_seconds: float
 
 
-class ExecutionState(SharedState):
+class ExecutionState(SharedState, total=False):
     task_description: str
     generated_code: str
     execution_result: SandboxExecutionResult | None
@@ -145,6 +153,7 @@ class ExecutionState(SharedState):
     reflection: str | None
     elapsed_seconds: float
     tokens_used: int
+    execution_rejected: bool
 
 
 class CritiqueFeedback(BaseModel):
@@ -155,13 +164,11 @@ class CritiqueFeedback(BaseModel):
     location: str | None = None
 
 
-class CritiqueState(SharedState):
-    target_workflow: str
+class CritiqueState(SharedState, total=False):
     supporter_opinion: str
     critic_opinion: str
     feedbacks: list[CritiqueFeedback]
     verdict: str
-    critique_round: int
 
 
 class OutlineSection(BaseModel):
@@ -170,7 +177,7 @@ class OutlineSection(BaseModel):
     source_artifacts: list[str]
 
 
-class PublishState(SharedState):
+class PublishState(SharedState, total=False):
     outline: list[OutlineSection]
     markdown_content: str
     user_edited_markdown: str | None  # Canvas 手改后回流的 Markdown

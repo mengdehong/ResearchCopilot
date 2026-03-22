@@ -78,14 +78,18 @@ def generate_code(
 
 def request_confirmation(state: ExecutionState) -> dict:
     """独立 HITL 节点：展示代码，等待用户确认执行。"""
-    interrupt(
+    response = interrupt(
         {
             "action": "confirm_execute",
             "code": state.get("generated_code", ""),
             "task": state.get("task_description", ""),
         }
     )
-    return {}
+    if not isinstance(response, dict):
+        response = {}
+    if response.get("decision") == "reject":
+        return {"execution_rejected": True}
+    return {"execution_rejected": False}
 
 
 def execute_sandbox(

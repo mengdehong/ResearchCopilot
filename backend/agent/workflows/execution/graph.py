@@ -39,7 +39,13 @@ def build_execution_graph(
 
     graph.add_edge(START, "generate_code")
     graph.add_edge("generate_code", "request_confirmation")
-    graph.add_edge("request_confirmation", "execute_sandbox")
+
+    # 条件边：用户确认→执行 / 用户拒绝→直接写 artifacts
+    graph.add_conditional_edges(
+        "request_confirmation",
+        lambda s: "write_artifacts" if s.get("execution_rejected") else "execute_sandbox",
+        {"write_artifacts": "write_artifacts", "execute_sandbox": "execute_sandbox"},
+    )
 
     # 条件边：成功→写 artifacts / 失败且有预算→反思重试 / 预算超限→写 artifacts
     graph.add_conditional_edges(
