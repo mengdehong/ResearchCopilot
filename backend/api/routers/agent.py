@@ -225,125 +225,143 @@ async def stream_run_events(
     await _verify_thread_ownership(session, thread_id, current_user)
 
     async def event_generator():
-        raw_stream = runner.get_event_stream(run_id)
         seq = 0
-        completed_nodes: list[str] = []
-        last_ai_content: str | None = None
-        was_interrupted = False
-        # WF 名称集合，用于检测 WF 子图完成后注入 content_block
-        wf_names = {"discovery", "extraction", "ideation", "execution", "critique", "publish"}
-        async for raw_event in raw_stream:
-            # 检查 on_chain_end 的 output 中是否有新增 AI 消息
-            # 仅限 supervisor 节点产出的 AIMessage（chat 模式），
-            # 避免未来 workflow 子图意外覆盖
-            raw_type = raw_event.get("event", "")
-            if raw_type in ("on_chain_end", "events/on_chain_end"):
-                raw_name = raw_event.get("name", "")
-                output = raw_event.get("data", {}).get("output", {})
-                if raw_name == "supervisor" and isinstance(output, dict):
-                    msgs = output.get("messages", [])
-                    for msg in reversed(msgs):
-                        if hasattr(msg, "type") and msg.type == "ai":
-                            last_ai_content = msg.content
-                            break
+        try:
+            raw_stream = runner.get_event_stream(run_id)
+            completed_nodes: list[str] = []
+            last_ai_content: str | None = None
+            was_interrupted = False
+            # WF 名称集合，用于检测 WF 子图完成后注入 content_block
+            wf_names = {"discovery", "extraction", "ideation", "execution", "critique", "publish"}
+            async for raw_event in raw_stream:
+                # 检查 on_chain_end 的 output 中是否有新增 AI 消息
+                # 仅限 supervisor 节点产出的 AIMessage（chat 模式），
+                # 避免未来 workflow 子图意外覆盖
+                raw_type = raw_event.get("event", "")
+                if raw_type in ("on_chain_end", "events/on_chain_end"):
+                    raw_name = raw_event.get("name", "")
+                    output = raw_event.get("data", {}).get("output", {})
+                    if raw_name == "supervisor" and isinstance(output, dict):
+                        msgs = output.get("messages", [])
+                        for msg in reversed(msgs):
+                            if hasattr(msg, "type") and msg.type == "ai":
+                                last_ai_content = msg.content
+                                break
 
-            # 翻译事件
-            run_event = translate_to_run_event(raw_event)
-            if run_event is None:
-                continue
+                # 翻译事件
+                run_event = translate_to_run_event(raw_event)
+                if run_event is None:
+                    continue
 
-            seq += 1
-            event_type = run_event["event_type"]
-            if event_type == "node_end":
-                node_name = run_event["data"].get("node_name", "")
-                if node_name:
-                    completed_nodes.append(node_name)
-            if event_type == "interrupt":
-                was_interrupted = True
-            logger.debug(
-                "sse_event_yielded",
+                seq += 1
+                event_type = run_event["event_type"]
+                if event_type == "node_end":
+                    node_name = run_event["data"].get("node_name", "")
+                    if node_name:
+                        completed_nodes.append(node_name)
+                if event_type == "interrupt":
+                    was_interrupted = True
+                logger.debug(
+                    "sse_event_yielded",
+                    run_id=run_id,
+                    seq=seq,
+                    event_type=event_type,
+                )
+                yield f"id: {seq}\ndata: {json.dumps(run_event)}\n\n"
+
+                # WF 子图完成后：尝试从 output 提取 artifacts 并注入 content_block
+                if event_type == "node_end":
+                    node_name = run_event["data"].get("node_name", "")
+                    if node_name in wf_names:
+                        raw_output = raw_event.get("data", {}).get("output", {})
+                        wf_artifacts = (
+                            raw_output.get("artifacts", {}).get(node_name, {})
+                            if isinstance(raw_output, dict)
+                            else {}
+                        )
+                        markdown = render_artifacts(node_name, wf_artifacts)
+                        if markdown:
+                            seq += 1
+                            content_event = {
+                                "event_type": "content_block",
+                                "data": {
+                                    "content": markdown,
+                                    "workflow": node_name,
+                                },
+                            }
+                            logger.debug(
+                                "sse_content_block_injected",
+                                run_id=run_id,
+                                workflow=node_name,
+                                content_length=len(markdown),
+                            )
+                            yield f"id: {seq}\ndata: {json.dumps(content_event)}\n\n"
+
+                        # execution WF 完成时：注入 sandbox_result 事件供前端 SandboxTab 展示
+                        if node_name == "execution" and wf_artifacts:
+                            exec_results = wf_artifacts.get("results", {})
+                            sandbox_event = {
+                                "event_type": "sandbox_result",
+                                "data": {
+                                    "code": wf_artifacts.get("code", ""),
+                                    "stdout": exec_results.get("stdout", ""),
+                                    "stderr": exec_results.get("stderr", ""),
+                                    "exit_code": exec_results.get("exit_code", -1),
+                                    "duration_ms": 0,
+                                    "artifacts": wf_artifacts.get("output_files", []),
+                                },
+                            }
+                            seq += 1
+                            logger.debug(
+                                "sse_sandbox_result_injected",
+                                run_id=run_id,
+                                exit_code=exec_results.get("exit_code"),
+                            )
+                            yield f"id: {seq}\ndata: {json.dumps(sandbox_event)}\n\n"
+
+            # 发送 assistant_message（仅在非 interrupt 时）：
+            # interrupt 时不发 assistant_message，前端会显示 HITL 卡片
+            if not was_interrupted:
+                seq += 1
+                if last_ai_content:
+                    msg_event = {
+                        "event_type": "assistant_message",
+                        "data": {"content": last_ai_content},
+                    }
+                elif completed_nodes:
+                    summary = " → ".join(completed_nodes)
+                    msg_event = {
+                        "event_type": "assistant_message",
+                        "data": {"content": f"已完成工作流：{summary}"},
+                    }
+                else:
+                    msg_event = None
+
+                if msg_event:
+                    yield f"id: {seq}\ndata: {json.dumps(msg_event)}\n\n"
+
+        except Exception as exc:
+            logger.error(
+                "sse_stream_error",
                 run_id=run_id,
-                seq=seq,
-                event_type=event_type,
+                error=str(exc),
+                error_type=type(exc).__name__,
             )
-            yield f"id: {seq}\ndata: {json.dumps(run_event)}\n\n"
-
-            # WF 子图完成后：尝试从 output 提取 artifacts 并注入 content_block
-            if event_type == "node_end":
-                node_name = run_event["data"].get("node_name", "")
-                if node_name in wf_names:
-                    raw_output = raw_event.get("data", {}).get("output", {})
-                    wf_artifacts = (
-                        raw_output.get("artifacts", {}).get(node_name, {})
-                        if isinstance(raw_output, dict)
-                        else {}
-                    )
-                    markdown = render_artifacts(node_name, wf_artifacts)
-                    if markdown:
-                        seq += 1
-                        content_event = {
-                            "event_type": "content_block",
-                            "data": {
-                                "content": markdown,
-                                "workflow": node_name,
-                            },
-                        }
-                        logger.debug(
-                            "sse_content_block_injected",
-                            run_id=run_id,
-                            workflow=node_name,
-                            content_length=len(markdown),
-                        )
-                        yield f"id: {seq}\ndata: {json.dumps(content_event)}\n\n"
-
-                    # execution WF 完成时：注入 sandbox_result 事件供前端 SandboxTab 展示
-                    if node_name == "execution" and wf_artifacts:
-                        exec_results = wf_artifacts.get("results", {})
-                        sandbox_event = {
-                            "event_type": "sandbox_result",
-                            "data": {
-                                "code": wf_artifacts.get("code", ""),
-                                "stdout": exec_results.get("stdout", ""),
-                                "stderr": exec_results.get("stderr", ""),
-                                "exit_code": exec_results.get("exit_code", -1),
-                                "duration_ms": 0,
-                                "artifacts": wf_artifacts.get("output_files", []),
-                            },
-                        }
-                        seq += 1
-                        logger.debug(
-                            "sse_sandbox_result_injected",
-                            run_id=run_id,
-                            exit_code=exec_results.get("exit_code"),
-                        )
-                        yield f"id: {seq}\ndata: {json.dumps(sandbox_event)}\n\n"
-
-        # 发送 assistant_message（仅在非 interrupt 时）：
-        # interrupt 时不发 assistant_message，前端会显示 HITL 卡片
-        if not was_interrupted:
             seq += 1
-            if last_ai_content:
-                msg_event = {
-                    "event_type": "assistant_message",
-                    "data": {"content": last_ai_content},
-                }
-            elif completed_nodes:
-                summary = " → ".join(completed_nodes)
-                msg_event = {
-                    "event_type": "assistant_message",
-                    "data": {"content": f"已完成工作流：{summary}"},
-                }
-            else:
-                msg_event = None
-
-            if msg_event:
-                yield f"id: {seq}\ndata: {json.dumps(msg_event)}\n\n"
-
-        # 发送 run_end 信号让前端关闭连接
-        seq += 1
-        end_event = {"event_type": "run_end", "data": {"run_id": run_id}}
-        yield f"id: {seq}\ndata: {json.dumps(end_event)}\n\n"
-        logger.info("sse_stream_ended", run_id=run_id, event_count=seq)
+            error_event = {
+                "event_type": "error",
+                "data": {
+                    "message": "Stream interrupted due to an internal error",
+                    "error_type": "INTERNAL_ERROR",
+                },
+            }
+            yield f"id: {seq}\ndata: {json.dumps(error_event)}\n\n"
+        finally:
+            # 确保任何异常路径都能通知前端关闭连接
+            seq += 1
+            end_event = {"event_type": "run_end", "data": {"run_id": run_id}}
+            yield f"id: {seq}\ndata: {json.dumps(end_event)}\n\n"
+            logger.info("sse_stream_ended", run_id=run_id, event_count=seq)
 
     return StreamingResponse(
         event_generator(),
