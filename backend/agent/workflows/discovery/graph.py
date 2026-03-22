@@ -12,6 +12,7 @@ from backend.agent.workflows.discovery.nodes import (
     present_candidates,
     search_apis,
     trigger_ingestion,
+    wait_for_ingestion,
     write_artifacts,
 )
 
@@ -29,6 +30,7 @@ def build_discovery_graph(*, llm: BaseChatModel) -> StateGraph:
     graph.add_node("filter_and_rank", partial(filter_and_rank, llm=llm))
     graph.add_node("present_candidates", present_candidates)
     graph.add_node("trigger_ingestion", trigger_ingestion)
+    graph.add_node("wait_for_ingestion", wait_for_ingestion)
     graph.add_node("write_artifacts", write_artifacts)
 
     graph.add_edge(START, "expand_query")
@@ -36,7 +38,8 @@ def build_discovery_graph(*, llm: BaseChatModel) -> StateGraph:
     graph.add_edge("search_apis", "filter_and_rank")
     graph.add_edge("filter_and_rank", "present_candidates")
     graph.add_edge("present_candidates", "trigger_ingestion")
-    graph.add_edge("trigger_ingestion", "write_artifacts")
+    graph.add_edge("trigger_ingestion", "wait_for_ingestion")
+    graph.add_edge("wait_for_ingestion", "write_artifacts")
     graph.add_edge("write_artifacts", END)
 
     return graph

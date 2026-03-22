@@ -6,6 +6,7 @@ import json
 import httpx
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 from pydantic import BaseModel
 
@@ -278,20 +279,30 @@ def _save_discovery_feedback(
         )
 
 
-def trigger_ingestion(state: DiscoveryState) -> dict:
+def trigger_ingestion(state: DiscoveryState, config: RunnableConfig) -> dict:
     """对选中论文触发 ingestion pipeline。
 
     通过 httpx 调用 BFF document confirm 端点触发 Celery 解析。
     """
     selected_ids = state.get("selected_paper_ids", [])
     bff_base_url = state.get("bff_base_url", "http://localhost:8000")
+    
+    configurable = config.get("configurable", {})
+    thread_id = configurable.get("thread_id")
+    run_id = configurable.get("run_id")
+    
     task_ids: list[str] = []
 
     for paper_id in selected_ids:
         try:
+            params = {"document_id": paper_id}
+            if thread_id and run_id:
+                params["thread_id"] = thread_id
+                params["run_id"] = run_id
+                
             resp = httpx.post(
                 f"{bff_base_url}/api/documents/confirm",
-                params={"document_id": paper_id},
+                params=params,
                 timeout=10.0,
             )
             resp.raise_for_status()
@@ -303,6 +314,19 @@ def trigger_ingestion(state: DiscoveryState) -> dict:
 
     logger.info("trigger_ingestion_done", task_count=len(task_ids))
     return {"ingestion_task_ids": task_ids}
+
+
+def wait_for_ingestion(state: DiscoveryState) -> dict:
+    """暂停等待文档解析完成。由 Celery 解析完毕后调用 /resume 唤醒。"""
+    task_ids = state.get("ingestion_task_ids", [])
+    if not task_ids:
+        return {}
+        
+    response = interrupt({
+        "action": "wait_for_ingestion",
+        "ingestion_task_ids": task_ids
+    })
+    return {"ingestion_responses": response}
 
 
 def write_artifacts(state: DiscoveryState) -> dict:

@@ -42,10 +42,16 @@ _STORAGE_BASE_DIR = Path("/tmp/research-copilot-uploads")
 
 
 @app.task(name="tasks.ingest_document", bind=True, max_retries=2)
-def ingest_document(self: Task, *, doc_id: str) -> dict[str, str]:
+def ingest_document(
+    self: Task, 
+    *, 
+    doc_id: str, 
+    thread_id: str | None = None, 
+    run_id: str | None = None
+) -> dict[str, str]:
     """文档解析入库入口。Celery 同步 task → asyncio.run 调用 async 管道。"""
     try:
-        return asyncio.run(_run_ingest(doc_id))
+        return asyncio.run(_run_ingest(doc_id, thread_id, run_id))
     except Exception as exc:
         logger.error("ingest_document_failed", doc_id=doc_id, error=str(exc))
         raise self.retry(exc=exc, countdown=30) from exc
@@ -56,7 +62,11 @@ def ingest_document(self: Task, *, doc_id: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
-async def _run_ingest(doc_id_str: str) -> dict[str, str]:
+async def _run_ingest(
+    doc_id_str: str, 
+    thread_id: str | None = None, 
+    run_id: str | None = None
+) -> dict[str, str]:
     """构造依赖 → 调用四阶段管道 → Stage 5 持久化。"""
     doc_id = uuid.UUID(doc_id_str)
     settings = Settings()
@@ -97,6 +107,23 @@ async def _run_ingest(doc_id_str: str) -> dict[str, str]:
         # --- Stage 5: 持久化到 PostgreSQL ---
         await _persist_classified_content(session, classified)
         await session.commit()
+        
+        # --- Stage 6: Webhook Callback to Agent ---
+        if thread_id and run_id:
+            try:
+                import httpx
+                # 默认情况下bff使用 localhost:8000
+                bff_base_url = "http://localhost:8000"
+                async with httpx.AsyncClient() as client:
+                    resp = await client.post(
+                        f"{bff_base_url}/api/agent/threads/{thread_id}/runs/{run_id}/resume",
+                        json={"action": "ingestion_complete", "document_id": doc_id_str},
+                        timeout=5.0
+                    )
+                    resp.raise_for_status()
+                logger.info("resumed_agent_after_ingestion", thread_id=thread_id, run_id=run_id)
+            except Exception as e:
+                logger.warning("failed_to_resume_agent", error=str(e), thread_id=thread_id, run_id=run_id)
 
     await engine.dispose()
 

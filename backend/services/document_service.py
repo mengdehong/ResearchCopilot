@@ -88,6 +88,8 @@ async def confirm_upload(
     *,
     document_id: uuid.UUID,
     owner: User,
+    thread_id: str | None = None,
+    run_id: str | None = None,
 ) -> Document | None:
     """Confirm upload completed: verify object exists, update status."""
     doc = await base_repo.get_by_id(session, Document, document_id)
@@ -106,7 +108,11 @@ async def confirm_upload(
 
     from backend.workers.tasks.ingest_document import ingest_document
 
-    ingest_document.delay(doc_id=str(doc.id))
+    ingest_document.delay(
+        doc_id=str(doc.id),
+        thread_id=thread_id,
+        run_id=run_id,
+    )
     return doc
 
 

@@ -48,6 +48,8 @@ async def initiate_upload(
 @router.post("/confirm", response_model=DocumentMeta)
 async def confirm_upload(
     document_id: uuid.UUID,
+    thread_id: str | None = None,
+    run_id: str | None = None,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     storage: StorageClient = Depends(_get_storage),
@@ -58,6 +60,8 @@ async def confirm_upload(
         storage,
         document_id=document_id,
         owner=current_user,
+        thread_id=thread_id,
+        run_id=run_id,
     )
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
