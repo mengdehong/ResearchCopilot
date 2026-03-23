@@ -495,6 +495,7 @@ function ToolbarButton({ icon, label, active = false, disabled = false, onClick 
         <Tooltip>
             <TooltipTrigger asChild>
                 <button
+                    aria-label={label}
                     className={`
                         flex items-center justify-center size-7 rounded-[var(--radius-sm)] transition-colors cursor-pointer
                         ${active

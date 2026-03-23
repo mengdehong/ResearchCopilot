@@ -117,6 +117,7 @@ export const en = {
         paperListOnRight: 'Paper list is shown on the right panel. Please select papers there.',
         rejectConfirm: 'Are you sure you want to reject?',
         confirmReject: 'Confirm Reject',
+        waitForIngestion: 'Waiting for papers to be parsed...',
     },
     status: {
         processing: 'Processing...',
