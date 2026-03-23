@@ -1,6 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
-import type { ThreadInfo, RunRequest, RunResult, InterruptResponse, Message } from '@/types'
+import type { ThreadInfo, RunRequest, RunResult, InterruptResponse, Message, InterruptData } from '@/types'
+
+export interface MessagesResponse {
+    messages: Message[]
+    pending_interrupt: InterruptData | null
+    cot_nodes: { name: string }[] | null
+}
 
 export function useThreads(workspaceId: string, limit?: number) {
     return useQuery<ThreadInfo[]>({
@@ -16,11 +22,11 @@ export function useThreads(workspaceId: string, limit?: number) {
 }
 
 export function useMessages(threadId: string) {
-    return useQuery<Message[]>({
+    return useQuery<MessagesResponse>({
         queryKey: ['messages', threadId],
         queryFn: async () => {
             const { data } = await api.get(`/agent/threads/${threadId}/messages`)
-            return data
+            return data as MessagesResponse
         },
         enabled: !!threadId,
         staleTime: 30_000,

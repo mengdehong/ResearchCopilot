@@ -118,7 +118,8 @@ export default function EditorTab({ threadId }: EditorTabProps) {
     const { data: draft } = useDraft(threadId)
     const saveDraft = useSaveDraft()
     const generatedContent = useAgentStore((s) => s.generatedContent)
-    const contentBlock = useAgentStore((s) => s.contentBlock)
+    const contentBlocks = useAgentStore((s) => s.contentBlocks)
+    const consumeContentBlock = useAgentStore((s) => s.consumeContentBlock)
     const setSaveStatus = useLayoutStore((s) => s.setSaveStatus)
     const prevGeneratedRef = useRef('')
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -273,17 +274,22 @@ export default function EditorTab({ threadId }: EditorTabProps) {
         prevGeneratedRef.current = generatedContent
     }, [editor, generatedContent])
 
-    // content_block → Markdown→HTML → TipTap setContent
+    // content_block → Markdown→HTML → TipTap 追加到文档末尾（不覆盖已有内容）
     useEffect(() => {
-        if (!editor || !contentBlock) return
+        if (!editor || contentBlocks.length === 0) return
 
-        const html = marked.parse(contentBlock.content)
+        const block = consumeContentBlock()
+        if (!block) return
+
+        const html = marked.parse(block.content)
         if (typeof html === 'string' && html.trim()) {
-            editor.commands.setContent(html)
-            // 清空 contentBlock 防止重复写入
-            useAgentStore.setState({ contentBlock: null })
+            if (editor.isEmpty) {
+                editor.commands.setContent(html)
+            } else {
+                editor.commands.insertContentAt(editor.state.doc.content.size, html)
+            }
         }
-    }, [editor, contentBlock])
+    }, [editor, contentBlocks, consumeContentBlock])
 
     const handleSave = useCallback(() => {
         if (!editor || !threadId) return
@@ -315,7 +321,10 @@ export default function EditorTab({ threadId }: EditorTabProps) {
         editor.on('update', debouncedSave)
         return () => {
             editor.off('update', debouncedSave)
-            if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+            if (saveTimerRef.current) {
+                clearTimeout(saveTimerRef.current)
+                handleSave()   // flush pending save
+            }
             if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
         }
     }, [editor, handleSave])
