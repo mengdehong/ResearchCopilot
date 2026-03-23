@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import (
     get_current_user,
+    get_current_user_or_system,
     get_current_user_sse,
     get_db,
     get_lg_runner,
@@ -98,6 +99,42 @@ async def _persist_assistant_response(
 router = APIRouter(prefix="/agent/threads", tags=["agent"])
 
 
+def _normalize_pending_interrupt(interrupt_data: dict | None) -> dict | None:
+    """Normalize persisted interrupt payload to the frontend InterruptData shape."""
+    if interrupt_data is None:
+        return None
+    if "payload" in interrupt_data and isinstance(interrupt_data["payload"], dict):
+        return interrupt_data
+
+    payload = {
+        key: value
+        for key, value in interrupt_data.items()
+        if key not in {"action", "run_id", "thread_id"}
+    }
+    return {
+        "action": interrupt_data.get("action", "confirm_execute"),
+        "run_id": interrupt_data.get("run_id", ""),
+        "thread_id": interrupt_data.get("thread_id", ""),
+        "payload": payload,
+    }
+
+
+def _determine_terminal_status(
+    *,
+    existing_status: str | None,
+    was_interrupted: bool,
+    saw_error_event: bool,
+) -> str:
+    """Resolve the final persisted run status without clobbering terminal states."""
+    if existing_status in {"cancelled", "failed"}:
+        return existing_status
+    if was_interrupted:
+        return "interrupted"
+    if saw_error_event:
+        return "failed"
+    return "completed"
+
+
 async def _verify_thread_ownership(
     session: AsyncSession,
     thread_id: uuid.UUID,
@@ -173,10 +210,12 @@ async def get_thread(
     """Get thread details."""
     await _verify_thread_ownership(session, thread_id, current_user)
     thread = await thread_repo.get_by_id(session, thread_id)
+    active_snap = await run_snapshot_repo.get_active_by_thread(session, thread_id)
     return {
         "thread_id": str(thread.id),
         "title": thread.title,
         "status": thread.status,
+        "active_run_id": str(active_snap.run_id) if active_snap else None,
     }
 
 
@@ -185,7 +224,7 @@ async def get_thread_messages(
     thread_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> list[dict]:
+) -> dict:
     """从 RunSnapshot 重建 thread 的聊天历史。"""
     await _verify_thread_ownership(session, thread_id, current_user)
     snapshots = await run_snapshot_repo.list_by_thread(session, thread_id)
@@ -213,7 +252,18 @@ async def get_thread_messages(
                     else None,
                 }
             )
-    return messages
+
+    # 检查最后一个 snap 是否有 pending interrupt
+    pending_interrupt: dict | None = None
+    last_snap = snapshots[-1] if snapshots else None
+    if last_snap and last_snap.status == "interrupted" and last_snap.interrupt_data:
+        pending_interrupt = _normalize_pending_interrupt(last_snap.interrupt_data)
+
+    return {
+        "messages": messages,
+        "pending_interrupt": pending_interrupt,
+        "cot_nodes": last_snap.cot_nodes if last_snap else None,
+    }
 
 
 @router.delete("/{thread_id}", status_code=204)
@@ -255,9 +305,12 @@ async def create_run(
         owner=current_user,
         discipline=body.discipline,
         auth_token=auth_token,
+        editor_content=body.editor_content,
+        attachment_ids=body.attachment_ids,
     )
     if result is None:
         raise HTTPException(status_code=404, detail="Thread not found")
+    await agent_service.update_thread_status(session, thread_id, "running")
     await session.commit()
     return {
         "run_id": result.run_id,
@@ -332,6 +385,9 @@ async def stream_run_events(
         completed_nodes: list[str] = []
         last_ai_content: str | None = None
         was_interrupted = False
+        saw_error_event = False
+        interrupt_payload_for_db: dict | None = None
+        content_blocks_for_db: list[dict] = []
         try:
             raw_stream = runner.get_event_stream(run_id)
             async for raw_event in raw_stream:
@@ -356,7 +412,15 @@ async def stream_run_events(
                     completed_nodes.append(node_name)
                 if event_type == "interrupt":
                     was_interrupted = True
-                logger.debug("sse_event_yielded", run_id=run_id, seq=seq, event_type=event_type)
+                    interrupt_payload_for_db = run_event["data"]
+                if event_type == "error":
+                    saw_error_event = True
+                logger.debug(
+                    "sse_event_yielded",
+                    run_id=run_id,
+                    seq=seq,
+                    event_type=event_type,
+                )
                 yield f"id: {seq}\ndata: {json.dumps(run_event)}\n\n"
 
                 # WF 子图完成后注入 content_block 与（可选）sandbox_result
@@ -369,6 +433,7 @@ async def stream_run_events(
                     )
                     markdown = render_artifacts(node_name, wf_artifacts)
                     if markdown:
+                        content_blocks_for_db.append({"content": markdown, "workflow": node_name})
                         seq += 1
                         content_event = _build_content_block_event(node_name, markdown)
                         logger.debug(
@@ -413,8 +478,49 @@ async def stream_run_events(
             assistant_text = last_ai_content or (
                 f"已完成工作流：{' → '.join(completed_nodes)}" if completed_nodes else None
             )
-            if assistant_text:
-                await _persist_assistant_response(request.app.state, run_id, assistant_text)
+            try:
+                factory = request.app.state.session_factory
+                async with factory() as db:
+                    snap = await run_snapshot_repo.get_by_run_id(db, uuid.UUID(run_id))
+                    if snap:
+                        if assistant_text:
+                            snap.assistant_response = assistant_text
+                        snap.status = _determine_terminal_status(
+                            existing_status=snap.status,
+                            was_interrupted=was_interrupted,
+                            saw_error_event=saw_error_event,
+                        )
+                        snap.completed_at = datetime.utcnow()
+                        # 持久化 interrupt payload
+                        if interrupt_payload_for_db:
+                            snap.interrupt_data = interrupt_payload_for_db
+                        # 持久化 CoT 节点列表
+                        if completed_nodes:
+                            snap.cot_nodes = [{"name": n} for n in completed_nodes]
+                        # 持久化 content_blocks
+                        if content_blocks_for_db:
+                            snap.content_blocks = content_blocks_for_db
+                        await db.commit()
+            except Exception as save_exc:
+                logger.warning(
+                    "run_snapshot_save_failed",
+                    run_id=run_id,
+                    error=str(save_exc),
+                )
+            # 更新 Thread.status
+            try:
+                factory = request.app.state.session_factory
+                async with factory() as db:
+                    new_status = "interrupted" if was_interrupted else "idle"
+                    await agent_service.update_thread_status(db, thread_id, new_status)
+                    await db.commit()
+            except Exception as ts_exc:
+                logger.warning(
+                    "thread_status_update_failed",
+                    run_id=run_id,
+                    thread_id=str(thread_id),
+                    error=str(ts_exc),
+                )
             seq += 1
             end_event = {"event_type": "run_end", "data": {"run_id": run_id}}
             yield f"id: {seq}\ndata: {json.dumps(end_event)}\n\n"
@@ -437,11 +543,13 @@ async def resume_run(
     run_id: str,
     body: InterruptResponse,
     session: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_or_system),
     runner: LangGraphRunner = Depends(get_lg_runner),
 ) -> dict:
     """Resume a paused run with HITL response."""
-    await _verify_thread_ownership(session, thread_id, current_user)
+    # 系统调用跳过 ownership 检查
+    if current_user is not None:
+        await _verify_thread_ownership(session, thread_id, current_user)
 
     # 构建 interrupt resume payload（传给 interrupt() 的返回值）
     resume_payload: dict = {"action": body.action}
@@ -461,6 +569,7 @@ async def resume_run(
     snapshot.user_message = f"[resume] {body.action}"
     snapshot.status = "running"
     await base_repo.create(session, snapshot)
+    await agent_service.update_thread_status(session, thread_id, "running")
     await session.commit()
 
     await runner.resume_run(
@@ -494,3 +603,4 @@ async def cancel_run(
     )
     if not ok:
         raise HTTPException(status_code=404, detail="Thread not found")
+    await session.commit()

@@ -105,7 +105,7 @@ function WaitForIngestionCard({ t }: HITLInternalProps) {
         <div className="mx-6 my-4 rounded-2xl border border-[var(--accent)]/30 bg-[var(--accent-subtle)]/50 backdrop-blur-xl px-5 py-4 flex items-center gap-3 shadow-[var(--shadow-sm)]">
             <Loader2 className="size-5 text-[var(--accent)] shrink-0 animate-spin" />
             <p className="text-sm text-[var(--text-secondary)]">
-                {t('hitl.waitForIngestion') || 'Waiting for papers to be parsed...'}
+                {t('hitl.waitForIngestion')}
             </p>
         </div>
     )

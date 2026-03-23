@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, Text
+from sqlalchemy import JSON, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -40,3 +40,12 @@ class RunSnapshot(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     tokens_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    # interrupt 持久化：存储 interrupt 事件的完整 payload
+    interrupt_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    # CoT 节点列表持久化：[{"name": "discovery"}, ...]
+    cot_nodes: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+
+    # content_block 产出：[{"content": "...", "workflow": "publish"}, ...]
+    content_blocks: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)

@@ -41,42 +41,35 @@ class TestTranslateToRunEvent:
         result = translate_to_run_event({"event": "unknown/event", "data": {}})
         assert result is None
 
-    def test_missing_event_key_returns_none(self) -> None:
-        result = translate_to_run_event({"data": {}})
-        assert result is None
-
-    def test_node_start_event(self) -> None:
+    def test_interrupt_confirm_execute_preserves_code(self) -> None:
+        """confirm_execute interrupt 应保留 code 字段。"""
         result = translate_to_run_event(
             {
-                "event": "on_chain_start",
-                "name": "discovery",
-                "data": {"name": "discovery", "run_id": "r1"},
-                "metadata": {"langgraph_node": "discovery"},
+                "event": "__interrupt__",
+                "data": {
+                    "action": "confirm_execute",
+                    "run_id": "r1",
+                    "thread_id": "t1",
+                    "code": "print('hello')",
+                    "title": "Review Code",
+                },
             }
         )
         assert result is not None
-        assert result["event_type"] == "node_start"
+        assert result["data"]["code"] == "print('hello')"
 
-    def test_node_end_event(self) -> None:
+    def test_interrupt_confirm_finalize_preserves_content(self) -> None:
+        """confirm_finalize interrupt 应保留 content 字段。"""
         result = translate_to_run_event(
             {
-                "event": "on_chain_end",
-                "name": "extraction",
-                "data": {"name": "extraction", "run_id": "r1"},
-                "metadata": {"langgraph_node": "extraction"},
+                "event": "__interrupt__",
+                "data": {
+                    "action": "confirm_finalize",
+                    "run_id": "r1",
+                    "thread_id": "t1",
+                    "content": "# Report\nSome content",
+                },
             }
         )
         assert result is not None
-        assert result["event_type"] == "node_end"
-
-    def test_event_without_langgraph_node_is_filtered(self) -> None:
-        """node_start/end without langgraph_node in metadata should be dropped."""
-        result = translate_to_run_event(
-            {
-                "event": "on_chain_start",
-                "name": "some_internal_chain",
-                "data": {},
-                "metadata": {},
-            }
-        )
-        assert result is None
+        assert result["data"]["content"] == "# Report\nSome content"

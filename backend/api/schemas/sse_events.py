@@ -1,4 +1,10 @@
-"""SSE 事件 Payload 类型定义 — 对齐 SSE Event Protocol Design spec。"""
+"""SSE 事件 Payload 类型定义 — 对齐 SSE Event Protocol Design spec。
+
+NOTE: 本模块当前仅被 event_broadcaster.py（EventBroadcaster）引用，
+EventBroadcaster 本身尚未挂载到任何路由（文档解析进度推送功能待接入）。
+保留此文件作为 Workspace 级 SSE 广播的类型合约，待 /workspace/events SSE
+端点实现时激活。请勿删除。
+"""
 
 from __future__ import annotations
 

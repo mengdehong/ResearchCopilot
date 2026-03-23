@@ -81,7 +81,7 @@ export interface RunRequest {
 
 export interface RunEvent {
     event_type: string
-    data: Record<string, string | number | boolean | null>
+    data: Record<string, unknown>
 }
 
 export interface InterruptResponse {
@@ -104,6 +104,13 @@ export interface ThreadInfo {
     updated_at?: string
     workspace_id?: string
     langgraph_thread_id?: string
+}
+
+export interface ThreadDetail {
+    thread_id: string
+    title: string
+    status: string
+    active_run_id: string | null
 }
 
 /* ─── Editor ─── */

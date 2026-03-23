@@ -3,7 +3,9 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { MessageSquare, FileText } from 'lucide-react'
 import { useAgentStore } from '@/stores/useAgentStore'
+import type { InterruptData } from '@/types'
 import { useCreateThread, useCreateRun, useResumeRun, useCancelRun, useMessages } from '@/hooks/useThreads'
+import { useThread } from '@/hooks/useThread'
 import { useSSE } from '@/hooks/useSSE'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import ChatPanel from '@/features/chat/ChatPanel'
@@ -32,6 +34,7 @@ export default function WorkbenchPage() {
     const reset = useAgentStore((s) => s.reset)
 
     const [activeRunId, setActiveRunId] = useState('')
+    const { data: threadDetail } = useThread(threadId)
 
     const createThread = useCreateThread()
     const createRun = useCreateRun()
@@ -41,7 +44,7 @@ export default function WorkbenchPage() {
     const [mobileTab, setMobileTab] = useState<'chat' | 'canvas'>('chat')
 
     // Load chat history from backend when threadId changes
-    const { data: historyMessages } = useMessages(threadId)
+    const { data: messagesResponse } = useMessages(threadId)
     const prevThreadRef = useRef(threadId)
     // Track whether we just created this thread (skip reset in that case)
     const justCreatedRef = useRef(false)
@@ -65,19 +68,41 @@ export default function WorkbenchPage() {
         }
     }, [threadId, reset])
 
+    // SSE 重连：切回 thread 时，如果有 running run，自动恢复 SSE
     useEffect(() => {
-        // Only load history once per thread — never on background React Query refetches.
-        // loadMessages would overwrite optimistically-added messages (e.g. the second
-        // in-flight user message) if we re-ran on every query invalidation.
-        if (
-            historyMessages &&
-            historyMessages.length > 0 &&
-            historyLoadedForRef.current !== threadId
-        ) {
-            historyLoadedForRef.current = threadId
-            loadMessages(historyMessages)
+        if (threadDetail?.active_run_id && !activeRunId) {
+            log.info('restoring SSE for active run', { activeRunId: threadDetail.active_run_id })
+            setActiveRunId(threadDetail.active_run_id)
         }
-    }, [historyMessages, loadMessages, threadId])
+    }, [threadDetail, activeRunId])
+
+    useEffect(() => {
+        if (!messagesResponse) return
+        const { messages: historyMsgs, pending_interrupt, cot_nodes } = messagesResponse
+        if (historyLoadedForRef.current !== threadId) {
+            historyLoadedForRef.current = threadId
+            const currentMessages = useAgentStore.getState().messages
+            if (currentMessages.length === 0) {
+                loadMessages(historyMsgs)
+            }
+        }
+        // 恢复 pending interrupt
+        if (pending_interrupt && !useAgentStore.getState().interrupt) {
+            useAgentStore.setState({ interrupt: pending_interrupt as InterruptData })
+        }
+        // 恢复 CoT 树（来自最后一个 RunSnapshot 的持久化数据）
+        if (cot_nodes && cot_nodes.length > 0 && useAgentStore.getState().cotTree.length === 0) {
+            const restoredTree = cot_nodes.map((n: { name: string }) => ({
+                id: crypto.randomUUID(),
+                name: n.name,
+                startTime: 0,
+                endTime: 0,
+                children: [],
+                status: 'completed' as const,
+            }))
+            useAgentStore.setState({ cotTree: restoredTree })
+        }
+    }, [messagesResponse, loadMessages, threadId])
 
     // Reset everything when workspace changes
     const prevWorkspaceRef = useRef(workspaceId)
