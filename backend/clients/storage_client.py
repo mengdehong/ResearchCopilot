@@ -23,9 +23,12 @@ class StorageClient:
     ) -> str:
         """Generate pre-signed upload URL.
 
-        MVP: returns a local file path as pseudo-URL.
+        MVP: returns a local mock API endpoint to accept the upload.
         """
-        return f"file://{self._base_dir / key}?expires={expires_in}"
+        import urllib.parse
+
+        encoded_key = urllib.parse.quote(key)
+        return f"/api/v1/documents/upload?key={encoded_key}"
 
     async def head_object(self, key: str) -> bool:
         """Check if object exists."""

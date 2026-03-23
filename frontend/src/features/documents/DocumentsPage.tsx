@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useDocuments, useDeleteDocument, useRetryParse, useInitiateUpload, useConfirmUpload } from '@/hooks/useDocuments'
 import { useTranslation } from '@/i18n/useTranslation'
 import api from '@/lib/api'
+import axios from 'axios'
 import { Upload, FileText, Trash2, RotateCcw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -39,7 +40,7 @@ export default function DocumentsPage() {
                 workspace_id: workspaceId,
             })
 
-            await api.put(upload_url, file, {
+            await axios.put(upload_url, file, {
                 headers: { 'Content-Type': file.type },
             })
 

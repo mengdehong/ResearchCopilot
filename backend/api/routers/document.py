@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,7 +66,22 @@ async def confirm_upload(
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
     await session.commit()
+    await session.refresh(doc)
     return DocumentMeta.model_validate(doc)
+
+
+@router.put("/upload", status_code=200)
+async def mock_direct_upload(
+    key: str,
+    request: Request,
+    storage: StorageClient = Depends(_get_storage),
+) -> dict:
+    """Mock endpoint to receive direct PUT uploads instead of S3 presigned URLs."""
+    body = await request.body()
+    target = storage._base_dir / key
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(body)
+    return {"status": "ok"}
 
 
 @router.post("/from-arxiv", response_model=DocumentMeta, status_code=201)
@@ -94,6 +109,7 @@ async def create_from_arxiv(
     if doc is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
     await session.commit()
+    await session.refresh(doc)
     return DocumentMeta.model_validate(doc)
 
 
@@ -189,6 +205,7 @@ async def retry_parse(
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
     await session.commit()
+    await session.refresh(doc)
     return DocumentMeta.model_validate(doc)
 
 
