@@ -71,6 +71,8 @@ export default function ChatPanel({
                 onSend={onSendMessage}
                 disabled={isStreaming}
                 threadId={threadId}
+                isStreaming={isStreaming}
+                onCancel={onCancelRun}
             />
         </div>
     )

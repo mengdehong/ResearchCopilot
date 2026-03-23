@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, type KeyboardEvent, type ChangeEvent } from 'react'
-import { Send, Loader2, Paperclip, X, Mic, MicOff } from 'lucide-react'
+import { Send, Loader2, Paperclip, X, Mic, MicOff, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/i18n/useTranslation'
 import useVoiceInput from '@/hooks/useVoiceInput'
@@ -8,9 +8,11 @@ interface InputAreaProps {
     onSend: (message: string, files?: File[]) => void
     disabled: boolean
     threadId: string
+    isStreaming?: boolean
+    onCancel?: () => void
 }
 
-export default function InputArea({ onSend, disabled }: InputAreaProps) {
+export default function InputArea({ onSend, disabled, isStreaming = false, onCancel }: InputAreaProps) {
     const [value, setValue] = useState('')
     const [files, setFiles] = useState<File[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -183,19 +185,30 @@ export default function InputArea({ onSend, disabled }: InputAreaProps) {
                         rows={1}
                     />
                 </div>
-                <Button
-                    size="icon"
-                    onClick={handleSend}
-                    disabled={disabled || !value.trim()}
-                    aria-label="Send message"
-                    className="shrink-0 transition-all duration-200 active:scale-[0.85] rounded-full h-10 w-10 shadow-[var(--shadow-sm)] m-0"
-                >
-                    {disabled ? (
-                        <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                        <Send className="size-4" />
-                    )}
-                </Button>
+                {isStreaming && onCancel ? (
+                    <Button
+                        size="icon"
+                        onClick={onCancel}
+                        aria-label="Cancel run"
+                        className="shrink-0 transition-all duration-200 active:scale-[0.85] rounded-full h-10 w-10 shadow-[var(--shadow-sm)] m-0 bg-[var(--error,#ef4444)] hover:bg-[var(--error,#ef4444)]/90 text-white"
+                    >
+                        <Square className="size-4" />
+                    </Button>
+                ) : (
+                    <Button
+                        size="icon"
+                        onClick={handleSend}
+                        disabled={disabled || !value.trim()}
+                        aria-label="Send message"
+                        className="shrink-0 transition-all duration-200 active:scale-[0.85] rounded-full h-10 w-10 shadow-[var(--shadow-sm)] m-0"
+                    >
+                        {disabled && !isStreaming ? (
+                            <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                            <Send className="size-4" />
+                        )}
+                    </Button>
+                )}
             </div>
         </div>
     )
