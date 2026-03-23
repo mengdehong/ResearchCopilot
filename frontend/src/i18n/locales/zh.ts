@@ -119,6 +119,7 @@ export const zh: TranslationDict = {
         paperListOnRight: '论文列表已在右侧面板展示，请在右侧勾选。',
         rejectConfirm: '确定要拒绝吗？',
         confirmReject: '确认拒绝',
+        waitForIngestion: '正在等待论文解析...',
     },
     status: {
         processing: '处理中...',

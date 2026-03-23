@@ -113,6 +113,7 @@ export default function AppLayout() {
                         label={navExpanded ? t('nav.collapse') : t('nav.expand')}
                         expanded={navExpanded}
                         onClick={toggleNav}
+                        data-testid="sidebar-toggle"
                     />
 
                     {/* Workspaces */}
@@ -208,12 +209,14 @@ interface SidebarButtonProps {
     readonly expanded: boolean
     readonly onClick: () => void
     readonly active?: boolean
+    readonly 'data-testid'?: string
 }
 
-function SidebarButton({ icon, label, expanded, onClick, active = false }: SidebarButtonProps) {
+function SidebarButton({ icon, label, expanded, onClick, active = false, 'data-testid': testId }: SidebarButtonProps) {
     const button = (
         <button
             onClick={onClick}
+            data-testid={testId}
             className={`
                 flex items-center gap-2.5 w-full px-2.5 py-2 rounded-[var(--radius-sm)]
                 text-sm transition-all duration-200 cursor-pointer active:scale-[0.98]
