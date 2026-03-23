@@ -27,14 +27,44 @@ class TestRenderDiscovery:
             "selected_paper_ids": ["2301.00001"],
         }
         result = render_discovery_artifacts(data)
-        assert "## 📚 文献发现结果" in result
+        assert "## 📚 已选文献" in result
         assert "Test Paper" in result
-        assert "✅" in result
         assert "2301.00001" in result
+        # 未选中的论文不应出现
+        assert "✅" not in result
+        assert "📄" not in result
 
-    def test_empty_papers(self) -> None:
+    def test_no_selected_papers_returns_empty(self) -> None:
+        # 无选中论文时返回空字符串，不写入 Editor
         result = render_discovery_artifacts({"papers": [], "selected_paper_ids": []})
-        assert "## 📚 文献发现结果" in result
+        assert result == ""
+
+    def test_unselected_papers_excluded(self) -> None:
+        # 未选中的论文不应出现在输出中
+        data = {
+            "papers": [
+                {
+                    "arxiv_id": "A",
+                    "title": "Selected",
+                    "authors": [],
+                    "year": 2023,
+                    "abstract": "",
+                    "relevance_comment": "",
+                },
+                {
+                    "arxiv_id": "B",
+                    "title": "Excluded",
+                    "authors": [],
+                    "year": 2023,
+                    "abstract": "",
+                    "relevance_comment": "",
+                },
+            ],
+            "selected_paper_ids": ["A"],
+        }
+        result = render_discovery_artifacts(data)
+        assert "Selected" in result
+        assert "Excluded" not in result
 
 
 class TestRenderExtraction:

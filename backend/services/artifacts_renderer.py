@@ -2,34 +2,37 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from backend.core.logger import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger(__name__)
 
 
 def render_discovery_artifacts(data: dict) -> str:
-    """Discovery WF artifacts → Markdown。"""
-    lines: list[str] = ["## 📚 文献发现结果\n"]
-
+    """Discovery WF artifacts → Markdown。只渲染用户选中的论文。"""
     papers = data.get("papers", [])
-    selected_ids = data.get("selected_paper_ids", [])
+    selected_ids = set(data.get("selected_paper_ids", []))
 
-    if selected_ids:
-        lines.append(f"已筛选 **{len(selected_ids)}** 篇论文（共检索 {len(papers)} 篇）\n")
+    selected_papers = [p for p in papers if p.get("arxiv_id", "") in selected_ids]
 
-    for paper in papers:
+    if not selected_papers:
+        return ""
+
+    lines: list[str] = [f"## 📚 已选文献（{len(selected_papers)} 篇）\n"]
+
+    for paper in selected_papers:
         arxiv_id = paper.get("arxiv_id", "")
-        is_selected = arxiv_id in selected_ids
-        marker = "✅" if is_selected else "📄"
         title = paper.get("title", "Untitled")
         authors = paper.get("authors", [])
         year = paper.get("year", "")
         abstract = paper.get("abstract", "")
         relevance = paper.get("relevance_comment", "")
 
-        lines.append(f"### {marker} {title}\n")
+        lines.append(f"### {title}\n")
         if authors:
             author_str = ", ".join(authors[:3])
             if len(authors) > 3:
