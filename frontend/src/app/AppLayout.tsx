@@ -104,17 +104,7 @@ export default function AppLayout() {
                         </AnimatePresence>
                     </NavLink>
 
-                    {/* Expand/collapse toggle */}
-                    <SidebarButton
-                        icon={navExpanded
-                            ? <PanelLeftClose className="size-4" />
-                            : <PanelLeftOpen className="size-4" />
-                        }
-                        label={navExpanded ? t('nav.collapse') : t('nav.expand')}
-                        expanded={navExpanded}
-                        onClick={toggleNav}
-                        data-testid="sidebar-toggle"
-                    />
+
 
                     {/* Workspaces */}
                     <SidebarButton
@@ -159,6 +149,18 @@ export default function AppLayout() {
 
                 {/* Bottom: Theme + Settings */}
                 <div className="flex flex-col items-center gap-1.5 pb-4 px-3 border-t border-[var(--border)] pt-3">
+                    {/* Expand/collapse toggle */}
+                    <SidebarButton
+                        icon={navExpanded
+                            ? <PanelLeftClose className="size-4" />
+                            : <PanelLeftOpen className="size-4" />
+                        }
+                        label={navExpanded ? t('nav.collapse') : t('nav.expand')}
+                        expanded={navExpanded}
+                        onClick={toggleNav}
+                        data-testid="sidebar-toggle"
+                    />
+
                     {/* Theme Switch */}
                     <SidebarButton
                         icon={resolvedTheme === 'dark'
