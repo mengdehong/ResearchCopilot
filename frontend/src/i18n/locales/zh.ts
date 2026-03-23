@@ -93,6 +93,7 @@ export const zh: TranslationDict = {
         dropzoneHint: '支持最大 50MB 的 PDF 文件',
         loadingDocuments: '加载文档...',
         empty: '暂无文档，上传 PDF 开始吧。',
+        uploadError: '上传失败',
         status: {
             completed: '已完成',
             parsing: '解析中',

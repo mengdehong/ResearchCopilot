@@ -115,17 +115,37 @@ describe('useAgentStore', () => {
 
     // ── content_block ──
     describe('content_block event', () => {
-        it('sets contentBlock with content and workflow', () => {
+        it('pushes contentBlock to contentBlocks queue', () => {
             dispatch('content_block', { content: '# Report', workflow: 'publish' })
-            expect(useAgentStore.getState().contentBlock).toEqual({
-                content: '# Report',
-                workflow: 'publish',
-            })
+            expect(useAgentStore.getState().contentBlocks).toEqual([
+                { content: '# Report', workflow: 'publish' },
+            ])
         })
 
         it('ignores empty content', () => {
             dispatch('content_block', { content: '', workflow: 'publish' })
-            expect(useAgentStore.getState().contentBlock).toBeNull()
+            expect(useAgentStore.getState().contentBlocks).toEqual([])
+        })
+
+        it('accumulates multiple content blocks', () => {
+            dispatch('content_block', { content: '# Part 1', workflow: 'discovery' })
+            dispatch('content_block', { content: '# Part 2', workflow: 'extraction' })
+            expect(useAgentStore.getState().contentBlocks).toHaveLength(2)
+        })
+    })
+
+    // ── consumeContentBlock ──
+    describe('consumeContentBlock', () => {
+        it('returns first block and removes it from queue', () => {
+            dispatch('content_block', { content: 'A', workflow: 'w1' })
+            dispatch('content_block', { content: 'B', workflow: 'w2' })
+            const block = useAgentStore.getState().consumeContentBlock()
+            expect(block).toEqual({ content: 'A', workflow: 'w1' })
+            expect(useAgentStore.getState().contentBlocks).toHaveLength(1)
+        })
+
+        it('returns null when queue is empty', () => {
+            expect(useAgentStore.getState().consumeContentBlock()).toBeNull()
         })
     })
 
@@ -201,7 +221,7 @@ describe('useAgentStore', () => {
             expect(state.isStreaming).toBe(false)
             expect(state.currentNode).toBeNull()
             expect(state.generatedContent).toBe('')
-            expect(state.contentBlock).toBeNull()
+            expect(state.contentBlocks).toEqual([])
             expect(state.activePdf).toBeNull()
             expect(state.sandboxResult).toBeNull()
         })

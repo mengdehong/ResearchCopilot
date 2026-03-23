@@ -91,6 +91,7 @@ export const en = {
         dropzoneHint: 'Supports PDF files up to 50MB',
         loadingDocuments: 'Loading documents...',
         empty: 'No documents yet. Upload PDFs to get started.',
+        uploadError: 'Upload failed',
         status: {
             completed: 'Completed',
             parsing: 'Parsing',

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from './fixtures'
 import { mockSSEStream } from './helpers/sse-mocks'
+import { pathEndsWith } from './helpers/api-mocks'
 
 /**
  * Advanced SSE mock that simulates error on first connection,
@@ -187,12 +188,16 @@ test.describe('SSE Reconnection', () => {
 
     test('thread switch loads new thread history', async ({ authedPage: page }) => {
         // Mock a second thread with different messages
-        await page.route('**/api/v1/agent/threads/th-2/messages', (route) =>
+        await page.route(pathEndsWith('/agent/threads/th-2/messages'), (route) =>
             route.fulfill({
-                json: [
-                    { id: 'msg-3', role: 'user', content: 'Thread 2 question', timestamp: '2025-01-02T00:00:00Z' },
-                    { id: 'msg-4', role: 'assistant', content: 'Thread 2 answer', timestamp: '2025-01-02T00:01:00Z' },
-                ],
+                json: {
+                    messages: [
+                        { id: 'msg-3', role: 'user', content: 'Thread 2 question', timestamp: '2025-01-02T00:00:00Z' },
+                        { id: 'msg-4', role: 'assistant', content: 'Thread 2 answer', timestamp: '2025-01-02T00:01:00Z' },
+                    ],
+                    pending_interrupt: null,
+                    cot_nodes: null,
+                },
             }),
         )
 

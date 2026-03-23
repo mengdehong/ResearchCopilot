@@ -57,7 +57,7 @@ test.describe('Editor Canvas', () => {
         await editor.press('Control+a')
         // Click the Bold button by aria-label
         await page.getByRole('button', { name: 'Bold' }).click()
-        await expect(editor.locator('strong')).toBeVisible()
+        await expect(editor.locator('strong').first()).toBeVisible()
     })
 
     test('content_block SSE event injects content into editor', async ({ authedPage: page }) => {

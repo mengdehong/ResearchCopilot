@@ -8,8 +8,9 @@ test.describe('Settings Page', () => {
 
     test('displays account information', async ({ authedPage: page }) => {
         await page.goto('/settings')
-        await expect(page.getByText('Test User')).toBeVisible()
-        await expect(page.getByText('test@example.com')).toBeVisible()
+        const main = page.locator('main')
+        await expect(main).toContainText('Test User')
+        await expect(main).toContainText('test@example.com')
     })
 
     test('dark theme toggle adds .dark class', async ({ authedPage: page }) => {

@@ -29,6 +29,9 @@ export default function MessageList({ messages, streamingContent, cotTree }: Mes
     const lastAssistantMsg = hasCoT && lastAssistantIdx >= 0
         ? messages[lastAssistantIdx]
         : null
+    const afterMessages = hasCoT && lastAssistantIdx >= 0
+        ? messages.slice(lastAssistantIdx + 1)
+        : []
 
     return (
         <div className="flex flex-col gap-0 py-4">
@@ -56,6 +59,12 @@ export default function MessageList({ messages, streamingContent, cotTree }: Mes
                     <MessageBubble message={lastAssistantMsg} />
                 </SlideUp>
             )}
+
+            {afterMessages.map((msg) => (
+                <SlideUp key={msg.id}>
+                    <MessageBubble message={msg} />
+                </SlideUp>
+            ))}
 
             {streamingContent && (
                 <StreamingMessage content={streamingContent} />
