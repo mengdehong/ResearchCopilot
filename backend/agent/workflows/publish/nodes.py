@@ -4,6 +4,7 @@ import io
 import json
 import zipfile
 from pathlib import Path
+from uuid import uuid4
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -209,7 +210,7 @@ def render_presentation(state: PublishState) -> dict:
 
 
 def package_zip(state: PublishState) -> dict:
-    """将产出文件打包为 ZIP。"""
+    """将产出文件打包为 ZIP 并持久化到本地存储。"""
     markdown = state.get("markdown_content", "")
     output_files = list(state.get("output_files", []))
     citation_map = state.get("citation_map", {})
@@ -226,8 +227,22 @@ def package_zip(state: PublishState) -> dict:
                 output_files.append("citations.json")
 
     zip_bytes = buf.getvalue()
-    logger.info("package_zip_done", file_count=len(output_files), zip_size=len(zip_bytes))
-    return {"output_files": output_files, "zip_bytes": zip_bytes}
+
+    # 持久化到本地存储
+    workspace_id = state.get("workspace_id", "default")
+    download_key = f"reports/{workspace_id}/{uuid4().hex}.zip"
+    storage_dir = Path("/tmp/research-copilot-uploads")
+    target = storage_dir / download_key
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(zip_bytes)
+
+    logger.info(
+        "package_zip_done",
+        file_count=len(output_files),
+        zip_size=len(zip_bytes),
+        download_key=download_key,
+    )
+    return {"output_files": output_files, "zip_bytes": zip_bytes, "download_key": download_key}
 
 
 def write_artifacts(state: PublishState) -> dict:
@@ -240,6 +255,7 @@ def write_artifacts(state: PublishState) -> dict:
                 "citation_map": state.get("citation_map", {}),
                 "output_files": state.get("output_files", []),
                 "presentation": state.get("rendered_presentation"),
+                "download_key": state.get("download_key"),
             },
         },
     }

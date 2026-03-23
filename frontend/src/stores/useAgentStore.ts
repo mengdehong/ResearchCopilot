@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Message, CoTNode, CotNodeSummary, InterruptData, RunEvent, PdfHighlight, SandboxResult, SandboxImage } from '@/types'
+import type { Message, CoTNode, CotNodeSummary, InterruptData, RunEvent, PdfHighlight, SandboxResult, SandboxImage, ResearchBlock } from '@/types'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('Store')
@@ -24,6 +24,8 @@ interface AgentState {
      *  assistant_message 回退（无 supervisor AIMessage 时）。 */
     generatedContent: string
     contentBlocks: { content: string; workflow: string }[]
+    /** 累积型的 WF 产物列表，供 Research Tab 结构化展示。 */
+    researchBlocks: ResearchBlock[]
     activePdf: PdfHighlight | null
     sandboxHistory: SandboxResult[]
     downloadUrl: string | null
@@ -40,6 +42,7 @@ interface AgentState {
     setActivePdf: (pdf: PdfHighlight | null) => void
     setEditorHtml: (html: string) => void
     consumeContentBlock: () => { content: string; workflow: string } | null
+    loadResearchBlocks: (blocks: ResearchBlock[]) => void
 }
 
 export const useAgentStore = create<AgentState>((set, get) => ({
@@ -50,6 +53,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     currentNode: null,
     generatedContent: '',
     contentBlocks: [],
+    researchBlocks: [],
     activePdf: null,
     sandboxHistory: [],
     downloadUrl: null,
@@ -158,8 +162,10 @@ export const useAgentStore = create<AgentState>((set, get) => ({
                 const content = String(data.content ?? '')
                 const workflow = String(data.workflow ?? '')
                 if (content) {
+                    const block: ResearchBlock = { content, workflow }
                     set((state) => ({
-                        contentBlocks: [...state.contentBlocks, { content, workflow }],
+                        contentBlocks: [...state.contentBlocks, block],
+                        researchBlocks: [...state.researchBlocks, block],
                     }))
                 }
                 break
@@ -245,6 +251,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             downloadUrl: null,
             editorHtml: '',
             contentBlocks: [],
+            researchBlocks: [],
             activePdf: null,
             sandboxHistory: [],
         }),
@@ -269,4 +276,6 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         set({ contentBlocks: rest })
         return first
     },
+
+    loadResearchBlocks: (blocks) => set({ researchBlocks: blocks }),
 }))

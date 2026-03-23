@@ -49,3 +49,6 @@ class RunSnapshot(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # content_block 产出：[{"content": "...", "workflow": "publish"}, ...]
     content_blocks: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+
+    # Publish WF 报告包下载路径
+    download_key: Mapped[str | None] = mapped_column(Text, nullable=True)

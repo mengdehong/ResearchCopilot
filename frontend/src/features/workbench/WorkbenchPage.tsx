@@ -79,12 +79,16 @@ export default function WorkbenchPage() {
 
     useEffect(() => {
         if (!messagesResponse) return
-        const { messages: historyMsgs, pending_interrupt, cot_nodes } = messagesResponse
+        const { messages: historyMsgs, pending_interrupt, cot_nodes, content_blocks } = messagesResponse
         if (historyLoadedForRef.current !== threadId) {
             historyLoadedForRef.current = threadId
             const currentMessages = useAgentStore.getState().messages
             if (currentMessages.length === 0) {
                 loadMessages(historyMsgs)
+            }
+            // 恢复 Research Tab 的历史产物
+            if (content_blocks && content_blocks.length > 0) {
+                useAgentStore.getState().loadResearchBlocks(content_blocks)
             }
         }
         // 恢复 pending interrupt

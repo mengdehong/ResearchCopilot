@@ -159,7 +159,7 @@ export interface InterruptData {
     payload: Record<string, unknown>
 }
 
-export type CanvasTab = 'editor' | 'pdf' | 'sandbox'
+export type CanvasTab = 'editor' | 'pdf' | 'sandbox' | 'research'
 
 export interface PdfHighlight {
     document_id: string
@@ -182,6 +182,12 @@ export interface SandboxResult {
     duration_ms: number
     artifacts: string[]
     images: SandboxImage[]
+}
+
+/* ─── Research Blocks ─── */
+export interface ResearchBlock {
+    content: string
+    workflow: string
 }
 
 /* ─── Constants ─── */

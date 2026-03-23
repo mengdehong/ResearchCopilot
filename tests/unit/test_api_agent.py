@@ -227,3 +227,50 @@ class TestResumeRunAuthPropagation:
 
         call_kwargs = mock_runner.resume_run.call_args.kwargs
         assert call_kwargs["config"] is None
+
+
+class TestAgentThreadMessages:
+    @patch("backend.api.routers.agent._verify_thread_ownership", new_callable=AsyncMock)
+    @patch("backend.api.routers.agent.run_snapshot_repo")
+    async def test_get_thread_messages_aggregates_content_blocks(
+        self, mock_repo, mock_verify, client
+    ) -> None:
+        tid = uuid.uuid4()
+
+        # mock 两个 snapshot
+        snap1 = MagicMock()
+        snap1.run_id = uuid.uuid4()
+        snap1.user_message = "msg 1"
+        snap1.assistant_response = "reply 1"
+        snap1.created_at = datetime.now(tz=UTC)
+        snap1.completed_at = snap1.created_at
+        snap1.status = "completed"
+        snap1.cot_nodes = None
+        snap1.content_blocks = [{"content": "block1", "workflow": "discovery"}]
+
+        snap2 = MagicMock()
+        snap2.run_id = uuid.uuid4()
+        snap2.user_message = "msg 2"
+        snap2.assistant_response = None
+        snap2.created_at = datetime.now(tz=UTC)
+        snap2.completed_at = None
+        snap2.status = "running"
+        snap2.cot_nodes = [{"name": "node1", "status": "running"}]
+        snap2.content_blocks = [{"content": "block2", "workflow": "extraction"}]
+
+        # list_by_thread 会返回降序排列的，代码中通过 reverse() 处理
+        mock_repo.list_by_thread = AsyncMock(return_value=[snap2, snap1])
+
+        response = await client.get(f"/api/v1/agent/threads/{tid}/messages")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "messages" in data
+        assert len(data["messages"]) == 3  # msg1, reply1, msg2
+
+        # 验证 content_blocks 是否合并返回
+        assert "content_blocks" in data
+        assert data["content_blocks"] == [
+            {"content": "block1", "workflow": "discovery"},
+            {"content": "block2", "workflow": "extraction"},
+        ]

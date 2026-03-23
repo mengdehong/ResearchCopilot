@@ -118,6 +118,26 @@ def test_package_zip_adds_report() -> None:
     state = {"markdown_content": "# Report", "output_files": []}
     result = package_zip(state)
     assert "report.md" in result["output_files"]
+    assert result["download_key"] is not None
+    assert result["zip_bytes"] is not None
+
+
+def test_package_zip_persists_file() -> None:
+    """ZIP 文件应被写入本地存储目录。"""
+    from pathlib import Path
+
+    state = {"markdown_content": "# Report", "output_files": [], "workspace_id": "ws-test"}
+    result = package_zip(state)
+
+    key = result["download_key"]
+    assert key.startswith("reports/ws-test/")
+    assert key.endswith(".zip")
+    # 验证文件确实被写入
+    file_path = Path("/tmp/research-copilot-uploads") / key
+    assert file_path.exists()
+    assert file_path.stat().st_size > 0
+    # 清理
+    file_path.unlink()
 
 
 # ── write_artifacts ──
@@ -134,6 +154,19 @@ def test_publish_write_artifacts() -> None:
     publish = result["artifacts"]["publish"]
     assert publish["markdown"] == "# Report"
     assert len(publish["outline"]) == 1
+
+
+def test_write_artifacts_includes_download_key() -> None:
+    """write_artifacts 应将 download_key 写入 artifacts。"""
+    state = {
+        "markdown_content": "# Report",
+        "outline": [_make_section()],
+        "citation_map": {},
+        "output_files": [],
+        "download_key": "reports/ws/abc.zip",
+    }
+    result = write_artifacts(state)
+    assert result["artifacts"]["publish"]["download_key"] == "reports/ws/abc.zip"
 
 
 # ── Subgraph 编译 ──

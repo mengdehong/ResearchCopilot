@@ -134,6 +134,48 @@ describe('useAgentStore', () => {
         })
     })
 
+    // ── researchBlocks ──
+    describe('researchBlocks', () => {
+        it('content_block populates both contentBlocks and researchBlocks', () => {
+            dispatch('content_block', { content: '# Report', workflow: 'discovery' })
+            const state = useAgentStore.getState()
+            expect(state.contentBlocks).toHaveLength(1)
+            expect(state.researchBlocks).toHaveLength(1)
+            expect(state.researchBlocks[0]).toEqual({ content: '# Report', workflow: 'discovery' })
+        })
+
+        it('researchBlocks accumulates across multiple events', () => {
+            dispatch('content_block', { content: 'A', workflow: 'discovery' })
+            dispatch('content_block', { content: 'B', workflow: 'extraction' })
+            expect(useAgentStore.getState().researchBlocks).toHaveLength(2)
+        })
+
+        it('consumeContentBlock does not affect researchBlocks', () => {
+            dispatch('content_block', { content: 'A', workflow: 'w1' })
+            dispatch('content_block', { content: 'B', workflow: 'w2' })
+            useAgentStore.getState().consumeContentBlock()
+            expect(useAgentStore.getState().contentBlocks).toHaveLength(1)
+            expect(useAgentStore.getState().researchBlocks).toHaveLength(2)
+        })
+
+        it('loadResearchBlocks replaces existing blocks', () => {
+            dispatch('content_block', { content: 'live', workflow: 'w1' })
+            useAgentStore.getState().loadResearchBlocks([
+                { content: 'historic-1', workflow: 'discovery' },
+                { content: 'historic-2', workflow: 'extraction' },
+            ])
+            const blocks = useAgentStore.getState().researchBlocks
+            expect(blocks).toHaveLength(2)
+            expect(blocks[0].content).toBe('historic-1')
+        })
+
+        it('reset clears researchBlocks', () => {
+            dispatch('content_block', { content: 'data', workflow: 'w1' })
+            useAgentStore.getState().reset()
+            expect(useAgentStore.getState().researchBlocks).toEqual([])
+        })
+    })
+
     // ── consumeContentBlock ──
     describe('consumeContentBlock', () => {
         it('returns first block and removes it from queue', () => {
@@ -260,6 +302,7 @@ describe('useAgentStore', () => {
             expect(state.generatedContent).toBe('')
             expect(state.contentBlocks).toEqual([])
             expect(state.activePdf).toBeNull()
+            expect(state.researchBlocks).toEqual([])
             expect(state.sandboxHistory).toEqual([])
             expect(state.downloadUrl).toBeNull()
         })

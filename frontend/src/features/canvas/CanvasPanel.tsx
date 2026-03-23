@@ -5,15 +5,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import EditorTab from './EditorTab'
 import PDFTab from './PDFTab'
 import SandboxTab from './SandboxTab'
+import ResearchTab from './ResearchTab'
 import PaperSelectOverlay from './PaperSelectOverlay'
 import type { CanvasTab, InterruptData } from '@/types'
-import { FileText, FileImage, FlaskConical, Send, X } from 'lucide-react'
+import { FileText, FileImage, FlaskConical, Beaker, Send, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/i18n/useTranslation'
 import type { ReactNode } from 'react'
 
 const TABS: { key: CanvasTab; label: string; icon: ReactNode }[] = [
     { key: 'editor', label: 'Editor', icon: <FileText className="size-3.5" /> },
+    { key: 'research', label: 'Research', icon: <Beaker className="size-3.5" /> },
     { key: 'pdf', label: 'PDF', icon: <FileImage className="size-3.5" /> },
     { key: 'sandbox', label: 'Sandbox', icon: <FlaskConical className="size-3.5" /> },
 ]
@@ -34,6 +36,7 @@ export default function CanvasPanel({ threadId, interrupt, onResumeInterrupt }: 
     const activePdf = useAgentStore((s) => s.activePdf)
     const sandboxHistory = useAgentStore((s) => s.sandboxHistory)
     const editorHtml = useAgentStore((s) => s.editorHtml)
+    const researchBlockCount = useAgentStore((s) => s.researchBlocks.length)
 
     useEffect(() => {
         if (activePdf) setActiveTab('pdf')
@@ -42,6 +45,10 @@ export default function CanvasPanel({ threadId, interrupt, onResumeInterrupt }: 
     useEffect(() => {
         if (sandboxHistory.length > 0) setActiveTab('sandbox')
     }, [sandboxHistory, setActiveTab])
+
+    useEffect(() => {
+        if (researchBlockCount > 0) setActiveTab('research')
+    }, [researchBlockCount, setActiveTab])
 
     const showPaperOverlay = interrupt?.action === 'select_papers'
 
@@ -95,6 +102,9 @@ export default function CanvasPanel({ threadId, interrupt, onResumeInterrupt }: 
                 </div>
                 <div className={`h-full ${activeTab === 'sandbox' ? 'block' : 'hidden'}`}>
                     <SandboxTab />
+                </div>
+                <div className={`h-full ${activeTab === 'research' ? 'block' : 'hidden'}`}>
+                    <ResearchTab />
                 </div>
 
                 {/* Paper Select Overlay */}

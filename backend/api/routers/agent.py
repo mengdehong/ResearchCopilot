@@ -1,9 +1,10 @@
 import json
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,6 +57,17 @@ def _build_sandbox_event(wf_artifacts: dict) -> dict:
             "exit_code": exec_results.get("exit_code", -1),
             "duration_ms": 0,
             "artifacts": wf_artifacts.get("output_files", []),
+        },
+    }
+
+
+def _build_download_ready_event(thread_id: str, run_id: str, download_key: str) -> dict:
+    """Build a download_ready SSE event dict."""
+    return {
+        "event_type": "download_ready",
+        "data": {
+            "download_url": f"/api/v1/agent/threads/{thread_id}/runs/{run_id}/download",
+            "download_key": download_key,
         },
     }
 
@@ -208,6 +220,7 @@ async def get_thread_messages(
     # list_by_thread 返回 created_at DESC，这里需要正序
     snapshots.reverse()
     messages: list[dict] = []
+    all_content_blocks: list[dict] = []
     for snap in snapshots:
         messages.append(
             {
@@ -231,6 +244,9 @@ async def get_thread_messages(
                 assistant_msg["cotNodes"] = snap.cot_nodes
             messages.append(assistant_msg)
 
+        if snap.content_blocks:
+            all_content_blocks.extend(snap.content_blocks)
+
     pending_interrupt: dict | None = None
     last_snap = snapshots[-1] if snapshots else None
     if last_snap and last_snap.status == "interrupted" and last_snap.interrupt_data:
@@ -240,6 +256,7 @@ async def get_thread_messages(
         "messages": messages,
         "pending_interrupt": pending_interrupt,
         "cot_nodes": last_snap.cot_nodes if last_snap else None,
+        "content_blocks": all_content_blocks if all_content_blocks else None,
     }
 
 
@@ -366,6 +383,7 @@ async def stream_run_events(
         saw_error_event = False
         interrupt_payload_for_db: dict | None = None
         content_blocks_for_db: list[dict] = []
+        download_key_for_db: str | None = None
         try:
             raw_stream = runner.get_event_stream(run_id)
             async for raw_event in raw_stream:
@@ -437,6 +455,20 @@ async def stream_run_events(
                             exit_code=wf_artifacts.get("results", {}).get("exit_code"),
                         )
                         yield f"id: {seq}\ndata: {json.dumps(sandbox_event)}\n\n"
+
+                    # Publish WF: inject download_ready event
+                    if node_name == "publish" and wf_artifacts:
+                        dl_key = wf_artifacts.get("download_key")
+                        if dl_key:
+                            download_key_for_db = dl_key
+                            seq += 1
+                            dl_event = _build_download_ready_event(str(thread_id), run_id, dl_key)
+                            logger.debug(
+                                "sse_download_ready_injected",
+                                run_id=run_id,
+                                download_key=dl_key,
+                            )
+                            yield f"id: {seq}\ndata: {json.dumps(dl_event)}\n\n"
 
                 # Discovery 子图: wait_for_ingestion 完成后自动打开第一篇已解析 PDF
                 if event_type == "node_end" and node_name == "wait_for_ingestion":
@@ -513,6 +545,8 @@ async def stream_run_events(
                             ]
                         if content_blocks_for_db:
                             snap.content_blocks = content_blocks_for_db
+                        if download_key_for_db:
+                            snap.download_key = download_key_for_db
                         await db.commit()
             except Exception as save_exc:
                 logger.warning(
@@ -625,3 +659,30 @@ async def cancel_run(
     if not ok:
         raise HTTPException(status_code=404, detail="Thread not found")
     await session.commit()
+
+
+@router.get("/{thread_id}/runs/{run_id}/download")
+async def download_report(
+    thread_id: uuid.UUID,
+    run_id: str,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> FileResponse:
+    """下载 Publish WF 生成的报告 ZIP 包。"""
+    await _verify_thread_ownership(session, thread_id, current_user)
+    snap = await run_snapshot_repo.get_by_run_id(session, uuid.UUID(run_id))
+    if snap is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    if not snap.download_key:
+        raise HTTPException(status_code=404, detail="No report available for download")
+
+    file_path = Path("/tmp/research-copilot-uploads") / snap.download_key
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Report file not found")
+
+    return FileResponse(
+        file_path,
+        filename="research_report.zip",
+        media_type="application/zip",
+    )
