@@ -45,6 +45,8 @@ export default function WorkbenchPage() {
     const prevThreadRef = useRef(threadId)
     // Track whether we just created this thread (skip reset in that case)
     const justCreatedRef = useRef(false)
+    // Track which threadId we've already loaded history for — prevents re-runs on RQ refetch
+    const historyLoadedForRef = useRef<string>('')
 
     useEffect(() => {
         if (threadId !== prevThreadRef.current) {
@@ -58,17 +60,24 @@ export default function WorkbenchPage() {
                 setActiveRunId('')
             }
             prevThreadRef.current = threadId
+            // Allow history to load for the new thread
+            historyLoadedForRef.current = ''
         }
     }, [threadId, reset])
 
     useEffect(() => {
-        if (historyMessages && historyMessages.length > 0) {
-            const currentMessages = useAgentStore.getState().messages
-            if (currentMessages.length === 0) {
-                loadMessages(historyMessages)
-            }
+        // Only load history once per thread — never on background React Query refetches.
+        // loadMessages would overwrite optimistically-added messages (e.g. the second
+        // in-flight user message) if we re-ran on every query invalidation.
+        if (
+            historyMessages &&
+            historyMessages.length > 0 &&
+            historyLoadedForRef.current !== threadId
+        ) {
+            historyLoadedForRef.current = threadId
+            loadMessages(historyMessages)
         }
-    }, [historyMessages, loadMessages])
+    }, [historyMessages, loadMessages, threadId])
 
     // Reset everything when workspace changes
     const prevWorkspaceRef = useRef(workspaceId)

@@ -114,4 +114,31 @@ test.describe('Chat Flow', () => {
 
         await expect(page.getByText('literature_search')).toBeVisible({ timeout: 15000 })
     })
+
+    test('second message stays visible after first run completes', async ({ authedPage: page }) => {
+        // Regression test: React Query re-fetches /messages after createRun invalidates queries.
+        // The historyMessages effect must NOT overwrite optimistically-added messages.
+
+        // First run: completes fast
+        await mockSSEStream(page, [
+            { event_type: 'assistant_message', data: { content: 'Answer to first' } },
+            { event_type: 'run_end', data: {} },
+        ])
+
+        await page.goto('/workspace/ws-1?thread=th-1')
+
+        // Send first message and wait for the reply
+        await page.locator('textarea').fill('First question')
+        await page.getByRole('button', { name: 'Send message' }).click()
+        await expect(page.getByText('Answer to first')).toBeVisible({ timeout: 15000 })
+
+        // Send second message — this triggers createRun which invalidates ['messages'] in RQ,
+        // causing historyMessages to re-fetch. The second message must NOT be wiped by loadMessages.
+        await page.locator('textarea').fill('Second question')
+        await page.getByRole('button', { name: 'Send message' }).click()
+
+        // Both messages should still be visible simultaneously
+        await expect(page.getByText('First question')).toBeVisible({ timeout: 5000 })
+        await expect(page.getByText('Second question')).toBeVisible({ timeout: 5000 })
+    })
 })
