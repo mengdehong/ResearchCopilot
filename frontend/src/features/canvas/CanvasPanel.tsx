@@ -71,9 +71,15 @@ export default function CanvasPanel({ threadId, interrupt, onResumeInterrupt }: 
 
             {/* Content */}
             <div className="relative flex-1 overflow-auto">
-                {activeTab === 'editor' && <EditorTab threadId={threadId} />}
-                {activeTab === 'pdf' && <PDFTab />}
-                {activeTab === 'sandbox' && <SandboxTab />}
+                <div className={`h-full ${activeTab === 'editor' ? 'block' : 'hidden'}`}>
+                    <EditorTab threadId={threadId} />
+                </div>
+                <div className={`h-full ${activeTab === 'pdf' ? 'block' : 'hidden'}`}>
+                    <PDFTab />
+                </div>
+                <div className={`h-full ${activeTab === 'sandbox' ? 'block' : 'hidden'}`}>
+                    <SandboxTab />
+                </div>
 
                 {/* Paper Select Overlay */}
                 <AnimatePresence>
