@@ -13,7 +13,7 @@
 │ ┌───────────────────────────┐ ┌───────────────────────────────────────────┐ │
 │ │ 💬 左侧：Chat / 控制台    │ │ 📝 右侧：Canvas / 在线协同编辑器          │ │
 │ │ - 发送指令 / 确认打断(HITL)││ - 富文本/Markdown 实时渲染与手动修改      │ │
-│ │ - 接收 SSE Agent 思考状态 │ │ - PDF 对照高亮 / 沙盒图表与 PPT 预览      │ │
+│ │ - 接收 SSE Agent 思考状态 │ │ - PDF / 沙盒图表 / Research 结构化产物卡片  │ │
 │ └──────────────┬────────────┘ └──────────────────────┬────────────────────┘ │
 └────────────────┼─────────────────────────────────────┼──────────────────────┘
      WebSocket / │SSE (流式对话与状态推送) REST API 请求│ (防抖保存编辑器文档 /
@@ -218,7 +218,7 @@
     │   ├── auth/                    # 认证流程
     │   ├── workspace/               # 课题空间管理（Sidebar + Dashboard）
     │   ├── chat/                    # 左栏：对话控制区（ChatPanel、CoTTree、HITLCard）
-    │   ├── canvas/                  # 右栏：多 Tab 工作区（editor/pdf/sandbox）
+    │   ├── canvas/                  # 右栏：多 Tab 工作区（editor/pdf/sandbox/research）
     │   ├── documents/               # 文献管理（上传、状态、解析产物）
     │   ├── settings/                # 设置（学科偏好、BYOK、用量统计）
     │   └── workbench/               # WorkbenchPage 组装层（组合 Chat + Canvas）
