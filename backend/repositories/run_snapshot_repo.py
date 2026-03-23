@@ -30,3 +30,21 @@ async def list_by_thread(
     )
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+async def get_active_by_thread(
+    session: AsyncSession,
+    thread_id: uuid.UUID,
+) -> RunSnapshot | None:
+    """Get most recent running snapshot for a thread."""
+    stmt = (
+        select(RunSnapshot)
+        .where(
+            RunSnapshot.thread_id == thread_id,
+            RunSnapshot.status == "running",
+        )
+        .order_by(RunSnapshot.created_at.desc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()

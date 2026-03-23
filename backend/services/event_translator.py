@@ -165,6 +165,9 @@ def translate_to_run_event(raw_event: dict) -> dict | None:
                 "title": raw_data.get("title", "Human Review Required"),
                 "description": raw_data.get("description", ""),
                 "papers": raw_data.get("candidates", []),
+                # 保留 action 对应的 payload 字段
+                "code": raw_data.get("code"),
+                "content": raw_data.get("content"),
             }
         case "error":
             data = {

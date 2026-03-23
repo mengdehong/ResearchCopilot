@@ -7,7 +7,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from backend.api.dependencies import get_current_user, get_current_user_sse, get_db, get_lg_runner
+from backend.api.dependencies import (
+    get_current_user,
+    get_current_user_or_system,
+    get_current_user_sse,
+    get_db,
+    get_lg_runner,
+)
 from backend.main import app
 from backend.models.user import User
 
@@ -48,6 +54,7 @@ def client(current_user: User, mock_runner: MagicMock) -> AsyncClient:
     session.delete = AsyncMock()
     app.dependency_overrides[get_db] = lambda: session
     app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[get_current_user_or_system] = lambda: current_user
     app.dependency_overrides[get_current_user_sse] = lambda: current_user
     app.dependency_overrides[get_lg_runner] = lambda: mock_runner
     transport = ASGITransport(app=app)
@@ -70,6 +77,7 @@ class TestAgentRouter:
                 stream_url=f"/api/v1/agent/threads/{tid}/runs/r1/stream",
             ),
         )
+        mock_svc.update_thread_status = AsyncMock()
         response = await client.post(
             f"/api/v1/agent/threads/{tid}/runs",
             json={"message": "hello"},
@@ -109,7 +117,7 @@ class TestAgentRouter:
 
         async def failing_stream(run_id):
             raise RuntimeError("db connection lost")
-            yield  # noqa: unreachable — keeps it an async generator
+            yield
 
         mock_runner.get_event_stream = failing_stream
 

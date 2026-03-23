@@ -74,6 +74,8 @@ async def trigger_run(
     workspace_id: str | None = None,
     discipline: str | None = None,
     auth_token: str | None = None,
+    editor_content: str | None = None,
+    attachment_ids: list[uuid.UUID] | None = None,
 ) -> RunResult | None:
     """Store snapshot → start graph execution via Runner → return run_id."""
     thread = await _verify_thread_ownership(session, thread_id, owner)
@@ -97,6 +99,10 @@ async def trigger_run(
         "discipline": discipline or "",
         "artifacts": {},
     }
+    if editor_content is not None:
+        input_data["editor_content"] = editor_content
+    if attachment_ids is not None:
+        input_data["attachment_ids"] = [str(aid) for aid in attachment_ids]
 
     config = {
         "configurable": {
@@ -138,3 +144,15 @@ async def cancel_run(
 
     await runner.cancel_run(run_id)
     return True
+
+
+async def update_thread_status(
+    session: AsyncSession,
+    thread_id: uuid.UUID,
+    status: str,
+) -> None:
+    """更新 Thread 状态。"""
+    thread = await base_repo.get_by_id(session, Thread, thread_id)
+    if thread is not None:
+        thread.status = status
+        await session.flush()

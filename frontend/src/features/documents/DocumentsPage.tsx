@@ -28,10 +28,12 @@ export default function DocumentsPage() {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [uploading, setUploading] = useState(false)
     const [dragOver, setDragOver] = useState(false)
+    const [uploadError, setUploadError] = useState<string | null>(null)
 
     const uploadFile = useCallback(async (file: File) => {
         if (!workspaceId) return
         setUploading(true)
+        setUploadError(null)
         try {
             const { document_id, upload_url } = await initiateUpload.mutateAsync({
                 title: file.name.replace(/\.pdf$/i, ''),
@@ -44,12 +46,13 @@ export default function DocumentsPage() {
             })
 
             await confirmUpload.mutateAsync(document_id)
-        } catch {
-            // Error is visible via React Query error state
+        } catch (err) {
+            const message = err instanceof Error ? err.message : t('documents.uploadError')
+            setUploadError(`${file.name}: ${message}`)
         } finally {
             setUploading(false)
         }
-    }, [workspaceId, initiateUpload, confirmUpload])
+    }, [workspaceId, initiateUpload, confirmUpload, t])
 
     const handleFileSelect = useCallback((files: FileList | null) => {
         if (!files) return
@@ -113,6 +116,20 @@ export default function DocumentsPage() {
                     {t('documents.dropzoneHint')}
                 </p>
             </div>
+
+            {/* Upload Error */}
+            {uploadError && (
+                <div className="flex items-start gap-2 px-4 py-3 mb-4 rounded-[var(--radius-md)] bg-[var(--error-subtle)] border border-[var(--error)]/20 text-[var(--error)] text-sm">
+                    <span className="shrink-0 mt-0.5">⚠</span>
+                    <span>{uploadError}</span>
+                    <button
+                        className="ml-auto shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+                        onClick={() => setUploadError(null)}
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
 
             {/* Loading */}
             {isLoading && (

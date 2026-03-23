@@ -72,6 +72,39 @@ class TestTranslateToRunEvent:
         assert result is not None
         assert result["data"]["papers"] == []
 
+    def test_interrupt_confirm_execute_preserves_code(self) -> None:
+        """confirm_execute interrupt 应保留 code 字段。"""
+        result = translate_to_run_event(
+            {
+                "event": "__interrupt__",
+                "data": {
+                    "action": "confirm_execute",
+                    "run_id": "r1",
+                    "thread_id": "t1",
+                    "code": "print('hello')",
+                    "title": "Review Code",
+                },
+            }
+        )
+        assert result is not None
+        assert result["data"]["code"] == "print('hello')"
+
+    def test_interrupt_confirm_finalize_preserves_content(self) -> None:
+        """confirm_finalize interrupt 应保留 content 字段。"""
+        result = translate_to_run_event(
+            {
+                "event": "__interrupt__",
+                "data": {
+                    "action": "confirm_finalize",
+                    "run_id": "r1",
+                    "thread_id": "t1",
+                    "content": "# Report\nSome content",
+                },
+            }
+        )
+        assert result is not None
+        assert result["data"]["content"] == "# Report\nSome content"
+
 
 class TestTranslateStream:
     async def test_filters_unknown_events(self) -> None:

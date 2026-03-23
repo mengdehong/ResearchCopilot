@@ -3,21 +3,23 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
 import jwt
 from fastapi import Depends, Header, HTTPException, Query, Request
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.config import Settings
 from backend.core.logger import get_logger
 from backend.models.user import User
 from backend.models.workspace import Workspace
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from backend.clients.langgraph_runner import LangGraphRunner
+    from backend.core.config import Settings
 
 logger = get_logger(__name__)
 
@@ -119,6 +121,31 @@ async def get_current_user_sse(
     if raw_token is None:
         raise HTTPException(status_code=401, detail="Missing authentication token")
     return await _resolve_user(raw_token, session, settings)
+
+
+async def get_current_user_or_system(
+    *,
+    token: str | None = Header(None, alias="Authorization"),
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> User | None:
+    """支持普通用户 token 和系统 worker token。
+
+    系统 token (sub="system", role="system_worker") 返回 None（表示系统调用）。
+    普通 token 返回 User 对象。
+    """
+    if token is None:
+        raise HTTPException(status_code=401, detail="Missing authentication token")
+    raw = token[7:] if token.startswith("Bearer ") else token
+    try:
+        payload = jwt.decode(raw, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token") from None
+
+    sub = payload.get("sub")
+    if sub == "system" and payload.get("role") == "system_worker":
+        return None  # 系统调用，跳过 User 查询
+    return await _resolve_user(token, session, settings)
 
 
 # ---------------------------------------------------------------------------
