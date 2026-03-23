@@ -66,13 +66,13 @@ export { expect } from '@playwright/test'
  *   </motion.nav>
  */
 export async function expandSidebar(page: Page): Promise<void> {
-    const isExpanded = await page.getByText('Research Copilot')
+    const isExpanded = await page.getByText('New Thread')
         .isVisible({ timeout: 1000 }).catch(() => false)
     if (!isExpanded) {
         // nav 内第一个 <button> 即 expand/collapse toggle
         await page.locator('nav button').first().click()
-        // 等待展开动画完成 + "Research Copilot" 文本可见
-        await page.getByText('Research Copilot')
+        // 等待展开动画完成 + thread controls 可见
+        await page.getByText('New Thread')
             .waitFor({ state: 'visible', timeout: 3000 })
     }
 }

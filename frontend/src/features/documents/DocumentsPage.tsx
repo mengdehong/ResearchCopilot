@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import axios from 'axios'
 import { useDocuments, useDeleteDocument, useRetryParse, useInitiateUpload, useConfirmUpload } from '@/hooks/useDocuments'
 import { useTranslation } from '@/i18n/useTranslation'
 import api from '@/lib/api'
@@ -47,7 +48,13 @@ export default function DocumentsPage() {
 
             await confirmUpload.mutateAsync(document_id)
         } catch (err) {
-            const message = err instanceof Error ? err.message : t('documents.uploadError')
+            let message = t('documents.uploadError')
+            if (axios.isAxiosError(err)) {
+                const detail = err.response?.data?.detail
+                message = typeof detail === 'string' ? detail : err.message
+            } else if (err instanceof Error) {
+                message = err.message
+            }
             setUploadError(`${file.name}: ${message}`)
         } finally {
             setUploading(false)

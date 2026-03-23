@@ -32,6 +32,42 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/agent/threads", tags=["agent"])
 
 
+def _normalize_pending_interrupt(interrupt_data: dict | None) -> dict | None:
+    """Normalize persisted interrupt payload to the frontend InterruptData shape."""
+    if interrupt_data is None:
+        return None
+    if "payload" in interrupt_data and isinstance(interrupt_data["payload"], dict):
+        return interrupt_data
+
+    payload = {
+        key: value
+        for key, value in interrupt_data.items()
+        if key not in {"action", "run_id", "thread_id"}
+    }
+    return {
+        "action": interrupt_data.get("action", "confirm_execute"),
+        "run_id": interrupt_data.get("run_id", ""),
+        "thread_id": interrupt_data.get("thread_id", ""),
+        "payload": payload,
+    }
+
+
+def _determine_terminal_status(
+    *,
+    existing_status: str | None,
+    was_interrupted: bool,
+    saw_error_event: bool,
+) -> str:
+    """Resolve the final persisted run status without clobbering terminal states."""
+    if existing_status in {"cancelled", "failed"}:
+        return existing_status
+    if was_interrupted:
+        return "interrupted"
+    if saw_error_event:
+        return "failed"
+    return "completed"
+
+
 async def _verify_thread_ownership(
     session: AsyncSession,
     thread_id: uuid.UUID,
@@ -154,7 +190,7 @@ async def get_thread_messages(
     pending_interrupt: dict | None = None
     last_snap = snapshots[-1] if snapshots else None
     if last_snap and last_snap.status == "interrupted" and last_snap.interrupt_data:
-        pending_interrupt = last_snap.interrupt_data
+        pending_interrupt = _normalize_pending_interrupt(last_snap.interrupt_data)
 
     return {
         "messages": messages,
@@ -289,6 +325,7 @@ async def stream_run_events(
             completed_nodes: list[str] = []
             last_ai_content: str | None = None
             was_interrupted = False
+            saw_error_event = False
             interrupt_payload_for_db: dict | None = None
             content_blocks_for_db: list[dict] = []
             # WF 名称集合，用于检测 WF 子图完成后注入 content_block
@@ -322,6 +359,8 @@ async def stream_run_events(
                 if event_type == "interrupt":
                     was_interrupted = True
                     interrupt_payload_for_db = run_event["data"]
+                if event_type == "error":
+                    saw_error_event = True
                 logger.debug(
                     "sse_event_yielded",
                     run_id=run_id,
@@ -432,11 +471,11 @@ async def stream_run_events(
                     if snap:
                         if assistant_text:
                             snap.assistant_response = assistant_text
-                        # 正确设置 status
-                        if was_interrupted:
-                            snap.status = "interrupted"
-                        else:
-                            snap.status = "completed"
+                        snap.status = _determine_terminal_status(
+                            existing_status=snap.status,
+                            was_interrupted=was_interrupted,
+                            saw_error_event=saw_error_event,
+                        )
                         snap.completed_at = datetime.utcnow()
                         # 持久化 interrupt payload
                         if interrupt_payload_for_db:
@@ -551,3 +590,4 @@ async def cancel_run(
     )
     if not ok:
         raise HTTPException(status_code=404, detail="Thread not found")
+    await session.commit()

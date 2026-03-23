@@ -90,6 +90,7 @@ export const MOCK_MESSAGES = {
         { id: 'msg-2', role: 'assistant', content: 'I can help you research.', timestamp: '2025-01-01T00:00:01Z' },
     ],
     pending_interrupt: null,
+    cot_nodes: null,
 }
 
 /**
@@ -132,7 +133,10 @@ export async function setupDefaultMocks(page: Page): Promise<void> {
     })
 
     // Messages
-    await page.route('**/api/v1/agent/threads/*/messages', (route) =>
+    await page.route((url) => {
+        const pathname = url.pathname
+        return pathname.includes('/api/v1/agent/threads/') && pathname.endsWith('/messages')
+    }, (route) =>
         route.fulfill({ json: MOCK_MESSAGES }),
     )
 
@@ -198,12 +202,24 @@ export async function setupDefaultMocks(page: Page): Promise<void> {
         return route.fulfill({ json: MOCK_DRAFT })
     })
 
-    // Thread delete
-    await page.route('**/api/v1/agent/threads/*', (route) => {
+    // Thread detail / delete — exact /agent/threads/:id only
+    await page.route((url) => {
+        const pathname = url.pathname
+        return pathname.includes('/api/v1/agent/threads/') && /^\/api\/v1\/agent\/threads\/[^/]+$/.test(pathname)
+    }, (route) => {
+        const pathParts = new URL(route.request().url()).pathname.split('/')
+        const threadId = pathParts[pathParts.length - 1]
         if (route.request().method() === 'DELETE') {
             return route.fulfill({ json: { ok: true } })
         }
-        return route.continue()
+        return route.fulfill({
+            json: {
+                thread_id: threadId,
+                title: threadId === 'th-2' ? 'Thread 2' : 'Thread 1',
+                status: 'idle',
+                active_run_id: null,
+            },
+        })
     })
 }
 

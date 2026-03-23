@@ -35,7 +35,7 @@ test.describe('Thread Switch — Chain 2', () => {
         await expect(page.getByText('Hello agent')).toBeVisible()
 
         // 覆盖 th-2 的消息 API
-        await page.route('**/api/v1/agent/threads/th-2/messages', (route) =>
+        await page.route(pathEndsWith('/agent/threads/th-2/messages'), (route) =>
             route.fulfill({ json: thread2Messages }),
         )
 
@@ -77,7 +77,7 @@ test.describe('Thread Switch — Chain 2', () => {
         await expect(page.getByText('Done')).toBeVisible({ timeout: 5000 })
 
         // 覆盖 th-2 消息
-        await page.route('**/api/v1/agent/threads/th-2/messages', (route) =>
+        await page.route(pathEndsWith('/agent/threads/th-2/messages'), (route) =>
             route.fulfill({ json: { messages: [], pending_interrupt: null } }),
         )
 
@@ -118,7 +118,7 @@ test.describe('Thread Switch — Chain 2', () => {
             } as const,
         }
 
-        await page.route('**/api/v1/agent/threads/th-1/messages', (route) =>
+        await page.route(pathEndsWith('/agent/threads/th-1/messages'), (route) =>
             route.fulfill({ json: messagesWithInterrupt }),
         )
 

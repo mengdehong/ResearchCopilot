@@ -96,7 +96,7 @@ test.describe('Document Upload — Chain 5', () => {
 
     test('上传失败 → 显示错误信息', async ({ authedPage: page }) => {
         // AUDIT: #17 — 上传错误 UI 反馈
-        await page.route('**/api/v1/documents/upload-url', (route) =>
+        await page.route(pathEndsWith('/documents/upload-url'), (route) =>
             route.fulfill({ status: 500, json: { detail: 'Storage unavailable' } }),
         )
 

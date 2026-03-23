@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import HumanMessage
@@ -12,6 +13,7 @@ from backend.models.run_snapshot import RunSnapshot
 from backend.models.thread import Thread
 from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
+from backend.repositories import run_snapshot_repo
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -142,6 +144,13 @@ async def cancel_run(
     if thread is None:
         return False
 
+    snapshot = await run_snapshot_repo.get_by_run_id(session, uuid.UUID(run_id))
+    if snapshot is not None:
+        snapshot.status = "cancelled"
+        snapshot.completed_at = datetime.utcnow()
+        await session.flush()
+
+    await update_thread_status(session, thread_id, "idle")
     await runner.cancel_run(run_id)
     return True
 

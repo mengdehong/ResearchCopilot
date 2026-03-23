@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import { mockSSEStream, interruptEvent, nodeStart, nodeEnd, runEnd } from './helpers/sse-mock'
+import { pathEndsWith } from './helpers/api-mocks'
 
 /**
  * 链路 3：HITL 中断 → 用户交互 → 恢复执行
@@ -121,7 +122,7 @@ test.describe('HITL Interrupt — Chain 3', () => {
             } as const,
         }
 
-        await page.route('**/api/v1/agent/threads/th-1/messages', (route) =>
+        await page.route(pathEndsWith('/agent/threads/th-1/messages'), (route) =>
             route.fulfill({ json: messagesWithPaperInterrupt }),
         )
 
@@ -157,7 +158,7 @@ test.describe('HITL Interrupt — Chain 3', () => {
             } as const,
         }
 
-        await page.route('**/api/v1/agent/threads/th-1/messages', (route) =>
+        await page.route(pathEndsWith('/agent/threads/th-1/messages'), (route) =>
             route.fulfill({ json: messagesWithPaperInterrupt }),
         )
 

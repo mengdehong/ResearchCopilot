@@ -14,6 +14,7 @@ from backend.api.dependencies import (
     get_db,
     get_lg_runner,
 )
+from backend.api.routers import agent as agent_router
 from backend.main import app
 from backend.models.user import User
 
@@ -135,3 +136,44 @@ class TestAgentRouter:
 
         end_evt = _json.loads(data_lines[-1].removeprefix("data: "))
         assert end_evt["event_type"] == "run_end"
+
+
+class TestAgentRouterHelpers:
+    def test_normalize_pending_interrupt_wraps_payload(self) -> None:
+        interrupt = agent_router._normalize_pending_interrupt(  # type: ignore[attr-defined]
+            {
+                "action": "confirm_execute",
+                "run_id": "run-1",
+                "thread_id": "th-1",
+                "code": "print('hello')",
+                "title": "Review code",
+            }
+        )
+
+        assert interrupt == {
+            "action": "confirm_execute",
+            "run_id": "run-1",
+            "thread_id": "th-1",
+            "payload": {
+                "code": "print('hello')",
+                "title": "Review code",
+            },
+        }
+
+    def test_determine_terminal_status_marks_failed_on_error(self) -> None:
+        status = agent_router._determine_terminal_status(  # type: ignore[attr-defined]
+            existing_status="running",
+            was_interrupted=False,
+            saw_error_event=True,
+        )
+
+        assert status == "failed"
+
+    def test_determine_terminal_status_preserves_cancelled(self) -> None:
+        status = agent_router._determine_terminal_status(  # type: ignore[attr-defined]
+            existing_status="cancelled",
+            was_interrupted=False,
+            saw_error_event=False,
+        )
+
+        assert status == "cancelled"
