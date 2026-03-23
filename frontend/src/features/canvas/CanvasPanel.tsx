@@ -7,7 +7,9 @@ import PDFTab from './PDFTab'
 import SandboxTab from './SandboxTab'
 import PaperSelectOverlay from './PaperSelectOverlay'
 import type { CanvasTab, InterruptData } from '@/types'
-import { FileText, FileImage, FlaskConical } from 'lucide-react'
+import { FileText, FileImage, FlaskConical, Send, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/i18n/useTranslation'
 import type { ReactNode } from 'react'
 
 const TABS: { key: CanvasTab; label: string; icon: ReactNode }[] = [
@@ -23,21 +25,35 @@ interface CanvasPanelProps {
 }
 
 export default function CanvasPanel({ threadId, interrupt, onResumeInterrupt }: CanvasPanelProps) {
+    const { t } = useTranslation()
     const activeTab = useLayoutStore((s) => s.activeCanvasTab)
     const setActiveTab = useLayoutStore((s) => s.setActiveCanvasTab)
+    const pendingFinalizeReject = useLayoutStore((s) => s.pendingFinalizeReject)
+    const setPendingFinalizeReject = useLayoutStore((s) => s.setPendingFinalizeReject)
 
     const activePdf = useAgentStore((s) => s.activePdf)
-    const sandboxResult = useAgentStore((s) => s.sandboxResult)
+    const sandboxHistory = useAgentStore((s) => s.sandboxHistory)
+    const editorHtml = useAgentStore((s) => s.editorHtml)
 
     useEffect(() => {
         if (activePdf) setActiveTab('pdf')
     }, [activePdf, setActiveTab])
 
     useEffect(() => {
-        if (sandboxResult) setActiveTab('sandbox')
-    }, [sandboxResult, setActiveTab])
+        if (sandboxHistory.length > 0) setActiveTab('sandbox')
+    }, [sandboxHistory, setActiveTab])
 
     const showPaperOverlay = interrupt?.action === 'select_papers'
+
+    const handleSubmitEdits = () => {
+        onResumeInterrupt('reject', { modified_markdown: editorHtml })
+        setPendingFinalizeReject(false)
+    }
+
+    const handleCancelEdits = () => {
+        setPendingFinalizeReject(false)
+        onResumeInterrupt('approve')
+    }
 
     return (
         <div className="flex flex-col h-full bg-[var(--surface)]">
@@ -92,6 +108,36 @@ export default function CanvasPanel({ threadId, interrupt, onResumeInterrupt }: 
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* Finalize Submit Bar */}
+            <AnimatePresence>
+                {pendingFinalizeReject && activeTab === 'editor' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                        className="shrink-0 border-t border-[var(--accent)]/30 bg-[var(--accent-subtle)]/60 backdrop-blur-xl px-5 py-3 flex items-center gap-3"
+                    >
+                        <p className="flex-1 text-sm text-[var(--text-secondary)]">
+                            {t('hitl.submitEditsHint')}
+                        </p>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCancelEdits}
+                            className="text-[var(--text-muted)]"
+                        >
+                            <X className="size-3.5 mr-1" />
+                            {t('hitl.cancelEdits')}
+                        </Button>
+                        <Button size="sm" onClick={handleSubmitEdits}>
+                            <Send className="size-3.5 mr-1" />
+                            {t('hitl.submitEdits')}
+                        </Button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }

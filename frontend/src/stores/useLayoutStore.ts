@@ -10,6 +10,8 @@ interface LayoutState {
     splitRatio: number
     activeCanvasTab: CanvasTab
     saveStatus: SaveStatus
+    /** HITL confirm_finalize reject 后等待用户在 Canvas 完成编辑。 */
+    pendingFinalizeReject: boolean
 
     toggleSidebar: () => void
     toggleNav: () => void
@@ -18,6 +20,7 @@ interface LayoutState {
     setSplitRatio: (ratio: number) => void
     setActiveCanvasTab: (tab: CanvasTab) => void
     setSaveStatus: (status: SaveStatus) => void
+    setPendingFinalizeReject: (pending: boolean) => void
 }
 
 export const useLayoutStore = create<LayoutState>((set) => ({
@@ -27,6 +30,7 @@ export const useLayoutStore = create<LayoutState>((set) => ({
     splitRatio: 0.4,
     activeCanvasTab: 'editor',
     saveStatus: 'idle',
+    pendingFinalizeReject: false,
 
     toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -43,4 +47,6 @@ export const useLayoutStore = create<LayoutState>((set) => ({
     setActiveCanvasTab: (tab) => set({ activeCanvasTab: tab }),
 
     setSaveStatus: (status) => set({ saveStatus: status }),
+
+    setPendingFinalizeReject: (pending) => set({ pendingFinalizeReject: pending }),
 }))

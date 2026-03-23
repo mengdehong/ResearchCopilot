@@ -121,6 +121,9 @@ export const zh: TranslationDict = {
         rejectConfirm: '确定要拒绝吗？',
         confirmReject: '确认拒绝',
         waitForIngestion: '正在等待论文解析...',
+        submitEdits: '提交编辑',
+        submitEditsHint: '请在上方编辑报告内容，完成后点击提交',
+        cancelEdits: '取消编辑并批准原文',
     },
     status: {
         processing: '处理中...',

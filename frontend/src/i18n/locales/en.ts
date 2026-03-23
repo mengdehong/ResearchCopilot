@@ -119,6 +119,9 @@ export const en = {
         rejectConfirm: 'Are you sure you want to reject?',
         confirmReject: 'Confirm Reject',
         waitForIngestion: 'Waiting for papers to be parsed...',
+        submitEdits: 'Submit Edits',
+        submitEditsHint: 'Edit the report above, then submit your changes',
+        cancelEdits: 'Cancel & Approve Original',
     },
     status: {
         processing: 'Processing...',

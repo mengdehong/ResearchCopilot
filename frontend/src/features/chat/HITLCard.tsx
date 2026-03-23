@@ -1,6 +1,7 @@
 import type { InterruptData } from '@/types'
 import { useTranslation } from '@/i18n/useTranslation'
 import type { LocaleContextValue } from '@/i18n/LocaleContext'
+import { useLayoutStore } from '@/stores/useLayoutStore'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { FileText, Zap, FileEdit, AlertCircle, Loader2 } from 'lucide-react'
@@ -74,6 +75,13 @@ function ConfirmExecuteCard({ interrupt, onResume, t }: HITLInternalProps) {
 
 function ConfirmFinalizeCard({ interrupt, onResume, t }: HITLInternalProps) {
     const content = String(interrupt.payload.content ?? '')
+    const setActiveCanvasTab = useLayoutStore((s) => s.setActiveCanvasTab)
+    const setPendingFinalizeReject = useLayoutStore((s) => s.setPendingFinalizeReject)
+
+    const handleEditInCanvas = () => {
+        setPendingFinalizeReject(true)
+        setActiveCanvasTab('editor')
+    }
 
     return (
         <div className="mx-6 my-4 rounded-2xl border border-[var(--accent)]/40 bg-[var(--surface)]/80 backdrop-blur-xl overflow-hidden shadow-[var(--shadow-md)] animate-[pulse-glow_2s_ease-in-out_2]">
@@ -89,7 +97,7 @@ function ConfirmFinalizeCard({ interrupt, onResume, t }: HITLInternalProps) {
                 </div>
             </div>
             <div className="flex justify-end gap-2 px-4 py-3 border-t border-[var(--border)]">
-                <Button variant="ghost" onClick={() => onResume('reject')}>
+                <Button variant="ghost" onClick={handleEditInCanvas}>
                     {t('hitl.editInCanvas')}
                 </Button>
                 <Button onClick={() => onResume('approve')}>

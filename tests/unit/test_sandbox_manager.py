@@ -2,9 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import docker.errors
+import pytest
 import requests.exceptions
 
 from backend.services.sandbox_manager import DockerExecutor, ExecutionRequest
@@ -82,9 +81,8 @@ def test_execute_docker_exception_wrapped(mock_docker: MagicMock) -> None:
     from backend.core.exceptions import SandboxError
 
     mock_docker.errors = docker.errors
-    container = MagicMock()
-    mock_docker.from_env.return_value.containers.create.side_effect = (
-        docker.errors.DockerException("daemon not running")
+    mock_docker.from_env.return_value.containers.create.side_effect = docker.errors.DockerException(
+        "daemon not running"
     )
 
     executor = DockerExecutor()
@@ -93,3 +91,46 @@ def test_execute_docker_exception_wrapped(mock_docker: MagicMock) -> None:
 
     assert exc_info.value.__cause__ is not None
     assert isinstance(exc_info.value.__cause__, docker.errors.DockerException)
+
+
+def test_encode_images_includes_image_files() -> None:
+    """PNG, JPG, JPEG, SVG 文件被 base64 编码并返回。"""
+    import base64
+
+    from backend.agent.tools.sandbox_tool import _encode_images
+
+    png_bytes = b"\x89PNG fake"
+    svg_bytes = b"<svg></svg>"
+    output_files = {
+        "chart.png": png_bytes,
+        "diagram.svg": svg_bytes,
+    }
+    results = _encode_images(output_files)
+
+    assert len(results) == 2
+    names = {r["name"] for r in results}
+    assert names == {"chart.png", "diagram.svg"}
+    png_entry = next(r for r in results if r["name"] == "chart.png")
+    assert png_entry["data"] == base64.b64encode(png_bytes).decode()
+
+
+def test_encode_images_excludes_non_image_files() -> None:
+    """CSV / TXT 等非图片文件不出现在 images 列表中。"""
+    from backend.agent.tools.sandbox_tool import _encode_images
+
+    output_files = {
+        "result.csv": b"a,b,c\n1,2,3",
+        "notes.txt": b"some text",
+        "plot.jpg": b"fake jpg",
+    }
+    results = _encode_images(output_files)
+
+    assert len(results) == 1
+    assert results[0]["name"] == "plot.jpg"
+
+
+def test_encode_images_empty_output() -> None:
+    """没有输出文件时返回空列表。"""
+    from backend.agent.tools.sandbox_tool import _encode_images
+
+    assert _encode_images({}) == []

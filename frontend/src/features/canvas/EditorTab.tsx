@@ -10,7 +10,7 @@ import 'katex/dist/katex.min.css'
 import { useAgentStore } from '@/stores/useAgentStore'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import { useDraft, useSaveDraft } from '@/hooks/useDraft'
-import { Bold, Italic, Strikethrough, Underline as UnderlineIcon, Code2, Link as LinkIcon, Heading1, Heading2, Heading3, List, ListOrdered, Quote, Sigma, Save, Loader2 } from 'lucide-react'
+import { Bold, Italic, Strikethrough, Underline as UnderlineIcon, Code2, Link as LinkIcon, Heading1, Heading2, Heading3, List, ListOrdered, Quote, Sigma, Save, Loader2, Download } from 'lucide-react'
 import './tiptap-editor.css'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
@@ -121,6 +121,7 @@ export default function EditorTab({ threadId }: EditorTabProps) {
     const contentBlocks = useAgentStore((s) => s.contentBlocks)
     const consumeContentBlock = useAgentStore((s) => s.consumeContentBlock)
     const setSaveStatus = useLayoutStore((s) => s.setSaveStatus)
+    const downloadUrl = useAgentStore((s) => s.downloadUrl)
     const prevGeneratedRef = useRef('')
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -313,14 +314,21 @@ export default function EditorTab({ threadId }: EditorTabProps) {
     useEffect(() => {
         if (!editor) return
 
+        const setEditorHtml = useAgentStore.getState().setEditorHtml
+
         const debouncedSave = () => {
             if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
             saveTimerRef.current = setTimeout(handleSave, 2000)
         }
 
-        editor.on('update', debouncedSave)
+        const onUpdate = () => {
+            setEditorHtml(editor.getHTML())
+            debouncedSave()
+        }
+
+        editor.on('update', onUpdate)
         return () => {
-            editor.off('update', debouncedSave)
+            editor.off('update', onUpdate)
             if (saveTimerRef.current) {
                 clearTimeout(saveTimerRef.current)
                 handleSave()   // flush pending save
@@ -427,6 +435,18 @@ export default function EditorTab({ threadId }: EditorTabProps) {
                         onClick={handleSave}
                         disabled={!threadId}
                     />
+                    {downloadUrl && (
+                        <ToolbarButton
+                            icon={<Download className="size-3.5" />}
+                            label="下载报告"
+                            onClick={() => {
+                                const a = document.createElement('a')
+                                a.href = downloadUrl
+                                a.download = 'research_report.zip'
+                                a.click()
+                            }}
+                        />
+                    )}
                 </div>
             )}
 

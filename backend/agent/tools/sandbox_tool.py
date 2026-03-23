@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+from pathlib import Path
 from typing import Any
 
 from langchain_core.tools import tool
@@ -11,6 +13,8 @@ from backend.core.logger import get_logger
 from backend.services.sandbox_manager import DockerExecutor, ExecutionRequest
 
 logger = get_logger(__name__)
+
+_IMAGE_EXTS: frozenset[str] = frozenset({".png", ".jpg", ".jpeg", ".svg"})
 
 
 def _get_executor() -> DockerExecutor:
@@ -23,6 +27,15 @@ def _get_executor() -> DockerExecutor:
     )
 
 
+def _encode_images(output_files: dict[str, bytes]) -> list[dict[str, str]]:
+    """将图片类输出文件 base64 编码，返回 {name, data} 列表。"""
+    return [
+        {"name": name, "data": base64.b64encode(content).decode()}
+        for name, content in output_files.items()
+        if Path(name).suffix.lower() in _IMAGE_EXTS
+    ]
+
+
 @tool
 def execute_code(code: str, language: str = "python") -> dict[str, Any]:
     """Execute code in a sandboxed environment.
@@ -32,7 +45,8 @@ def execute_code(code: str, language: str = "python") -> dict[str, Any]:
         language: Programming language (default: python).
 
     Returns:
-        Dictionary with stdout, stderr, exit_code, artifacts.
+        Dictionary with stdout, stderr, exit_code, artifacts, images, duration_ms.
+        images: list of {name, data} where data is base64-encoded image content.
     """
     logger.info("sandbox_execute", language=language, code_length=len(code))
 
@@ -41,10 +55,18 @@ def execute_code(code: str, language: str = "python") -> dict[str, Any]:
     request = ExecutionRequest(code=code, timeout_seconds=cfg.sandbox_timeout_seconds)
     result = executor.execute(request)
 
+    images = _encode_images(result.output_files)
+    logger.info(
+        "sandbox_output_files",
+        total=len(result.output_files),
+        images=len(images),
+    )
+
     return {
         "stdout": result.stdout,
         "stderr": result.stderr,
         "exit_code": result.exit_code,
         "artifacts": list(result.output_files.keys()),
+        "images": images,
         "duration_ms": round(result.duration_seconds * 1000),
     }

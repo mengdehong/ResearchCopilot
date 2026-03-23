@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Message, CoTNode, CotNodeSummary, InterruptData, RunEvent, PdfHighlight, SandboxResult } from '@/types'
+import type { Message, CoTNode, CotNodeSummary, InterruptData, RunEvent, PdfHighlight, SandboxResult, SandboxImage } from '@/types'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('Store')
@@ -25,7 +25,10 @@ interface AgentState {
     generatedContent: string
     contentBlocks: { content: string; workflow: string }[]
     activePdf: PdfHighlight | null
-    sandboxResult: SandboxResult | null
+    sandboxHistory: SandboxResult[]
+    downloadUrl: string | null
+    /** 当前 TipTap 编辑器 HTML 内容（由 EditorTab onUpdate 同步）。 */
+    editorHtml: string
 
     addMessage: (msg: Message) => void
     loadMessages: (msgs: Message[]) => void
@@ -35,6 +38,7 @@ interface AgentState {
     resetRunState: () => void
     setStreaming: (streaming: boolean) => void
     setActivePdf: (pdf: PdfHighlight | null) => void
+    setEditorHtml: (html: string) => void
     consumeContentBlock: () => { content: string; workflow: string } | null
 }
 
@@ -47,7 +51,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     generatedContent: '',
     contentBlocks: [],
     activePdf: null,
-    sandboxResult: null,
+    sandboxHistory: [],
+    downloadUrl: null,
+    editorHtml: '',
 
     addMessage: (msg) =>
         set((state) => ({ messages: [...state.messages, msg] })),
@@ -55,6 +61,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     loadMessages: (msgs) => set({ messages: msgs }),
 
     setActivePdf: (pdf) => set({ activePdf: pdf }),
+
+    setEditorHtml: (html) => set({ editorHtml: html }),
 
     handleSSEEvent: (event) => {
         const { event_type, data } = event
@@ -189,15 +197,32 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             }
 
             case 'sandbox_result': {
-                const result = {
+                const rawImages = Array.isArray(data.images) ? data.images : []
+                const images: SandboxImage[] = rawImages.map((img) => {
+                    const entry = img as Record<string, unknown>
+                    return {
+                        name: String(entry.name ?? ''),
+                        data: String(entry.data ?? ''),
+                    }
+                })
+                const result: SandboxResult = {
                     code: String(data.code ?? ''),
                     stdout: String(data.stdout ?? ''),
                     stderr: String(data.stderr ?? ''),
                     exit_code: Number(data.exit_code ?? 0),
                     duration_ms: Number(data.duration_ms ?? 0),
                     artifacts: Array.isArray(data.artifacts) ? data.artifacts.map(String) : [],
+                    images,
                 }
-                set({ sandboxResult: result })
+                set((state) => ({ sandboxHistory: [...state.sandboxHistory, result] }))
+                break
+            }
+
+            case 'download_ready': {
+                const downloadUrl = String(data.download_url ?? '')
+                if (downloadUrl) {
+                    set({ downloadUrl })
+                }
                 break
             }
 
@@ -217,9 +242,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             isStreaming: false,
             currentNode: null,
             generatedContent: '',
+            downloadUrl: null,
+            editorHtml: '',
             contentBlocks: [],
             activePdf: null,
-            sandboxResult: null,
+            sandboxHistory: [],
         }),
 
     resetRunState: () =>
@@ -229,6 +256,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             isStreaming: false,
             currentNode: null,
             generatedContent: '',
+            downloadUrl: null,
+            editorHtml: '',
         }),
 
     setStreaming: (streaming) => set({ isStreaming: streaming }),

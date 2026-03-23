@@ -168,6 +168,12 @@ export interface PdfHighlight {
     text_snippet: string
 }
 
+export interface SandboxImage {
+    name: string
+    /** base64-encoded image content (no data-URI prefix). */
+    data: string
+}
+
 export interface SandboxResult {
     code: string
     stdout: string
@@ -175,6 +181,7 @@ export interface SandboxResult {
     exit_code: number
     duration_ms: number
     artifacts: string[]
+    images: SandboxImage[]
 }
 
 /* ─── Constants ─── */

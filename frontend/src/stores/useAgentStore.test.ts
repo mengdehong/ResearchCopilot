@@ -180,7 +180,7 @@ describe('useAgentStore', () => {
 
     // ── sandbox_result ──
     describe('sandbox_result event', () => {
-        it('sets sandboxResult with all fields', () => {
+        it('appends to sandboxHistory with all fields including images', () => {
             dispatch('sandbox_result', {
                 code: 'print("hi")',
                 stdout: 'hi\n',
@@ -188,15 +188,33 @@ describe('useAgentStore', () => {
                 exit_code: 0,
                 duration_ms: 123,
                 artifacts: ['plot.png'],
+                images: [{ name: 'plot.png', data: 'abc123' }],
             })
-            expect(useAgentStore.getState().sandboxResult).toEqual({
+            const history = useAgentStore.getState().sandboxHistory
+            expect(history).toHaveLength(1)
+            expect(history[0]).toEqual({
                 code: 'print("hi")',
                 stdout: 'hi\n',
                 stderr: '',
                 exit_code: 0,
                 duration_ms: 123,
                 artifacts: ['plot.png'],
+                images: [{ name: 'plot.png', data: 'abc123' }],
             })
+        })
+
+        it('accumulates multiple executions in order', () => {
+            dispatch('sandbox_result', { code: 'run1', stdout: '', stderr: '', exit_code: 0, duration_ms: 1, artifacts: [], images: [] })
+            dispatch('sandbox_result', { code: 'run2', stdout: '', stderr: '', exit_code: 0, duration_ms: 2, artifacts: [], images: [] })
+            const history = useAgentStore.getState().sandboxHistory
+            expect(history).toHaveLength(2)
+            expect(history[0].code).toBe('run1')
+            expect(history[1].code).toBe('run2')
+        })
+
+        it('defaults images to [] when field is missing', () => {
+            dispatch('sandbox_result', { code: '', stdout: '', stderr: '', exit_code: 0, duration_ms: 0, artifacts: [] })
+            expect(useAgentStore.getState().sandboxHistory[0].images).toEqual([])
         })
     })
 
@@ -204,6 +222,25 @@ describe('useAgentStore', () => {
     describe('unknown event', () => {
         it('does not throw for unknown event types', () => {
             expect(() => dispatch('some_future_event', {})).not.toThrow()
+        })
+    })
+
+    // ── download_ready ──
+    describe('download_ready event', () => {
+        it('sets downloadUrl from event data', () => {
+            dispatch('download_ready', { download_url: '/api/v1/agent/threads/t/runs/r/download' })
+            expect(useAgentStore.getState().downloadUrl).toBe('/api/v1/agent/threads/t/runs/r/download')
+        })
+
+        it('ignores empty download_url', () => {
+            dispatch('download_ready', { download_url: '' })
+            expect(useAgentStore.getState().downloadUrl).toBeNull()
+        })
+
+        it('is cleared by reset', () => {
+            dispatch('download_ready', { download_url: '/some/url' })
+            useAgentStore.getState().reset()
+            expect(useAgentStore.getState().downloadUrl).toBeNull()
         })
     })
 
@@ -223,7 +260,8 @@ describe('useAgentStore', () => {
             expect(state.generatedContent).toBe('')
             expect(state.contentBlocks).toEqual([])
             expect(state.activePdf).toBeNull()
-            expect(state.sandboxResult).toBeNull()
+            expect(state.sandboxHistory).toEqual([])
+            expect(state.downloadUrl).toBeNull()
         })
     })
 
