@@ -2,12 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from backend.core.logger import get_logger
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
 
 logger = get_logger(__name__)
 
@@ -75,43 +70,6 @@ _EVENT_MAPPING: dict[str, str] = {
     "__interrupt__": "interrupt",
 }
 
-# 兼容旧映射（保留给已存在测试）
-EVENT_MAPPING: dict[str, str] = {
-    "on_chain_start": "chain_start",
-    "on_chain_end": "chain_end",
-    "on_chat_model_start": "chain_start",
-    "on_chat_model_stream": "token",
-    "on_chat_model_end": "chain_end",
-    "on_tool_start": "tool_start",
-    "on_tool_end": "tool_end",
-    # 兼容旧 events/ 前缀
-    "events/metadata": "metadata",
-    "events/on_chain_start": "chain_start",
-    "events/on_chain_end": "chain_end",
-    "events/on_chat_model_stream": "token",
-    "events/on_tool_start": "tool_start",
-    "events/on_tool_end": "tool_end",
-    "events/updates": "state_update",
-    "events/error": "error",
-    "__interrupt__": "interrupt",
-}
-
-
-def translate_event(raw_event: dict) -> dict | None:
-    """将单个 LangGraph 事件翻译为前端格式（兼容旧接口）。
-
-    Returns None if the event type is unknown (should be silently dropped).
-    """
-    raw_type = raw_event.get("event", "")
-    frontend_type = EVENT_MAPPING.get(raw_type)
-    if frontend_type is None:
-        return None
-
-    return {
-        "event": frontend_type,
-        "data": raw_event.get("data", {}),
-    }
-
 
 def translate_to_run_event(raw_event: dict) -> dict | None:
     """将单个 LangGraph 事件翻译为前端 RunEvent 格式。
@@ -173,42 +131,3 @@ def translate_to_run_event(raw_event: dict) -> dict | None:
             }
 
     return {"event_type": event_type, "data": data}
-
-
-async def translate_stream(
-    raw_stream: AsyncIterator[dict],
-) -> AsyncIterator[dict]:
-    """翻译完整 LangGraph 事件流（兼容旧接口），丢弃未知事件。"""
-    async for raw_event in raw_stream:
-        translated = translate_event(raw_event)
-        if translated is not None:
-            yield translated
-
-
-async def translate_run_event_stream(
-    raw_stream: AsyncIterator[dict],
-) -> AsyncIterator[dict]:
-    """翻译 LangGraph 事件流为前端 RunEvent 格式。
-
-    输出 { event_type, data } dict，与前端 RunEvent 接口一致。
-    """
-    raw_count = 0
-    translated_count = 0
-    async for raw_event in raw_stream:
-        raw_count += 1
-        raw_type = raw_event.get("event", "<missing>")
-        translated = translate_to_run_event(raw_event)
-        if translated is not None:
-            translated_count += 1
-            yield translated
-        else:
-            logger.debug(
-                "sse_event_dropped",
-                raw_type=raw_type,
-                raw_name=raw_event.get("name", ""),
-            )
-    logger.info(
-        "translate_stream_done",
-        raw_count=raw_count,
-        translated_count=translated_count,
-    )

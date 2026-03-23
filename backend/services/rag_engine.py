@@ -463,16 +463,4 @@ class RAGEngine:
             chunks[chunk.chunk_id] = chunk
 
         sorted_ids = sorted(scores, key=lambda chunk_id: scores[chunk_id], reverse=True)
-        return [
-            RetrievedChunk(
-                chunk_id=chunk_id,
-                document_id=chunks[chunk_id].document_id,
-                content_text=chunks[chunk_id].content_text,
-                content_type=chunks[chunk_id].content_type,
-                section_path=chunks[chunk_id].section_path,
-                page_numbers=chunks[chunk_id].page_numbers,
-                score=scores[chunk_id],
-                metadata=chunks[chunk_id].metadata,
-            )
-            for chunk_id in sorted_ids
-        ]
+        return [replace(chunks[chunk_id], score=scores[chunk_id]) for chunk_id in sorted_ids]

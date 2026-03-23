@@ -1,41 +1,6 @@
-"""Event translator tests."""
+"""Event translator tests — uses current translate_to_run_event API."""
 
-from backend.services.event_translator import (
-    translate_event,
-    translate_stream,
-    translate_to_run_event,
-)
-
-
-class TestTranslateEvent:
-    def test_known_event(self) -> None:
-        result = translate_event({"event": "events/metadata", "data": {"run_id": "r1"}})
-        assert result is not None
-        assert result["event"] == "metadata"
-        assert result["data"]["run_id"] == "r1"
-
-    def test_token_event(self) -> None:
-        result = translate_event(
-            {
-                "event": "events/on_chat_model_stream",
-                "data": {"chunk": "hello"},
-            }
-        )
-        assert result is not None
-        assert result["event"] == "token"
-
-    def test_interrupt_event(self) -> None:
-        result = translate_event({"event": "__interrupt__", "data": {"question": "?"}})
-        assert result is not None
-        assert result["event"] == "interrupt"
-
-    def test_unknown_event_returns_none(self) -> None:
-        result = translate_event({"event": "unknown/event", "data": {}})
-        assert result is None
-
-    def test_missing_event_key(self) -> None:
-        result = translate_event({"data": {}})
-        assert result is None
+from backend.services.event_translator import translate_to_run_event
 
 
 class TestTranslateToRunEvent:
@@ -72,24 +37,46 @@ class TestTranslateToRunEvent:
         assert result is not None
         assert result["data"]["papers"] == []
 
+    def test_unknown_event_returns_none(self) -> None:
+        result = translate_to_run_event({"event": "unknown/event", "data": {}})
+        assert result is None
 
-class TestTranslateStream:
-    async def test_filters_unknown_events(self) -> None:
-        async def _raw_stream():
-            yield {"event": "events/metadata", "data": {"id": "1"}}
-            yield {"event": "unknown/event", "data": {}}
-            yield {"event": "events/on_chat_model_stream", "data": {"chunk": "hi"}}
-            yield {"event": "another_unknown", "data": {}}
+    def test_missing_event_key_returns_none(self) -> None:
+        result = translate_to_run_event({"data": {}})
+        assert result is None
 
-        results = [e async for e in translate_stream(_raw_stream())]
-        assert len(results) == 2
-        assert results[0]["event"] == "metadata"
-        assert results[1]["event"] == "token"
+    def test_node_start_event(self) -> None:
+        result = translate_to_run_event(
+            {
+                "event": "on_chain_start",
+                "name": "discovery",
+                "data": {"name": "discovery", "run_id": "r1"},
+                "metadata": {"langgraph_node": "discovery"},
+            }
+        )
+        assert result is not None
+        assert result["event_type"] == "node_start"
 
-    async def test_empty_stream(self) -> None:
-        async def _empty():
-            return
-            yield
+    def test_node_end_event(self) -> None:
+        result = translate_to_run_event(
+            {
+                "event": "on_chain_end",
+                "name": "extraction",
+                "data": {"name": "extraction", "run_id": "r1"},
+                "metadata": {"langgraph_node": "extraction"},
+            }
+        )
+        assert result is not None
+        assert result["event_type"] == "node_end"
 
-        results = [e async for e in translate_stream(_empty())]
-        assert len(results) == 0
+    def test_event_without_langgraph_node_is_filtered(self) -> None:
+        """node_start/end without langgraph_node in metadata should be dropped."""
+        result = translate_to_run_event(
+            {
+                "event": "on_chain_start",
+                "name": "some_internal_chain",
+                "data": {},
+                "metadata": {},
+            }
+        )
+        assert result is None

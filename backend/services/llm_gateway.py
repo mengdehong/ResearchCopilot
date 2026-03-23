@@ -1,19 +1,24 @@
-"""LLM 统一封装。双 Tier 模型池 + 同 Tier 横向 Fallback + Structured Output。"""
-
 from __future__ import annotations
 
 import asyncio
 import time
 from enum import StrEnum
+from typing import TYPE_CHECKING, TypeVar
 
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage
 from pydantic import BaseModel
 
 from backend.core.exceptions import LLMServiceError
 from backend.core.logger import get_logger
 
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+    from langchain_core.language_models import BaseChatModel
+    from langchain_core.messages import BaseMessage
+
 logger = get_logger(__name__)
+
+_T = TypeVar("_T")
 
 # ── 可重试 HTTP 状态码 ──
 _RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
@@ -74,13 +79,10 @@ def _is_retryable(error: Exception) -> bool:
     """判断异常是否可重试。"""
     error_str = str(error).lower()
     # 检查超时
-    if "timeout" in error_str or isinstance(error, (TimeoutError, asyncio.TimeoutError)):
+    if "timeout" in error_str or isinstance(error, TimeoutError | asyncio.TimeoutError):
         return True
     # 检查 HTTP 状态码
-    for code in _RETRYABLE_STATUS_CODES:
-        if str(code) in error_str:
-            return True
-    return False
+    return any(str(code) in error_str for code in _RETRYABLE_STATUS_CODES)
 
 
 class LLMGateway:
@@ -191,22 +193,18 @@ class LLMGateway:
         )
         return response
 
-    async def invoke_structured(
+    async def _run_with_provider_fallback(
         self,
-        messages: list[BaseMessage],
-        output_schema: type[BaseModel],
+        tier: ModelTier,
         *,
-        tier: ModelTier = ModelTier.FAST,
-        temperature: float = 0.0,
-        max_parse_retries: int = 2,
-    ) -> BaseModel:
-        """调用 LLM 并解析为结构化输出。
+        invoke_fn: Callable[[ProviderConfig], Awaitable[_T]],
+    ) -> _T:
+        """Execute invoke_fn for each provider in tier with retry + exponential backoff.
 
-        内部使用 with_structured_output()，统一处理解析失败重试。
+        Falls back to the next provider in the tier on non-retryable errors or
+        when all retries are exhausted. Raises LLMUnavailableError if all providers fail.
         """
-        if self._config is None:
-            raise ValueError("invoke_structured requires LLMConfig with tier configuration")
-
+        assert self._config is not None
         tier_config = self._config.tiers.get(tier)
         if tier_config is None or not tier_config.providers:
             raise ValueError(f"No providers configured for tier: {tier}")
@@ -216,36 +214,7 @@ class LLMGateway:
         for pc in tier_config.providers:
             for retry in range(self._config.max_retries):
                 try:
-                    llm = self._create_model(pc.provider, pc.model, pc.api_key, temperature)
-                    structured_llm = llm.with_structured_output(output_schema)
-
-                    start = time.monotonic()
-                    result = await asyncio.to_thread(structured_llm.invoke, messages)
-                    latency_ms = round((time.monotonic() - start) * 1000)
-
-                    if result is None:
-                        raise StructuredOutputError(
-                            "LLM returned None for structured output",
-                            raw_response="None",
-                        )
-
-                    usage = {}
-                    if hasattr(result, "usage_metadata"):
-                        usage = result.usage_metadata or {}
-
-                    logger.info(
-                        "llm_call_completed",
-                        provider=pc.provider,
-                        model=pc.model,
-                        latency_ms=latency_ms,
-                        is_structured=True,
-                        is_fallback=pc != tier_config.providers[0],
-                        retry_count=retry,
-                        input_tokens=usage.get("input_tokens", 0),
-                        output_tokens=usage.get("output_tokens", 0),
-                    )
-                    return result
-
+                    return await invoke_fn(pc)
                 except StructuredOutputError:
                     raise
                 except Exception as e:
@@ -270,7 +239,6 @@ class LLMGateway:
                     )
                     await asyncio.sleep(delay)
 
-            # Provider 用尽重试，切换下一个
             if last_error is not None:
                 logger.warning(
                     "llm_provider_fallback",
@@ -288,67 +256,75 @@ class LLMGateway:
         tier: ModelTier,
         temperature: float,
     ) -> BaseMessage:
-        """带 Fallback + 指数退避的调用。"""
-        assert self._config is not None
+        """带 Fallback + 指数退避的调用。委托给 _run_with_provider_fallback。"""
+
+        async def _invoke(pc: ProviderConfig) -> BaseMessage:
+            llm = self._create_model(pc.provider, pc.model, pc.api_key, temperature)
+            start = time.monotonic()
+            response = await asyncio.to_thread(llm.invoke, messages)
+            latency_ms = round((time.monotonic() - start) * 1000)
+            usage = response.usage_metadata or {}
+            logger.info(
+                "llm_call_completed",
+                provider=pc.provider,
+                model=pc.model,
+                tier=tier,
+                input_tokens=usage.get("input_tokens", 0),
+                output_tokens=usage.get("output_tokens", 0),
+                latency_ms=latency_ms,
+            )
+            return response
+
+        return await self._run_with_provider_fallback(tier, invoke_fn=_invoke)
+
+    async def invoke_structured(
+        self,
+        messages: list[BaseMessage],
+        output_schema: type[BaseModel],
+        *,
+        tier: ModelTier = ModelTier.FAST,
+        temperature: float = 0.0,
+        max_parse_retries: int = 2,
+    ) -> BaseModel:
+        """调用 LLM 并解析为结构化输出。
+
+        内部使用 with_structured_output()，统一处理解析失败重试。
+        """
+        if self._config is None:
+            raise ValueError("invoke_structured requires LLMConfig with tier configuration")
+
         tier_config = self._config.tiers.get(tier)
         if tier_config is None or not tier_config.providers:
             raise ValueError(f"No providers configured for tier: {tier}")
 
-        last_error: Exception | None = None
+        async def _invoke(pc: ProviderConfig) -> BaseModel:
+            llm = self._create_model(pc.provider, pc.model, pc.api_key, temperature)
+            structured_llm = llm.with_structured_output(output_schema)
 
-        for pc in tier_config.providers:
-            for retry in range(self._config.max_retries):
-                try:
-                    llm = self._create_model(pc.provider, pc.model, pc.api_key, temperature)
-                    start = time.monotonic()
-                    response = await asyncio.to_thread(llm.invoke, messages)
-                    latency_ms = round((time.monotonic() - start) * 1000)
+            start = time.monotonic()
+            result = await asyncio.to_thread(structured_llm.invoke, messages)
+            latency_ms = round((time.monotonic() - start) * 1000)
 
-                    usage = response.usage_metadata or {}
-                    logger.info(
-                        "llm_call_completed",
-                        provider=pc.provider,
-                        model=pc.model,
-                        tier=tier,
-                        input_tokens=usage.get("input_tokens", 0),
-                        output_tokens=usage.get("output_tokens", 0),
-                        latency_ms=latency_ms,
-                        is_fallback=pc != tier_config.providers[0],
-                        retry_count=retry,
-                    )
-                    return response
-
-                except Exception as e:
-                    last_error = e
-                    if not _is_retryable(e):
-                        logger.warning(
-                            "llm_non_retryable_error",
-                            provider=pc.provider,
-                            model=pc.model,
-                            error_type=type(e).__name__,
-                        )
-                        break
-
-                    delay = self._config.retry_base_seconds * (self._config.retry_multiplier**retry)
-                    logger.warning(
-                        "llm_retry",
-                        provider=pc.provider,
-                        model=pc.model,
-                        retry=retry + 1,
-                        delay_seconds=delay,
-                        error_type=type(e).__name__,
-                    )
-                    await asyncio.sleep(delay)
-
-            if last_error is not None:
-                logger.warning(
-                    "llm_provider_fallback",
-                    original_provider=pc.provider,
-                    tier=tier,
-                    error_type=type(last_error).__name__,
+            if result is None:
+                raise StructuredOutputError(
+                    "LLM returned None for structured output",
+                    raw_response="None",
                 )
 
-        raise LLMUnavailableError(f"All providers exhausted for tier={tier}: {last_error}")
+            usage: dict = getattr(result, "usage_metadata", None) or {}
+            logger.info(
+                "llm_call_completed",
+                provider=pc.provider,
+                model=pc.model,
+                latency_ms=latency_ms,
+                is_structured=True,
+                is_fallback=pc != tier_config.providers[0],
+                input_tokens=usage.get("input_tokens", 0),
+                output_tokens=usage.get("output_tokens", 0),
+            )
+            return result
+
+        return await self._run_with_provider_fallback(tier, invoke_fn=_invoke)
 
     def _create_model(
         self,

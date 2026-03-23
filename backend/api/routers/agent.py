@@ -1,9 +1,11 @@
 import json
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import (
@@ -17,6 +19,7 @@ from backend.api.rate_limit import get_user_id_or_ip, limiter
 from backend.api.schemas.agent import InterruptResponse, RunRequest
 from backend.clients.langgraph_runner import LangGraphRunner
 from backend.core.logger import get_logger
+from backend.models.editor_draft import EditorDraft
 from backend.models.run_snapshot import RunSnapshot
 from backend.models.user import User
 from backend.models.workspace import Workspace
@@ -27,6 +30,70 @@ from backend.services.artifacts_renderer import render_artifacts
 from backend.services.event_translator import translate_to_run_event
 
 logger = get_logger(__name__)
+
+_WF_NAMES: frozenset[str] = frozenset(
+    {"discovery", "extraction", "ideation", "execution", "critique", "publish"}
+)
+
+
+def _build_content_block_event(node_name: str, markdown: str) -> dict:
+    """Build a content_block SSE event dict."""
+    return {
+        "event_type": "content_block",
+        "data": {"content": markdown, "workflow": node_name},
+    }
+
+
+def _build_sandbox_event(wf_artifacts: dict) -> dict:
+    """Build a sandbox_result SSE event dict from execution workflow artifacts."""
+    exec_results = wf_artifacts.get("results", {})
+    return {
+        "event_type": "sandbox_result",
+        "data": {
+            "code": wf_artifacts.get("code", ""),
+            "stdout": exec_results.get("stdout", ""),
+            "stderr": exec_results.get("stderr", ""),
+            "exit_code": exec_results.get("exit_code", -1),
+            "duration_ms": 0,
+            "artifacts": wf_artifacts.get("output_files", []),
+        },
+    }
+
+
+def _build_assistant_message_event(
+    last_ai_content: str | None,
+    completed_nodes: list[str],
+) -> dict | None:
+    """Build an assistant_message SSE event dict, or None if there is nothing to say."""
+    if last_ai_content:
+        return {"event_type": "assistant_message", "data": {"content": last_ai_content}}
+    if completed_nodes:
+        summary = " → ".join(completed_nodes)
+        return {"event_type": "assistant_message", "data": {"content": f"已完成工作流：{summary}"}}
+    return None
+
+
+async def _persist_assistant_response(
+    app_state: Any,
+    run_id: str,
+    assistant_text: str,
+) -> None:
+    """Persist assistant_response to RunSnapshot using a fresh DB session."""
+    try:
+        async with app_state.session_factory() as db:
+            snap = await run_snapshot_repo.get_by_run_id(db, uuid.UUID(run_id))
+            if snap:
+                snap.assistant_response = assistant_text
+                snap.status = "completed"
+                snap.completed_at = datetime.utcnow()
+                await db.commit()
+    except Exception as save_exc:
+        logger.warning(
+            "assistant_response_save_failed",
+            run_id=run_id,
+            error=str(save_exc),
+        )
+
 
 router = APIRouter(prefix="/agent/threads", tags=["agent"])
 
@@ -159,11 +226,6 @@ async def delete_thread(
     await _verify_thread_ownership(session, thread_id, current_user)
 
     # 手动清理关联数据（兜底，防止旧表缺少 CASCADE 约束）
-    from sqlalchemy import delete as sa_delete
-
-    from backend.models.editor_draft import EditorDraft
-    from backend.models.run_snapshot import RunSnapshot
-
     await session.execute(sa_delete(RunSnapshot).where(RunSnapshot.thread_id == thread_id))
     await session.execute(sa_delete(EditorDraft).where(EditorDraft.thread_id == thread_id))
 
@@ -267,126 +329,76 @@ async def stream_run_events(
 
     async def event_generator():
         seq = 0
+        completed_nodes: list[str] = []
+        last_ai_content: str | None = None
+        was_interrupted = False
         try:
             raw_stream = runner.get_event_stream(run_id)
-            completed_nodes: list[str] = []
-            last_ai_content: str | None = None
-            was_interrupted = False
-            # WF 名称集合，用于检测 WF 子图完成后注入 content_block
-            wf_names = {"discovery", "extraction", "ideation", "execution", "critique", "publish"}
             async for raw_event in raw_stream:
-                # 检查 on_chain_end 的 output 中是否有新增 AI 消息
-                # 仅限 supervisor 节点产出的 AIMessage（chat 模式），
-                # 避免未来 workflow 子图意外覆盖
+                # 捕获 supervisor 节点产出的 AIMessage（chat 模式），供后续 assistant_message 使用
                 raw_type = raw_event.get("event", "")
                 if raw_type in ("on_chain_end", "events/on_chain_end"):
-                    raw_name = raw_event.get("name", "")
                     output = raw_event.get("data", {}).get("output", {})
-                    if raw_name == "supervisor" and isinstance(output, dict):
-                        msgs = output.get("messages", [])
-                        for msg in reversed(msgs):
+                    if raw_event.get("name") == "supervisor" and isinstance(output, dict):
+                        for msg in reversed(output.get("messages", [])):
                             if hasattr(msg, "type") and msg.type == "ai":
                                 last_ai_content = msg.content
                                 break
 
-                # 翻译事件
                 run_event = translate_to_run_event(raw_event)
                 if run_event is None:
                     continue
 
                 seq += 1
                 event_type = run_event["event_type"]
-                if event_type == "node_end":
-                    node_name = run_event["data"].get("node_name", "")
-                    if node_name:
-                        completed_nodes.append(node_name)
+                node_name = run_event["data"].get("node_name", "")
+                if event_type == "node_end" and node_name:
+                    completed_nodes.append(node_name)
                 if event_type == "interrupt":
                     was_interrupted = True
-                logger.debug(
-                    "sse_event_yielded",
-                    run_id=run_id,
-                    seq=seq,
-                    event_type=event_type,
-                )
+                logger.debug("sse_event_yielded", run_id=run_id, seq=seq, event_type=event_type)
                 yield f"id: {seq}\ndata: {json.dumps(run_event)}\n\n"
 
-                # WF 子图完成后：尝试从 output 提取 artifacts 并注入 content_block
-                if event_type == "node_end":
-                    node_name = run_event["data"].get("node_name", "")
-                    if node_name in wf_names:
-                        raw_output = raw_event.get("data", {}).get("output", {})
-                        wf_artifacts = (
-                            raw_output.get("artifacts", {}).get(node_name, {})
-                            if isinstance(raw_output, dict)
-                            else {}
+                # WF 子图完成后注入 content_block 与（可选）sandbox_result
+                if event_type == "node_end" and node_name in _WF_NAMES:
+                    raw_output = raw_event.get("data", {}).get("output", {})
+                    wf_artifacts = (
+                        raw_output.get("artifacts", {}).get(node_name, {})
+                        if isinstance(raw_output, dict)
+                        else {}
+                    )
+                    markdown = render_artifacts(node_name, wf_artifacts)
+                    if markdown:
+                        seq += 1
+                        content_event = _build_content_block_event(node_name, markdown)
+                        logger.debug(
+                            "sse_content_block_injected",
+                            run_id=run_id,
+                            workflow=node_name,
+                            content_length=len(markdown),
                         )
-                        markdown = render_artifacts(node_name, wf_artifacts)
-                        if markdown:
-                            seq += 1
-                            content_event = {
-                                "event_type": "content_block",
-                                "data": {
-                                    "content": markdown,
-                                    "workflow": node_name,
-                                },
-                            }
-                            logger.debug(
-                                "sse_content_block_injected",
-                                run_id=run_id,
-                                workflow=node_name,
-                                content_length=len(markdown),
-                            )
-                            yield f"id: {seq}\ndata: {json.dumps(content_event)}\n\n"
+                        yield f"id: {seq}\ndata: {json.dumps(content_event)}\n\n"
 
-                        # execution WF 完成时：注入 sandbox_result 事件供前端 SandboxTab 展示
-                        if node_name == "execution" and wf_artifacts:
-                            exec_results = wf_artifacts.get("results", {})
-                            sandbox_event = {
-                                "event_type": "sandbox_result",
-                                "data": {
-                                    "code": wf_artifacts.get("code", ""),
-                                    "stdout": exec_results.get("stdout", ""),
-                                    "stderr": exec_results.get("stderr", ""),
-                                    "exit_code": exec_results.get("exit_code", -1),
-                                    "duration_ms": 0,
-                                    "artifacts": wf_artifacts.get("output_files", []),
-                                },
-                            }
-                            seq += 1
-                            logger.debug(
-                                "sse_sandbox_result_injected",
-                                run_id=run_id,
-                                exit_code=exec_results.get("exit_code"),
-                            )
-                            yield f"id: {seq}\ndata: {json.dumps(sandbox_event)}\n\n"
+                    if node_name == "execution" and wf_artifacts:
+                        seq += 1
+                        sandbox_event = _build_sandbox_event(wf_artifacts)
+                        logger.debug(
+                            "sse_sandbox_result_injected",
+                            run_id=run_id,
+                            exit_code=wf_artifacts.get("results", {}).get("exit_code"),
+                        )
+                        yield f"id: {seq}\ndata: {json.dumps(sandbox_event)}\n\n"
 
-            # 发送 assistant_message（仅在非 interrupt 时）：
             # interrupt 时不发 assistant_message，前端会显示 HITL 卡片
             if not was_interrupted:
-                seq += 1
-                if last_ai_content:
-                    msg_event = {
-                        "event_type": "assistant_message",
-                        "data": {"content": last_ai_content},
-                    }
-                elif completed_nodes:
-                    summary = " → ".join(completed_nodes)
-                    msg_event = {
-                        "event_type": "assistant_message",
-                        "data": {"content": f"已完成工作流：{summary}"},
-                    }
-                else:
-                    msg_event = None
-
+                msg_event = _build_assistant_message_event(last_ai_content, completed_nodes)
                 if msg_event:
+                    seq += 1
                     yield f"id: {seq}\ndata: {json.dumps(msg_event)}\n\n"
 
         except Exception as exc:
             logger.error(
-                "sse_stream_error",
-                run_id=run_id,
-                error=str(exc),
-                error_type=type(exc).__name__,
+                "sse_stream_error", run_id=run_id, error=str(exc), error_type=type(exc).__name__
             )
             seq += 1
             error_event = {
@@ -398,27 +410,11 @@ async def stream_run_events(
             }
             yield f"id: {seq}\ndata: {json.dumps(error_event)}\n\n"
         finally:
-            # 保存 assistant_response 到 RunSnapshot
-            assistant_text = last_ai_content
-            if not assistant_text and completed_nodes:
-                assistant_text = f"已完成工作流：{' → '.join(completed_nodes)}"
+            assistant_text = last_ai_content or (
+                f"已完成工作流：{' → '.join(completed_nodes)}" if completed_nodes else None
+            )
             if assistant_text:
-                try:
-                    factory = request.app.state.session_factory
-                    async with factory() as db:
-                        snap = await run_snapshot_repo.get_by_run_id(db, uuid.UUID(run_id))
-                        if snap:
-                            snap.assistant_response = assistant_text
-                            snap.status = "completed"
-                            snap.completed_at = datetime.utcnow()
-                            await db.commit()
-                except Exception as save_exc:
-                    logger.warning(
-                        "assistant_response_save_failed",
-                        run_id=run_id,
-                        error=str(save_exc),
-                    )
-            # 确保任何异常路径都能通知前端关闭连接
+                await _persist_assistant_response(request.app.state, run_id, assistant_text)
             seq += 1
             end_event = {"event_type": "run_end", "data": {"run_id": run_id}}
             yield f"id: {seq}\ndata: {json.dumps(end_event)}\n\n"
