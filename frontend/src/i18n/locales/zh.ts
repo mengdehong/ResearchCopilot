@@ -93,6 +93,7 @@ export const zh: TranslationDict = {
         dropzoneHint: '支持最大 50MB 的 PDF 文件',
         loadingDocuments: '加载文档...',
         empty: '暂无文档，上传 PDF 开始吧。',
+        uploadError: '上传失败',
         status: {
             completed: '已完成',
             parsing: '解析中',
@@ -119,6 +120,7 @@ export const zh: TranslationDict = {
         paperListOnRight: '论文列表已在右侧面板展示，请在右侧勾选。',
         rejectConfirm: '确定要拒绝吗？',
         confirmReject: '确认拒绝',
+        waitForIngestion: '等待论文解析中...',
     },
     status: {
         processing: '处理中...',

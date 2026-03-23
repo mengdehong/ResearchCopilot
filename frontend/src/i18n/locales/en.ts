@@ -91,6 +91,7 @@ export const en = {
         dropzoneHint: 'Supports PDF files up to 50MB',
         loadingDocuments: 'Loading documents...',
         empty: 'No documents yet. Upload PDFs to get started.',
+        uploadError: 'Upload failed',
         status: {
             completed: 'Completed',
             parsing: 'Parsing',
@@ -117,6 +118,7 @@ export const en = {
         paperListOnRight: 'Paper list is shown on the right panel. Please select papers there.',
         rejectConfirm: 'Are you sure you want to reject?',
         confirmReject: 'Confirm Reject',
+        waitForIngestion: 'Waiting for papers to be parsed...',
     },
     status: {
         processing: 'Processing...',
