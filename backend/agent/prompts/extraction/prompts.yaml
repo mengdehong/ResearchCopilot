@@ -4,6 +4,8 @@ generate_notes:
   system: |
     你是学术论文精读专家。根据论文信息生成结构化精读笔记，
     包含：关键贡献、方法论、实验设置、主要结果、局限性。
+    如果提供了 full_text_chunks 字段，请基于论文全文段落深入分析；
+    否则仅基于 abstract 给出初步笔记。
   user: "{paper_json}"
 
 cross_compare:

@@ -111,6 +111,7 @@ class ComparisonEntry(BaseModel):
 
 class ExtractionState(SharedState, total=False):
     paper_ids: list[str]
+    retrieved_chunks: list[dict]
     reading_notes: list[ReadingNote]
     comparison_matrix: list[ComparisonEntry]
     glossary: dict[str, str]
@@ -183,5 +184,7 @@ class PublishState(SharedState, total=False):
     user_edited_markdown: str | None  # Canvas 手改后回流的 Markdown
     citation_map: dict[str, str]
     output_files: list[str]
+    zip_bytes: bytes | None  # package_zip 产出的 ZIP 二进制
+    download_key: str | None  # ZIP 持久化后的存储 key
     presentation_schema: dict | None  # PresentationSchema 序列化后的 dict
     rendered_presentation: dict | None  # RenderedPresentation 序列化后的 dict

@@ -5,6 +5,7 @@ import json
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from backend.agent.dspy_modules import registry as dspy_registry
 from backend.agent.prompts.loader import load_prompt
@@ -23,6 +24,7 @@ from backend.agent.workflows.extraction.graph import build_extraction_graph
 from backend.agent.workflows.ideation.graph import build_ideation_graph
 from backend.agent.workflows.publish.graph import build_publish_graph
 from backend.core.logger import get_logger
+from backend.services.rag_engine import RAGEngine
 
 logger = get_logger(__name__)
 
@@ -297,11 +299,18 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
     return checkpoint_eval_node
 
 
-def build_supervisor_graph(*, llm: BaseChatModel) -> StateGraph:
+def build_supervisor_graph(
+    *,
+    llm: BaseChatModel,
+    rag_engine: RAGEngine,
+    session_factory: async_sessionmaker[AsyncSession],
+) -> StateGraph:
     """构建 Supervisor 主图。
 
     Args:
         llm: LLM 实例，注入到 Supervisor 节点和所有 WF subgraph。
+        rag_engine: RAG 检索引擎实例。
+        session_factory: DB session 工厂，供 RAG 检索使用。
     """
     graph = StateGraph(SupervisorState)
 
@@ -311,7 +320,12 @@ def build_supervisor_graph(*, llm: BaseChatModel) -> StateGraph:
 
     # 6 个 WF 作为 compiled subgraph 节点
     graph.add_node("discovery", build_discovery_graph(llm=llm).compile())
-    graph.add_node("extraction", build_extraction_graph(llm=llm).compile())
+    graph.add_node(
+        "extraction",
+        build_extraction_graph(
+            llm=llm, rag_engine=rag_engine, session_factory=session_factory
+        ).compile(),
+    )
     graph.add_node("ideation", build_ideation_graph(llm=llm).compile())
     graph.add_node("execution", build_execution_graph(llm=llm).compile())
     graph.add_node("critique", build_critique_graph(llm=llm).compile())

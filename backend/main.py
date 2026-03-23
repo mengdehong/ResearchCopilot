@@ -19,6 +19,7 @@ from backend.core.database import create_checkpointer, create_engine, create_ses
 from backend.core.exceptions import AppError, app_error_handler
 from backend.core.logger import get_logger, setup_logging
 from backend.services.llm_gateway import LLMGateway, LLMProvider
+from backend.services.rag_engine import RAGEngine
 
 logger = get_logger(__name__)
 
@@ -58,7 +59,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from backend.agent.graph import build_supervisor_graph
 
         llm = _build_llm(settings)
-        graph = build_supervisor_graph(llm=llm)
+        rag_engine = RAGEngine()
+        graph = build_supervisor_graph(
+            llm=llm,
+            rag_engine=rag_engine,
+            session_factory=app.state.session_factory,
+        )
 
         # 创建 checkpointer 并注入图编译（interrupt 需要持久化状态）
         checkpointer_ctx = create_checkpointer(settings.database_url)
