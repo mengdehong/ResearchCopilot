@@ -438,6 +438,32 @@ async def stream_run_events(
                         )
                         yield f"id: {seq}\ndata: {json.dumps(sandbox_event)}\n\n"
 
+                # Discovery 子图: wait_for_ingestion 完成后自动打开第一篇已解析 PDF
+                if event_type == "node_end" and node_name == "wait_for_ingestion":
+                    wfi_output = raw_event.get("data", {}).get("output", {})
+                    ingestion_results = (
+                        wfi_output.get("ingestion_results", {})
+                        if isinstance(wfi_output, dict)
+                        else {}
+                    )
+                    for doc_id, status in ingestion_results.items():
+                        if status == "completed":
+                            pdf_event = {
+                                "event_type": "pdf_highlight",
+                                "data": {
+                                    "document_id": str(doc_id),
+                                    "page": 1,
+                                },
+                            }
+                            seq += 1
+                            logger.debug(
+                                "sse_pdf_highlight_injected",
+                                run_id=run_id,
+                                document_id=doc_id,
+                            )
+                            yield f"id: {seq}\ndata: {json.dumps(pdf_event)}\n\n"
+                            break
+
             # interrupt 时不发 assistant_message，前端会显示 HITL 卡片
             if not was_interrupted:
                 msg_event = _build_assistant_message_event(last_ai_content, completed_nodes)
@@ -525,6 +551,7 @@ async def stream_run_events(
 
 @router.post("/{thread_id}/runs/{run_id}/resume")
 async def resume_run(
+    request: Request,
     thread_id: uuid.UUID,
     run_id: str,
     body: InterruptResponse,
@@ -533,6 +560,8 @@ async def resume_run(
     runner: LangGraphRunner = Depends(get_lg_runner),
 ) -> dict:
     """Resume a paused run with HITL response."""
+    auth_token = request.headers.get("Authorization")
+
     # 系统调用跳过 ownership 检查
     if current_user is not None:
         await _verify_thread_ownership(session, thread_id, current_user)
@@ -558,10 +587,16 @@ async def resume_run(
     await agent_service.update_thread_status(session, thread_id, "running")
     await session.commit()
 
+    # 构建 resume config，传播 auth_token 和 run_id（与 create_run 对称）
+    resume_config: dict | None = None
+    if auth_token:
+        resume_config = {"configurable": {"auth_token": auth_token, "run_id": new_run_id}}
+
     await runner.resume_run(
         run_id=new_run_id,
         thread_id=str(thread_id),
         resume_payload=resume_payload,
+        config=resume_config,
     )
     return {
         "run_id": new_run_id,

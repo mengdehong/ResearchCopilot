@@ -94,6 +94,7 @@ class LangGraphRunner:
         run_id: str,
         thread_id: str,
         resume_payload: dict,
+        config: dict | None = None,
     ) -> None:
         """恢复被 interrupt 暂停的 run。
 
@@ -103,20 +104,23 @@ class LangGraphRunner:
             run_id: 新 run 的唯一标识。
             thread_id: 所属 thread。
             resume_payload: HITL 响应（传给 interrupt 的返回值）。
+            config: 可选额外配置（auth_token, run_id 等），合并到默认 config。
         """
         if run_id in self._active_runs:
             logger.warning("run_already_active", run_id=run_id)
             return
 
         queue: asyncio.Queue[dict | None] = asyncio.Queue(maxsize=256)
-        config = {"configurable": {"thread_id": thread_id}}
+        run_config: dict = {"configurable": {"thread_id": thread_id}}
+        if config:
+            run_config["configurable"].update(config.get("configurable", {}))
 
         task = asyncio.create_task(
             self._execute(
                 run_id=run_id,
                 input_data=Command(resume=resume_payload),
                 queue=queue,
-                config=config,
+                config=run_config,
             ),
             name=f"lg-resume-{run_id}",
         )
@@ -235,12 +239,13 @@ class LangGraphRunner:
 
         except asyncio.CancelledError:
             logger.info("run_cancelled_during_execution", run_id=run_id)
-        except Exception:
+        except Exception as exc:
             logger.exception("run_execution_error", run_id=run_id)
+            error_detail = f"Internal execution error: {type(exc).__name__}: {exc}"
             await queue.put(
                 {
                     "event": "events/error",
-                    "data": {"run_id": run_id, "error": "Internal execution error"},
+                    "data": {"run_id": run_id, "error": error_detail},
                 }
             )
         finally:

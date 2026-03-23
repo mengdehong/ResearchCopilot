@@ -34,6 +34,7 @@ def _user() -> User:
 def mock_runner() -> MagicMock:
     runner = MagicMock()
     runner.start_run = AsyncMock()
+    runner.resume_run = AsyncMock()
     runner.cancel_run = AsyncMock()
 
     async def fake_stream(run_id):
@@ -177,3 +178,52 @@ class TestAgentRouterHelpers:
         )
 
         assert status == "cancelled"
+
+
+class TestResumeRunAuthPropagation:
+    """resume_run 端点应将 auth_token 传播到 LangGraphRunner config。"""
+
+    @patch("backend.api.routers.agent._verify_thread_ownership", new_callable=AsyncMock)
+    @patch("backend.api.routers.agent.agent_service")
+    @patch("backend.api.routers.agent.base_repo")
+    async def test_resume_run_propagates_auth_token(
+        self, mock_base_repo, mock_svc, mock_verify, client, mock_runner
+    ) -> None:
+        mock_base_repo.create = AsyncMock()
+        mock_svc.update_thread_status = AsyncMock()
+        tid = uuid.uuid4()
+
+        response = await client.post(
+            f"/api/v1/agent/threads/{tid}/runs/r1/resume",
+            json={"action": "approve", "payload": {"selected_ids": ["p1"]}},
+            headers={"Authorization": "Bearer test-token-123"},
+        )
+        assert response.status_code == 200
+
+        # runner.resume_run 应被调用且 config 包含 auth_token
+        mock_runner.resume_run.assert_awaited_once()
+        call_kwargs = mock_runner.resume_run.call_args.kwargs
+        assert call_kwargs["config"] is not None
+        assert call_kwargs["config"]["configurable"]["auth_token"] == "Bearer test-token-123"
+
+    @patch("backend.api.routers.agent._verify_thread_ownership", new_callable=AsyncMock)
+    @patch("backend.api.routers.agent.agent_service")
+    @patch("backend.api.routers.agent.base_repo")
+    async def test_resume_run_without_auth_passes_none_config(
+        self, mock_base_repo, mock_svc, mock_verify, client, mock_runner
+    ) -> None:
+        """无 Authorization header 时 config 应为 None。"""
+        mock_base_repo.create = AsyncMock()
+        mock_svc.update_thread_status = AsyncMock()
+        tid = uuid.uuid4()
+
+        # client fixture 已有 dependency override 跳过 auth，
+        # 但此处不发 Authorization header
+        response = await client.post(
+            f"/api/v1/agent/threads/{tid}/runs/r1/resume",
+            json={"action": "approve"},
+        )
+        assert response.status_code == 200
+
+        call_kwargs = mock_runner.resume_run.call_args.kwargs
+        assert call_kwargs["config"] is None
