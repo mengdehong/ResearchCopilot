@@ -1,20 +1,34 @@
 import { useEffect, useRef } from 'react'
-import type { Message } from '@/types'
+import type { Message, CoTNode } from '@/types'
 import { Bot } from 'lucide-react'
 import { SlideUp } from '@/components/shared/MotionWrappers'
 import AcademicMarkdown from '@/components/shared/AcademicMarkdown'
+import CoTTree from './CoTTree'
 
 interface MessageListProps {
     messages: Message[]
     streamingContent?: string
+    cotTree: CoTNode[]
 }
 
-export default function MessageList({ messages, streamingContent }: MessageListProps) {
+export default function MessageList({ messages, streamingContent, cotTree }: MessageListProps) {
     const bottomRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages, streamingContent])
+
+    // Split messages: all before the last assistant message, and the last assistant message
+    // CoT should render between them
+    const lastAssistantIdx = messages.findLastIndex((m) => m.role === 'assistant')
+    const hasCoT = cotTree.length > 0
+
+    const beforeMessages = hasCoT && lastAssistantIdx >= 0
+        ? messages.slice(0, lastAssistantIdx)
+        : messages
+    const lastAssistantMsg = hasCoT && lastAssistantIdx >= 0
+        ? messages[lastAssistantIdx]
+        : null
 
     return (
         <div className="flex flex-col gap-0 py-4">
@@ -29,11 +43,19 @@ export default function MessageList({ messages, streamingContent }: MessageListP
                 </div>
             )}
 
-            {messages.map((msg) => (
+            {beforeMessages.map((msg) => (
                 <SlideUp key={msg.id}>
                     <MessageBubble message={msg} />
                 </SlideUp>
             ))}
+
+            {hasCoT && <CoTTree nodes={cotTree} />}
+
+            {lastAssistantMsg && (
+                <SlideUp key={lastAssistantMsg.id}>
+                    <MessageBubble message={lastAssistantMsg} />
+                </SlideUp>
+            )}
 
             {streamingContent && (
                 <StreamingMessage content={streamingContent} />

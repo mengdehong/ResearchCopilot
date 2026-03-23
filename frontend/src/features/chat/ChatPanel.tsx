@@ -2,7 +2,6 @@ import { useAgentStore } from '@/stores/useAgentStore'
 import { useTranslation } from '@/i18n/useTranslation'
 import MessageList from './MessageList'
 import InputArea from './InputArea'
-import CoTTree from './CoTTree'
 import HITLCard from './HITLCard'
 import { Button } from '@/components/ui/button'
 import { Square } from 'lucide-react'
@@ -56,9 +55,8 @@ export default function ChatPanel({
                 <MessageList
                     messages={messages}
                     streamingContent={isStreaming ? generatedContent : undefined}
+                    cotTree={cotTree}
                 />
-
-                {cotTree.length > 0 && <CoTTree nodes={cotTree} />}
 
                 {interrupt && (
                     <HITLCard
