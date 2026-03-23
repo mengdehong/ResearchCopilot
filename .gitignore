@@ -23,6 +23,8 @@ dist/
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+frontend/playwright-report/
+frontend/test-results/
 
 # Node (frontend)
 node_modules/

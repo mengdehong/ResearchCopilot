@@ -11,7 +11,8 @@
         "test": "vitest",
         "test:ci": "vitest run",
         "test:e2e": "playwright test --project=chromium",
-        "test:e2e:smoke": "playwright test --project=smoke"
+        "test:e2e:smoke": "playwright test --project=smoke",
+        "test:e2e:smoke:local": "playwright test --config=playwright.smoke.config.ts"
     },
     "dependencies": {
         "@aarkue/tiptap-math-extension": "^1.4.0",

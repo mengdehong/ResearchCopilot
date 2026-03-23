@@ -2,7 +2,8 @@
        dev dev-backend dev-celery dev-frontend \
        db-migrate db-upgrade db-downgrade db-reset \
        infra infra-down \
-       test test-unit test-integration lint format typecheck \
+       test test-unit test-integration test-ui-mocked test-browser-smoke smoke-seed \
+       lint format typecheck \
        docker-up docker-down docker-logs health \
        hooks clean
 
@@ -14,6 +15,9 @@ BACKEND_PORT  ?= 8000
 FRONTEND_DIR  := frontend
 DEPLOY_DIR    := deployment
 COMPOSE       := docker compose -p rc -f $(DEPLOY_DIR)/docker-compose.yml
+SMOKE_TEST_EMAIL := e2e-smoke@example.com
+SMOKE_TEST_PASSWORD := SmokeTest123!
+SMOKE_TEST_DISPLAY_NAME := Smoke Tester
 
 # ──────────────────────────────────────────────
 # Help
@@ -91,6 +95,22 @@ test-unit: ## 仅运行单元测试
 
 test-integration: ## 仅运行集成测试
 	uv run pytest -m integration
+
+test-ui-mocked: ## 运行前端 mocked Playwright 测试
+	cd $(FRONTEND_DIR) && npm run test:e2e
+
+smoke-seed: ## 为本地 browser smoke 测试准备已验证用户
+	SMOKE_TEST_EMAIL='$(SMOKE_TEST_EMAIL)' \
+	SMOKE_TEST_PASSWORD='$(SMOKE_TEST_PASSWORD)' \
+	SMOKE_TEST_DISPLAY_NAME='$(SMOKE_TEST_DISPLAY_NAME)' \
+	uv run python tests/scripts/seed_smoke_user.py
+
+test-browser-smoke: infra smoke-seed ## 运行本地真实前后端 browser smoke 测试（要求数据库 schema 已存在）
+	cd $(FRONTEND_DIR) && \
+	SMOKE_ENABLED=1 \
+	SMOKE_TEST_EMAIL='$(SMOKE_TEST_EMAIL)' \
+	SMOKE_TEST_PASSWORD='$(SMOKE_TEST_PASSWORD)' \
+	npm run test:e2e:smoke:local
 
 lint: ## Ruff 检查
 	uv run ruff check .
