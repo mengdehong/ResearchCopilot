@@ -132,6 +132,13 @@ export interface Message {
     role: MessageRole
     content: string
     timestamp: string
+    cotNodes?: CotNodeSummary[]
+}
+
+export interface CotNodeSummary {
+    name: string
+    status: string
+    duration_ms?: number
 }
 
 export interface CoTNode {

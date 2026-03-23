@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronRight, Loader2, CheckCircle2, XCircle, Brain } from 'lucide-react'
-import type { CoTNode } from '@/types'
+import type { CoTNode, CotNodeSummary } from '@/types'
 
 /** 内部节点名，不向用户展示 */
 const INTERNAL_NODES = new Set([
@@ -152,6 +152,83 @@ function CoTNodeItem({ node }: { node: CoTNode }) {
                     </motion.div>
                 )}
             </AnimatePresence>
+        </div>
+    )
+}
+
+/* ─── CoTSummary — historical CoT from persisted data ─── */
+interface CoTSummaryProps {
+    nodes: CotNodeSummary[]
+}
+
+export function CoTSummary({ nodes }: CoTSummaryProps) {
+    const filtered = nodes.filter((n) => !INTERNAL_NODES.has(n.name))
+    const [collapsed, setCollapsed] = useState(true)
+
+    if (filtered.length === 0) return null
+
+    return (
+        <div className="mx-6 my-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden shadow-[var(--shadow-sm)] opacity-80">
+            <button
+                className="flex items-center gap-2 w-full px-3 py-2 bg-gradient-to-r from-[var(--surface-raised)] to-transparent hover:bg-[var(--surface-raised)] transition-all duration-300 cursor-pointer"
+                onClick={() => setCollapsed(!collapsed)}
+            >
+                {collapsed
+                    ? <ChevronRight className="size-3 text-[var(--text-muted)]" />
+                    : <ChevronDown className="size-3 text-[var(--text-muted)]" />
+                }
+                <Brain className="size-3.5 text-[var(--accent)]" />
+                <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">
+                    思考过程
+                </span>
+                <span className="text-[10px] text-[var(--text-muted)] ml-auto">
+                    {filtered.length} 步
+                </span>
+            </button>
+
+            <AnimatePresence>
+                {!collapsed && (
+                    <motion.div
+                        className="px-2 py-1"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                    >
+                        {filtered.map((node, idx) => (
+                            <CoTSummaryItem key={`${node.name}-${idx}`} node={node} />
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    )
+}
+
+function CoTSummaryItem({ node }: { node: CotNodeSummary }) {
+    const StatusIcon = {
+        running: <Loader2 className="size-3.5 text-[var(--accent)] animate-spin" />,
+        completed: <CheckCircle2 className="size-3.5 text-[var(--success)]" />,
+        error: <XCircle className="size-3.5 text-[var(--error)]" />,
+    }[node.status] ?? <CheckCircle2 className="size-3.5 text-[var(--success)]" />
+
+    const duration = node.duration_ms != null
+        ? `${(node.duration_ms / 1000).toFixed(1)}s`
+        : ''
+
+    return (
+        <div className="relative ml-2 pl-3 mt-1 before:content-[''] before:absolute before:left-0 before:top-3 before:bottom-[-3px] before:w-px before:bg-[var(--border)] last:before:hidden">
+            <div className="flex items-center gap-2 px-2 py-1 rounded-[var(--radius-sm)]">
+                {StatusIcon}
+                <span className="text-xs text-[var(--text-secondary)] truncate">
+                    {getNodeLabel(node.name)}
+                </span>
+                {duration && (
+                    <span className="text-[10px] text-[var(--text-muted)] ml-auto shrink-0">
+                        {duration}
+                    </span>
+                )}
+            </div>
         </div>
     )
 }

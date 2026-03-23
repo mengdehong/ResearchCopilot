@@ -1,7 +1,6 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -72,28 +71,6 @@ def _build_assistant_message_event(
         summary = " → ".join(completed_nodes)
         return {"event_type": "assistant_message", "data": {"content": f"已完成工作流：{summary}"}}
     return None
-
-
-async def _persist_assistant_response(
-    app_state: Any,
-    run_id: str,
-    assistant_text: str,
-) -> None:
-    """Persist assistant_response to RunSnapshot using a fresh DB session."""
-    try:
-        async with app_state.session_factory() as db:
-            snap = await run_snapshot_repo.get_by_run_id(db, uuid.UUID(run_id))
-            if snap:
-                snap.assistant_response = assistant_text
-                snap.status = "completed"
-                snap.completed_at = datetime.utcnow()
-                await db.commit()
-    except Exception as save_exc:
-        logger.warning(
-            "assistant_response_save_failed",
-            run_id=run_id,
-            error=str(save_exc),
-        )
 
 
 router = APIRouter(prefix="/agent/threads", tags=["agent"])
@@ -242,18 +219,18 @@ async def get_thread_messages(
         )
         # 如果有 assistant 回复，添加 assistant 消息
         if snap.assistant_response:
-            messages.append(
-                {
-                    "id": f"{snap.run_id}-reply",
-                    "role": "assistant",
-                    "content": snap.assistant_response,
-                    "timestamp": (snap.completed_at or snap.created_at).isoformat()
-                    if (snap.completed_at or snap.created_at)
-                    else None,
-                }
-            )
+            assistant_msg: dict = {
+                "id": f"{snap.run_id}-reply",
+                "role": "assistant",
+                "content": snap.assistant_response,
+                "timestamp": (snap.completed_at or snap.created_at).isoformat()
+                if (snap.completed_at or snap.created_at)
+                else None,
+            }
+            if snap.cot_nodes:
+                assistant_msg["cotNodes"] = snap.cot_nodes
+            messages.append(assistant_msg)
 
-    # 检查最后一个 snap 是否有 pending interrupt
     pending_interrupt: dict | None = None
     last_snap = snapshots[-1] if snapshots else None
     if last_snap and last_snap.status == "interrupted" and last_snap.interrupt_data:
@@ -383,6 +360,7 @@ async def stream_run_events(
     async def event_generator():
         seq = 0
         completed_nodes: list[str] = []
+        cot_entries: list[dict] = []
         last_ai_content: str | None = None
         was_interrupted = False
         saw_error_event = False
@@ -408,8 +386,14 @@ async def stream_run_events(
                 seq += 1
                 event_type = run_event["event_type"]
                 node_name = run_event["data"].get("node_name", "")
+                if event_type == "node_start" and node_name:
+                    cot_entries.append({"name": node_name, "start_ms": 0, "status": "running"})
                 if event_type == "node_end" and node_name:
                     completed_nodes.append(node_name)
+                    for entry in cot_entries:
+                        if entry["name"] == node_name and entry["status"] == "running":
+                            entry["status"] = "completed"
+                            break
                 if event_type == "interrupt":
                     was_interrupted = True
                     interrupt_payload_for_db = run_event["data"]
@@ -462,6 +446,7 @@ async def stream_run_events(
                     yield f"id: {seq}\ndata: {json.dumps(msg_event)}\n\n"
 
         except Exception as exc:
+            saw_error_event = True
             logger.error(
                 "sse_stream_error", run_id=run_id, error=str(exc), error_type=type(exc).__name__
             )
@@ -491,13 +476,15 @@ async def stream_run_events(
                             saw_error_event=saw_error_event,
                         )
                         snap.completed_at = datetime.utcnow()
-                        # 持久化 interrupt payload
                         if interrupt_payload_for_db:
                             snap.interrupt_data = interrupt_payload_for_db
-                        # 持久化 CoT 节点列表
-                        if completed_nodes:
-                            snap.cot_nodes = [{"name": n} for n in completed_nodes]
-                        # 持久化 content_blocks
+                        if cot_entries:
+                            snap.cot_nodes = cot_entries
+                        elif completed_nodes:
+                            snap.cot_nodes = [
+                                {"name": node_name, "status": "completed"}
+                                for node_name in completed_nodes
+                            ]
                         if content_blocks_for_db:
                             snap.content_blocks = content_blocks_for_db
                         await db.commit()
@@ -507,7 +494,6 @@ async def stream_run_events(
                     run_id=run_id,
                     error=str(save_exc),
                 )
-            # 更新 Thread.status
             try:
                 factory = request.app.state.session_factory
                 async with factory() as db:

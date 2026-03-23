@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, Fragment } from 'react'
 import type { Message, CoTNode } from '@/types'
 import { Bot } from 'lucide-react'
 import { SlideUp } from '@/components/shared/MotionWrappers'
 import AcademicMarkdown from '@/components/shared/AcademicMarkdown'
-import CoTTree from './CoTTree'
+import CoTTree, { CoTSummary } from './CoTTree'
 
 interface MessageListProps {
     messages: Message[]
@@ -18,21 +18,6 @@ export default function MessageList({ messages, streamingContent, cotTree }: Mes
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages, streamingContent])
 
-    // Split messages: all before the last assistant message, and the last assistant message
-    // CoT should render between them
-    const lastAssistantIdx = messages.findLastIndex((m) => m.role === 'assistant')
-    const hasCoT = cotTree.length > 0
-
-    const beforeMessages = hasCoT && lastAssistantIdx >= 0
-        ? messages.slice(0, lastAssistantIdx)
-        : messages
-    const lastAssistantMsg = hasCoT && lastAssistantIdx >= 0
-        ? messages[lastAssistantIdx]
-        : null
-    const afterMessages = hasCoT && lastAssistantIdx >= 0
-        ? messages.slice(lastAssistantIdx + 1)
-        : []
-
     return (
         <div className="flex flex-col gap-0 py-4">
             {messages.length === 0 && !streamingContent && (
@@ -46,25 +31,20 @@ export default function MessageList({ messages, streamingContent, cotTree }: Mes
                 </div>
             )}
 
-            {beforeMessages.map((msg) => (
-                <SlideUp key={msg.id}>
-                    <MessageBubble message={msg} />
-                </SlideUp>
+            {messages.map((msg) => (
+                <Fragment key={msg.id}>
+                    {/* Render per-message CoT before the assistant message */}
+                    {msg.role === 'assistant' && msg.cotNodes && msg.cotNodes.length > 0 && (
+                        <CoTSummary nodes={msg.cotNodes} />
+                    )}
+                    <SlideUp>
+                        <MessageBubble message={msg} />
+                    </SlideUp>
+                </Fragment>
             ))}
 
-            {hasCoT && <CoTTree nodes={cotTree} />}
-
-            {lastAssistantMsg && (
-                <SlideUp key={lastAssistantMsg.id}>
-                    <MessageBubble message={lastAssistantMsg} />
-                </SlideUp>
-            )}
-
-            {afterMessages.map((msg) => (
-                <SlideUp key={msg.id}>
-                    <MessageBubble message={msg} />
-                </SlideUp>
-            ))}
+            {/* Live CoT for the currently running agent */}
+            {cotTree.length > 0 && <CoTTree nodes={cotTree} />}
 
             {streamingContent && (
                 <StreamingMessage content={streamingContent} />

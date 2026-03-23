@@ -1,8 +1,17 @@
 import { create } from 'zustand'
-import type { Message, CoTNode, InterruptData, RunEvent, PdfHighlight, SandboxResult } from '@/types'
+import type { Message, CoTNode, CotNodeSummary, InterruptData, RunEvent, PdfHighlight, SandboxResult } from '@/types'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('Store')
+
+/** Convert runtime CoTNode[] to serializable CotNodeSummary[]. */
+function cotTreeToSummary(tree: CoTNode[]): CotNodeSummary[] {
+    return tree.map((n) => ({
+        name: n.name,
+        status: n.status,
+        duration_ms: n.endTime != null ? n.endTime - n.startTime : undefined,
+    }))
+}
 
 interface AgentState {
     messages: Message[]
@@ -106,15 +115,19 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             }
 
             case 'assistant_message': {
+                const { cotTree } = get()
+                const cotNodes = cotTree.length > 0 ? cotTreeToSummary(cotTree) : undefined
                 const msg: Message = {
                     id: crypto.randomUUID(),
                     role: 'assistant',
                     content: get().generatedContent || String(data.content ?? ''),
                     timestamp: new Date().toISOString(),
+                    cotNodes,
                 }
                 set((state) => ({
                     messages: [...state.messages, msg],
                     generatedContent: '',
+                    cotTree: [],
                 }))
                 break
             }
@@ -144,9 +157,24 @@ export const useAgentStore = create<AgentState>((set, get) => ({
                 break
             }
 
-            case 'run_end':
-                set({ isStreaming: false, currentNode: null })
+            case 'run_end': {
+                // Attach any remaining cotTree to the last assistant message
+                const { cotTree: remainingCot, messages: msgs } = get()
+                if (remainingCot.length > 0) {
+                    const cotNodes = cotTreeToSummary(remainingCot)
+                    const lastIdx = msgs.findLastIndex((m) => m.role === 'assistant')
+                    if (lastIdx >= 0 && !msgs[lastIdx].cotNodes) {
+                        const updated = [...msgs]
+                        updated[lastIdx] = { ...updated[lastIdx], cotNodes }
+                        set({ messages: updated, cotTree: [], isStreaming: false, currentNode: null })
+                    } else {
+                        set({ cotTree: [], isStreaming: false, currentNode: null })
+                    }
+                } else {
+                    set({ isStreaming: false, currentNode: null })
+                }
                 break
+            }
 
             case 'pdf_highlight': {
                 const highlight = {

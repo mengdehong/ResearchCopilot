@@ -32,6 +32,7 @@ export default function WorkbenchPage() {
     const interrupt = useAgentStore((s) => s.interrupt)
     const clearInterrupt = useAgentStore((s) => s.clearInterrupt)
     const reset = useAgentStore((s) => s.reset)
+    const resetRunState = useAgentStore((s) => s.resetRunState)
 
     const [activeRunId, setActiveRunId] = useState('')
     const { data: threadDetail } = useThread(threadId)
@@ -125,6 +126,8 @@ export default function WorkbenchPage() {
     const handleSendMessage = useCallback(
         async (message: string) => {
             log.info('send message', { threadId, messageLength: message.length })
+            // Clear previous run's CoT/streaming state — each turn has its own CoT
+            resetRunState()
             addMessage({
                 id: crypto.randomUUID(),
                 role: 'user',
@@ -176,7 +179,7 @@ export default function WorkbenchPage() {
                 })
             }
         },
-        [addMessage, threadId, workspaceId, createThread, createRun, setSearchParams],
+        [addMessage, resetRunState, threadId, workspaceId, createThread, createRun, setSearchParams],
     )
 
     const handleResumeInterrupt = useCallback(
