@@ -1,6 +1,9 @@
 """Extraction WF 单元测试。"""
 
-from unittest.mock import MagicMock
+import uuid
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from backend.agent.state import ComparisonEntry, ReadingNote
 from backend.agent.workflows.extraction.graph import build_extraction_graph
@@ -12,9 +15,11 @@ from backend.agent.workflows.extraction.nodes import (
     check_existing_notes,
     cross_compare,
     generate_notes,
+    retrieve_chunks,
     wait_rag_ready,
     write_artifacts,
 )
+from backend.services.rag_engine import RetrievedChunk
 
 
 def _make_mock_llm(responses: list) -> MagicMock:
@@ -66,10 +71,86 @@ def test_check_existing_notes_skips_existing() -> None:
     assert result["paper_ids"] == ["p2", "p3"]
 
 
+# ── retrieve_chunks ──
+
+
+@pytest.mark.asyncio
+async def test_retrieve_chunks_with_rag_engine() -> None:
+    """mock RAGEngine + session_factory, 验证正确构造 RetrievalQuery 并返回 chunks。"""
+    doc_uuid = uuid.uuid4()
+    chunk_uuid = uuid.uuid4()
+
+    mock_chunk = RetrievedChunk(
+        chunk_id=chunk_uuid,
+        document_id=doc_uuid,
+        content_text="test content",
+        content_type="paragraph",
+        section_path="intro",
+        page_numbers=[1],
+        score=0.9,
+    )
+
+    rag_engine = MagicMock()
+    rag_engine.retrieve = AsyncMock(return_value=[mock_chunk])
+
+    mock_session = AsyncMock()
+    session_factory = MagicMock()
+    session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    session_factory.return_value.__aexit__ = AsyncMock(return_value=False)
+
+    state = {
+        "paper_ids": ["arxiv123"],
+        "workspace_id": str(uuid.uuid4()),
+        "artifacts": {
+            "discovery": {
+                "papers": [{"arxiv_id": "arxiv123", "title": "T", "abstract": "A"}],
+                "selected_paper_ids": ["arxiv123"],
+                "ingestion_task_ids": [str(doc_uuid)],
+            },
+        },
+    }
+
+    result = await retrieve_chunks(state, rag_engine=rag_engine, session_factory=session_factory)
+
+    assert len(result["retrieved_chunks"]) == 1
+    assert result["retrieved_chunks"][0]["paper_id"] == "arxiv123"
+    assert result["retrieved_chunks"][0]["content_text"] == "test content"
+    rag_engine.retrieve.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_retrieve_chunks_no_doc_mapping() -> None:
+    """paper_id 无对应 document_id 时优雅跳过。"""
+    rag_engine = MagicMock()
+    rag_engine.retrieve = AsyncMock(return_value=[])
+
+    mock_session = AsyncMock()
+    session_factory = MagicMock()
+    session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+    session_factory.return_value.__aexit__ = AsyncMock(return_value=False)
+
+    state = {
+        "paper_ids": ["no_mapping_id"],
+        "workspace_id": str(uuid.uuid4()),
+        "artifacts": {
+            "discovery": {
+                "papers": [],
+                "selected_paper_ids": ["other_id"],
+                "ingestion_task_ids": ["some_doc_id"],
+            },
+        },
+    }
+
+    result = await retrieve_chunks(state, rag_engine=rag_engine, session_factory=session_factory)
+    assert result["retrieved_chunks"] == []
+    rag_engine.retrieve.assert_not_called()
+
+
 # ── generate_notes ──
 
 
-def test_generate_notes_creates_notes() -> None:
+def test_generate_notes_creates_notes_with_chunks() -> None:
+    """generate_notes 使用 retrieved_chunks 填充 source_chunks。"""
     llm = _make_mock_llm(
         [
             GeneratedNote(
@@ -84,11 +165,47 @@ def test_generate_notes_creates_notes() -> None:
     state = {
         "paper_ids": ["p1"],
         "reading_notes": [],
+        "retrieved_chunks": [
+            {
+                "paper_id": "p1",
+                "chunk_id": "chunk_abc",
+                "content_text": "some paragraph",
+                "content_type": "paragraph",
+                "section_path": "intro",
+                "page_numbers": [1],
+                "score": 0.9,
+            },
+        ],
         "artifacts": {"discovery": {"papers": [{"arxiv_id": "p1", "title": "T", "abstract": "A"}]}},
     }
     result = generate_notes(state, llm=llm)
     assert len(result["reading_notes"]) == 1
     assert result["reading_notes"][0].paper_id == "p1"
+    assert result["reading_notes"][0].source_chunks == ["chunk_abc"]
+
+
+def test_generate_notes_without_chunks() -> None:
+    """无 chunks 时 generate_notes 仍然正常工作（基于 abstract）。"""
+    llm = _make_mock_llm(
+        [
+            GeneratedNote(
+                key_contributions=["c1"],
+                methodology="m1",
+                experimental_setup="s1",
+                main_results="r1",
+                limitations=["l1"],
+            ),
+        ]
+    )
+    state = {
+        "paper_ids": ["p1"],
+        "reading_notes": [],
+        "retrieved_chunks": [],
+        "artifacts": {"discovery": {"papers": [{"arxiv_id": "p1", "title": "T", "abstract": "A"}]}},
+    }
+    result = generate_notes(state, llm=llm)
+    assert len(result["reading_notes"]) == 1
+    assert result["reading_notes"][0].source_chunks == []
 
 
 # ── cross_compare ──
@@ -160,9 +277,12 @@ def test_extraction_write_artifacts() -> None:
 
 def test_extraction_graph_compiles() -> None:
     llm = MagicMock()
-    graph = build_extraction_graph(llm=llm)
+    rag_engine = MagicMock()
+    session_factory = MagicMock()
+    graph = build_extraction_graph(llm=llm, rag_engine=rag_engine, session_factory=session_factory)
     compiled = graph.compile()
     node_names = set(compiled.get_graph().nodes.keys())
     assert "wait_rag_ready" in node_names
+    assert "retrieve_chunks" in node_names
     assert "generate_notes" in node_names
     assert "write_artifacts" in node_names

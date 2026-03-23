@@ -31,7 +31,7 @@ def _make_mock_llm(responses: list | None = None) -> MagicMock:
 
 def test_build_supervisor_graph_compiles() -> None:
     llm = _make_mock_llm()
-    graph = build_supervisor_graph(llm=llm)
+    graph = build_supervisor_graph(llm=llm, rag_engine=MagicMock(), session_factory=MagicMock())
     compiled = graph.compile()
     node_names = set(compiled.get_graph().nodes.keys())
     assert "supervisor" in node_names
@@ -47,7 +47,7 @@ def test_supervisor_routes_to_end_with_none_target() -> None:
             RouteDecision(mode="single", target_workflow=None, plan=None, reasoning="done"),
         ]
     )
-    graph = build_supervisor_graph(llm=llm)
+    graph = build_supervisor_graph(llm=llm, rag_engine=MagicMock(), session_factory=MagicMock())
     compiled = graph.compile()
     result = compiled.invoke(
         {
