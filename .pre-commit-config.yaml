@@ -21,9 +21,16 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
-  # ── Pre-push: 后端单元测试 ──
+  # ── Pre-push: CI 等价检查 ──
   - repo: local
     hooks:
+      - id: ruff-format-check
+        name: Ruff format check
+        entry: uv run ruff format --check backend/ tests/
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
       - id: backend-unit-tests
         name: Backend unit tests
         entry: uv run pytest tests/unit/ -x --tb=short -q
@@ -41,6 +48,13 @@ repos:
       - id: frontend-typecheck
         name: Frontend TypeScript check
         entry: bash -c 'cd frontend && npx tsc --noEmit'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: frontend-build
+        name: Frontend build
+        entry: bash -c 'cd frontend && npx vite build'
         language: system
         pass_filenames: false
         stages: [pre-push]
