@@ -24,11 +24,11 @@
 
 ## 后端 API / Services
 
-- [ ] Quota 配额计费与限流执行
-- [ ] 文件上传代理至 S3/MinIO (预签名 URL 完整链路)
-- [ ] Agent 任务暂停/恢复/终止(Kill) API
-- [ ] 站内异步任务通知（长耗时完成/异常）
-- [ ] SSE 断线重连与消息补发
+- [x] Quota 配额计费与限流执行
+- [x] 文件上传代理至 S3/MinIO (预签名 URL 完整链路)
+- [x] Agent 任务暂停/恢复/终止(Kill) API
+- [x] 站内异步任务通知（长耗时完成/异常）
+- [x] SSE 断线重连与消息补发
 
 ## 数据层
 
@@ -40,8 +40,8 @@
 
 - [ ] Canvas 编辑器 Tab 切换状态保持
 - [ ] PDF 高亮定位联动（chunk → PDF 页码）
-- [ ] Research Tab 结构化产物卡片展示
-- [ ] Sandbox Tab 图表实时渲染
+- [x] Research Tab 结构化产物卡片展示
+- [x] Sandbox Tab 图表实时渲染
 - [ ] Settings 页学科偏好配置
 - [ ] Settings 页 BYOK (Bring Your Own Key) 配置
 - [ ] Settings 页用量统计面板
@@ -49,16 +49,16 @@
 
 ## CI/CD & 部署
 
-- [ ] CI 集成测试环境变量解耦
+- [x] CI 集成测试环境变量解耦
 - [ ] Celery Worker 容器化部署
 - [ ] Sandbox 镜像预构建与拉取策略
 
 ## 测试
 
-- [ ] Workflow 子图集成测试补全
-- [ ] RAG Pipeline 端到端测试
-- [ ] HITL 交互流程 E2E 测试
-- [ ] 前端 E2E 测试覆盖率提升
+- [x] Workflow 子图集成测试补全
+- [x] RAG Pipeline 端到端测试
+- [x] HITL 交互流程 E2E 测试
+- [x] 前端 E2E 测试覆盖率提升
 
 
 
