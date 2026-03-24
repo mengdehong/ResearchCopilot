@@ -275,7 +275,25 @@ def _compile_pdflatex(source_path: Path) -> Path | None:
 
 
 class BeamerRenderer:
-    """Beamer (LaTeX) 渲染后端。"""
+    """Beamer (LaTeX) 渲染后端。
+
+    初始化时检测 pdflatex 可用性，若不可用则立即抛出异常，
+    避免在消耗 LLM Token 后才发现编译环境缺失。
+
+    若只需生成 .tex 源文件无需编译 PDF，使用 TypstRenderer 或跳过 Beamer。
+    """
+
+    _PDFLATEX_INSTALL_HINT = (
+        "pdflatex is required for BeamerRenderer. "
+        "Install via: apt-get install texlive-latex-extra  "
+        "or brew install --cask mactex  "
+        "or use render_backend='typst' instead."
+    )
+
+    def __init__(self) -> None:
+        """检测 pdflatex 可用性，环境不满足时提前失败并给出安装提示。"""
+        if not shutil.which("pdflatex"):
+            raise OSError(self._PDFLATEX_INSTALL_HINT)
 
     def render(
         self,

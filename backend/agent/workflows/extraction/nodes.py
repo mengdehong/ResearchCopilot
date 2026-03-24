@@ -61,29 +61,38 @@ def wait_rag_ready(state: ExtractionState) -> dict:
 def check_existing_notes(state: ExtractionState) -> dict:
     """增量检查：跳过已有笔记的论文。
 
-    同时检查 in-memory state 和 artifacts 持久层中已有的 reading_notes，
-    合并 paper_id 集合后过滤，实现跨多轮 Extraction 调用的增量分析。
+    去重策略（优先级从高到低）：
+    1. in-memory state — 本轮已生成的 reading_notes，绝对权威。
+    2. artifacts 持久层 — 前次 Extraction 运行的产出物，paper_id 匹配则跳过。
+
+    冲突处理原则：
+    - 同一 paper_id 若同时存在于两个来源，以 in-memory 版本为准（不重复分析）。
+    - 若用户希望强制重新分析某篇论文，需先从 artifacts["extraction"]["reading_notes"]
+      中移除该 paper_id 对应的记录，再重新触发 Extraction WF。
     """
     paper_ids = state.get("paper_ids", [])
 
-    # 来源 1: in-memory state（本轮已生成）
+    # 来源 1: in-memory state（最高优先级，本轮已生成）
     existing_notes = state.get("reading_notes", [])
-    existing_ids = {n.paper_id for n in existing_notes}
+    authoritative_ids: set[str] = {n.paper_id for n in existing_notes}
 
-    # 来源 2: artifacts 持久层（前次运行产出）
-    artifact_notes = state.get("artifacts", {}).get("extraction", {}).get("reading_notes", [])
+    # 来源 2: artifacts 持久层（次级优先级，前次运行产出）
+    artifact_notes: list = state.get("artifacts", {}).get("extraction", {}).get("reading_notes", [])
+    artifact_ids: set[str] = set()
     for note in artifact_notes:
         pid = note.get("paper_id") if isinstance(note, dict) else getattr(note, "paper_id", None)
-        if pid:
-            existing_ids.add(pid)
+        if pid and pid not in authoritative_ids:
+            # 仅收录 in-memory 中不存在的 ID，避免用 artifact 覆盖当轮最新结果
+            artifact_ids.add(pid)
 
+    existing_ids = authoritative_ids | artifact_ids
     new_ids = [pid for pid in paper_ids if pid not in existing_ids]
     skipped = len(paper_ids) - len(new_ids)
     logger.info(
         "check_existing_notes",
         total=len(paper_ids),
-        existing_in_state=len(existing_notes),
-        existing_in_artifacts=len(artifact_notes),
+        skipped_from_state=len(authoritative_ids & set(paper_ids)),
+        skipped_from_artifacts=len(artifact_ids & set(paper_ids)),
         skipped=skipped,
         remaining=len(new_ids),
     )

@@ -104,6 +104,23 @@ def test_check_existing_notes_both_sources() -> None:
     assert result["paper_ids"] == ["p2", "p4"]
 
 
+def test_check_existing_notes_in_memory_priority_over_artifacts() -> None:
+    """in-memory 笔记优先级高于 artifacts：同 paper_id 只被计一次，不重复分析。"""
+    state = {
+        "paper_ids": ["p1", "p2"],
+        # p1 同时在 in-memory 和 artifacts 中 — 应只被跳过一次
+        "reading_notes": [_make_reading_note(paper_id="p1")],
+        "artifacts": {
+            "extraction": {
+                "reading_notes": [{"paper_id": "p1"}],  # conflict: same id
+            },
+        },
+    }
+    result = check_existing_notes(state)
+    # p1 被跳过（任意来源都行），p2 未分析 → remaining = [p2]
+    assert result["paper_ids"] == ["p2"]
+
+
 def test_route_after_check_skip() -> None:
     """paper_ids 为空时路由到 write_artifacts。"""
     assert _route_after_check({"paper_ids": []}) == "write_artifacts"

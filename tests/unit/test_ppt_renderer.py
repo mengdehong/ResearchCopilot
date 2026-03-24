@@ -215,10 +215,28 @@ def test_factory_creates_typst_renderer() -> None:
 
 
 def test_factory_creates_beamer_renderer() -> None:
+    """pdflatex があれば BeamerRenderer を返し、なければ EnvironmentError を即座に上げる。"""
+    import shutil
+
     from backend.agent.skills.ppt_generation.renderer.beamer_renderer import BeamerRenderer
 
-    renderer = create_renderer("beamer")
-    assert isinstance(renderer, BeamerRenderer)
+    if shutil.which("pdflatex"):
+        renderer = create_renderer("beamer")
+        assert isinstance(renderer, BeamerRenderer)
+    else:
+        with pytest.raises(EnvironmentError, match="pdflatex is required"):
+            create_renderer("beamer")
+
+
+def test_beamer_renderer_raises_early_without_pdflatex(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BeamerRenderer.__init__ は pdflatex が存在しなければ即座に EnvironmentError を上げる。"""
+    import shutil
+
+    from backend.agent.skills.ppt_generation.renderer.beamer_renderer import BeamerRenderer
+
+    monkeypatch.setattr(shutil, "which", lambda _cmd: None)
+    with pytest.raises(EnvironmentError, match="pdflatex is required"):
+        BeamerRenderer()
 
 
 def test_factory_rejects_unsupported_backend() -> None:
