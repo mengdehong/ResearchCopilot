@@ -7,7 +7,6 @@ import {
     Plus,
     ExternalLink,
     FileText,
-    Clock,
     CheckCircle2,
     AlertCircle,
     Loader2,
@@ -103,7 +102,7 @@ export default function WorkspaceDashboardPage() {
     const { data: threads = [], isLoading: threadsLoading } = useThreads(workspaceId, 10)
     const { data: documents = [], isLoading: docsLoading } = useDocuments(workspaceId)
 
-    const gradientClass = DISCIPLINE_COLORS[summary?.name ?? ''] ?? DISCIPLINE_GRADIENTS_FALLBACK
+
 
     const completedDocs = documents.filter((d) => d.parse_status === 'completed').length
     const processingDocs = documents.filter((d) =>
@@ -245,6 +244,3 @@ export default function WorkspaceDashboardPage() {
         </div>
     )
 }
-
-// fallback, unused but satisfies TypeScript
-const DISCIPLINE_GRADIENTS_FALLBACK = 'from-slate-500 to-zinc-600'

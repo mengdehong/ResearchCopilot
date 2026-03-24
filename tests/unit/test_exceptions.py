@@ -55,4 +55,3 @@ def test_llm_unavailable_is_subclass() -> None:
     from backend.services.llm_gateway import LLMUnavailableError
 
     assert issubclass(LLMUnavailableError, LLMServiceError)
-

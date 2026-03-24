@@ -116,7 +116,7 @@ async def test_filter_and_rank_deduplicates() -> None:
         ],
         "discipline": "cs",
     }
-    result = await filter_and_rank(state, llm=llm)
+    result = filter_and_rank(state, llm=llm)
     assert len(result["candidate_papers"]) == 1
 
 
@@ -149,7 +149,7 @@ async def test_filter_and_rank_sorts_by_relevance() -> None:
         ],
         "discipline": "cs",
     }
-    result = await filter_and_rank(state, llm=llm)
+    result = filter_and_rank(state, llm=llm)
     scores = [p.relevance_score for p in result["candidate_papers"]]
     assert scores == [0.9, 0.3]
 

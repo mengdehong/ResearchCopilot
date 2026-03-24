@@ -276,9 +276,22 @@ def _looks_like_paper(md_text: str) -> bool:
     section_hits = _count_heading_hits(
         md_text,
         [
-            "abstract", "introduction", "method", "methods", "methodology",
-            "experiment", "experiments", "results", "discussion", "conclusion",
-            "摘要", "引言", "方法", "实验", "结果", "结论",
+            "abstract",
+            "introduction",
+            "method",
+            "methods",
+            "methodology",
+            "experiment",
+            "experiments",
+            "results",
+            "discussion",
+            "conclusion",
+            "摘要",
+            "引言",
+            "方法",
+            "实验",
+            "结果",
+            "结论",
         ],
     )
     citation_hits = len(re.findall(r"\[[0-9]{1,3}\]", md_text))
@@ -344,9 +357,15 @@ class MinerUParser:
         self._user_token = user_token or settings.mineru_user_token or ""
         self._model_version = model_version or settings.mineru_model_version
         self._paper_mode = paper_mode or settings.mineru_paper_mode
-        self._poll_timeout = poll_timeout if poll_timeout is not None else settings.mineru_poll_timeout
-        self._poll_interval = poll_interval if poll_interval is not None else settings.mineru_poll_interval
-        self._request_timeout = request_timeout if request_timeout is not None else settings.mineru_request_timeout
+        self._poll_timeout = (
+            poll_timeout if poll_timeout is not None else settings.mineru_poll_timeout
+        )
+        self._poll_interval = (
+            poll_interval if poll_interval is not None else settings.mineru_poll_interval
+        )
+        self._request_timeout = (
+            request_timeout if request_timeout is not None else settings.mineru_request_timeout
+        )
 
     def parse(self, pdf_path: Path) -> ParsedDocument:
         """调用 MinerU HTTP API 解析 PDF 为结构化文档。"""

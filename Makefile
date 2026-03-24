@@ -4,7 +4,7 @@
        infra infra-down \
        test test-unit test-integration test-ui-mocked test-browser-smoke smoke-seed \
        lint format typecheck \
-       docker-up docker-down docker-logs health \
+       docker-up docker-down docker-logs \
        hooks clean
 
 # ──────────────────────────────────────────────
@@ -35,7 +35,7 @@ install-backend: ## 安装后端 Python 依赖
 	uv sync --dev
 
 install-frontend: ## 安装前端 JS 依赖
-	cd $(FRONTEND_DIR) && npm install
+	cd $(FRONTEND_DIR) && pnpm install
 
 # ──────────────────────────────────────────────
 # Local Development
@@ -57,7 +57,7 @@ dev-celery: ## 启动 Celery Worker
 	uv run celery -A backend.workers.celery_app worker --loglevel=info --concurrency=2
 
 dev-frontend: ## 启动前端 Vite 开发服务器
-	cd $(FRONTEND_DIR) && npm run dev
+	cd $(FRONTEND_DIR) && pnpm run dev
 
 # ──────────────────────────────────────────────
 # Database
@@ -97,7 +97,7 @@ test-integration: ## 仅运行集成测试
 	uv run pytest -m integration
 
 test-ui-mocked: ## 运行前端 mocked Playwright 测试
-	cd $(FRONTEND_DIR) && npm run test:e2e
+	cd $(FRONTEND_DIR) && pnpm run test:e2e
 
 smoke-seed: ## 为本地 browser smoke 测试准备已验证用户
 	SMOKE_TEST_EMAIL='$(SMOKE_TEST_EMAIL)' \
@@ -110,7 +110,7 @@ test-browser-smoke: infra smoke-seed ## 运行本地真实前后端 browser smok
 	SMOKE_ENABLED=1 \
 	SMOKE_TEST_EMAIL='$(SMOKE_TEST_EMAIL)' \
 	SMOKE_TEST_PASSWORD='$(SMOKE_TEST_PASSWORD)' \
-	npm run test:e2e:smoke:local
+	pnpm run test:e2e:smoke:local
 
 lint: ## Ruff 检查
 	uv run ruff check .
@@ -133,8 +133,7 @@ docker-down: ## Docker Compose 全栈停止
 docker-logs: ## 查看全栈日志（跟随模式）
 	$(COMPOSE) logs -f
 
-health: ## 运行健康检查脚本
-	bash $(DEPLOY_DIR)/healthcheck.sh
+
 
 # ──────────────────────────────────────────────
 # Git Hooks

@@ -92,6 +92,7 @@ class TestWorkspaceRouter:
                 workspace_id=uuid.uuid4(),
                 name="WS",
                 document_count=3,
+                thread_count=2,
                 doc_status_counts=DocStatusCounts(completed=2, pending=1),
             ),
         )

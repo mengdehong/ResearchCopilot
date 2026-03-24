@@ -327,7 +327,7 @@ async def oauth_callback(
         return _oauth_error_redirect(settings.frontend_url, f"OAuth 授权失败: {e}")
 
     try:
-        access_token, refresh_token, user = await oauth_login_or_register(
+        access_token, refresh_token, _user = await oauth_login_or_register(
             external_id=user_info["external_id"],
             email=user_info["email"],
             display_name=user_info["display_name"],

@@ -91,6 +91,7 @@ class TestWorkspaceService:
         result = await get_workspace(session, ws.id, owner)
         assert result is None
 
+    @patch("backend.services.workspace_service.thread_repo")
     @patch("backend.services.workspace_service.document_repo")
     @patch("backend.services.workspace_service.workspace_repo")
     @patch("backend.services.workspace_service.base_repo")
@@ -99,6 +100,7 @@ class TestWorkspaceService:
         mock_base: MagicMock,
         mock_ws: MagicMock,
         mock_doc: MagicMock,
+        mock_thread: MagicMock,
     ) -> None:
         from backend.services.workspace_service import get_summary
 
@@ -110,10 +112,12 @@ class TestWorkspaceService:
         mock_doc.count_by_status = AsyncMock(
             return_value=DocStatusCounts(pending=1),
         )
+        mock_thread.list_by_workspace = AsyncMock(return_value=[_thread(ws.id)])
 
         result = await get_summary(session, ws.id, owner)
         assert result is not None
         assert result.document_count == 1
+        assert result.thread_count == 1
 
 
 # ---------------------------------------------------------------------------
