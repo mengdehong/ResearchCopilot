@@ -24,7 +24,7 @@ jobs:
           cache-dependency-path: "uv.lock"
 
       - name: Install dependencies
-        run: uv sync --frozen --all-extras
+        run: uv sync --frozen --extra dev
 
       - name: Ruff lint
         run: uv run ruff check backend/ tests/
@@ -107,7 +107,7 @@ jobs:
           cache-dependency-path: "uv.lock"
 
       - name: Install dependencies
-        run: uv sync --frozen --all-extras
+        run: uv sync --frozen --extra dev
 
       - name: Integration tests
         run: uv run pytest tests/integration/ -v --tb=short
