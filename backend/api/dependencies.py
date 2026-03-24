@@ -25,6 +25,27 @@ logger = get_logger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Quota guard
+# ---------------------------------------------------------------------------
+
+
+async def quota_guard(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+) -> None:
+    """Pre-check workspace quota before triggering runs.
+
+    Raises QuotaExceededError if the workspace has no remaining tokens.
+    """
+    from backend.core.exceptions import QuotaExceededError
+    from backend.services.quota_service import get_quota_status
+
+    status = await get_quota_status(session, workspace_id)
+    if status.remaining_tokens <= 0:
+        raise QuotaExceededError()
+
+
+# ---------------------------------------------------------------------------
 # DB Session
 # ---------------------------------------------------------------------------
 

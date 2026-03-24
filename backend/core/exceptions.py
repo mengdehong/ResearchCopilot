@@ -69,6 +69,14 @@ class LLMServiceError(AppError):
     message = "LLM service is temporarily unavailable"
 
 
+class RunNotActiveError(AppError):
+    """Run 不处于活跃状态，无法暂停或终止。"""
+
+    status_code = 409
+    error_code = "RUN_NOT_ACTIVE"
+    message = "Run is not in an active state"
+
+
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
     """全局异常处理器。挂载到 FastAPI app。"""
     trace_id = getattr(request.state, "trace_id", "unknown")

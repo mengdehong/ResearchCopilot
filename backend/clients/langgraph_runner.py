@@ -33,6 +33,7 @@ class RunHandle:
     task: asyncio.Task[None]
     queue: asyncio.Queue[dict | None]
     thread_id: str
+    paused: bool = False
 
 
 class LangGraphRunner:
@@ -172,6 +173,22 @@ class LangGraphRunner:
 
         # Run 消费完毕，清理
         self._active_runs.pop(run_id, None)
+
+    async def pause_run(self, run_id: str) -> None:
+        """暂停活跃 run（标记 paused 状态）。"""
+        handle = self._active_runs.get(run_id)
+        if handle is None:
+            return
+        handle.paused = True
+        logger.info("run_paused", run_id=run_id)
+
+    async def unpause_run(self, run_id: str) -> None:
+        """恢复暂停的 run。"""
+        handle = self._active_runs.get(run_id)
+        if handle is None:
+            return
+        handle.paused = False
+        logger.info("run_unpaused", run_id=run_id)
 
     async def cancel_run(self, run_id: str) -> None:
         """取消活跃 run，等待 task 真正结束。"""
