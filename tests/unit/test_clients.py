@@ -158,7 +158,7 @@ class TestStorageClient:
         client = StorageClient(base_dir=str(tmp_path))
         url = await client.generate_upload_url("doc.pdf", "application/pdf")
         assert "doc.pdf" in url
-        assert "expires=" in url
+        assert url.startswith("/api/v1/documents/upload")
 
     async def test_head_object_missing(self, tmp_path) -> None:
         client = StorageClient(base_dir=str(tmp_path))

@@ -149,7 +149,7 @@ def test_request_confirmation_calls_interrupt() -> None:
         from backend.agent.workflows.execution.nodes import request_confirmation
 
         result = request_confirmation(state)
-        assert result == {}
+        assert result == {"execution_rejected": False}
 
 
 # ── Subgraph 编译 ──

@@ -22,7 +22,7 @@ const log = createLogger('Workbench')
 export default function WorkbenchPage() {
     const { t } = useTranslation()
     const { id: workspaceId = '' } = useParams<{ id: string }>()
-    const [searchParams, setSearchParams] = useSearchParams()
+    const [searchParams] = useSearchParams()
 
     // threadId is URL-driven: always read from ?thread=
     const threadId = searchParams.get('thread') ?? ''
@@ -185,7 +185,7 @@ export default function WorkbenchPage() {
                 })
             }
         },
-        [addMessage, resetRunState, threadId, workspaceId, createThread, createRun, setSearchParams],
+        [addMessage, resetRunState, threadId, workspaceId, createThread, createRun, navigate],
     )
 
     const handleResumeInterrupt = useCallback(

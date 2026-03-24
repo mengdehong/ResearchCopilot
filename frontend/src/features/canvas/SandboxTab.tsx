@@ -92,8 +92,9 @@ export default function SandboxTab() {
     const sandboxHistory = useAgentStore((s) => s.sandboxHistory)
     const [index, setIndex] = useState<number | null>(null)
 
-    // Auto-jump to latest result when new executions arrive
+    // Reset to latest when new executions arrive
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIndex(null)
     }, [sandboxHistory.length])
 

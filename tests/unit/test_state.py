@@ -31,6 +31,8 @@ def test_shared_state_has_four_fields() -> None:
         "workspace_id",
         "discipline",
         "artifacts",
+        "target_workflow",
+        "critique_round",
     }
 
 

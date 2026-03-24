@@ -25,6 +25,7 @@ export default function OAuthCallbackPage() {
 
         if (!accessToken) {
             log.error('oauth callback missing access_token')
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- error-handling path, no cascading
             setError('OAuth 回调缺少 access_token 参数')
             return
         }
