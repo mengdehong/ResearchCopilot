@@ -59,16 +59,33 @@ def wait_rag_ready(state: ExtractionState) -> dict:
 
 
 def check_existing_notes(state: ExtractionState) -> dict:
-    """增量检查：跳过已有笔记的论文。"""
+    """增量检查：跳过已有笔记的论文。
+
+    同时检查 in-memory state 和 artifacts 持久层中已有的 reading_notes，
+    合并 paper_id 集合后过滤，实现跨多轮 Extraction 调用的增量分析。
+    """
     paper_ids = state.get("paper_ids", [])
+
+    # 来源 1: in-memory state（本轮已生成）
     existing_notes = state.get("reading_notes", [])
     existing_ids = {n.paper_id for n in existing_notes}
 
+    # 来源 2: artifacts 持久层（前次运行产出）
+    artifact_notes = state.get("artifacts", {}).get("extraction", {}).get("reading_notes", [])
+    for note in artifact_notes:
+        pid = note.get("paper_id") if isinstance(note, dict) else getattr(note, "paper_id", None)
+        if pid:
+            existing_ids.add(pid)
+
     new_ids = [pid for pid in paper_ids if pid not in existing_ids]
+    skipped = len(paper_ids) - len(new_ids)
     logger.info(
         "check_existing_notes",
         total=len(paper_ids),
-        skipped=len(paper_ids) - len(new_ids),
+        existing_in_state=len(existing_notes),
+        existing_in_artifacts=len(artifact_notes),
+        skipped=skipped,
+        remaining=len(new_ids),
     )
     return {"paper_ids": new_ids}
 
@@ -170,6 +187,18 @@ def generate_notes(
         paper_chunks = chunks_by_paper.get(paper_id, [])
         chunks_text = "\n---\n".join(c["content_text"] for c in paper_chunks)
 
+        # Critique 打回时携带修订上下文
+        revision_context = state.get("revision_context", "")
+
+        human_payload: dict = {
+            "paper_id": paper_id,
+            "title": paper_info.get("title", ""),
+            "abstract": paper_info.get("abstract", ""),
+            "full_text_chunks": chunks_text,
+        }
+        if revision_context:
+            human_payload["revision_feedback"] = revision_context
+
         note_data = llm.with_structured_output(GeneratedNote).invoke(
             [
                 SystemMessage(
@@ -179,17 +208,7 @@ def generate_notes(
                         variables={"paper_json": ""},
                     )["system"]
                 ),
-                HumanMessage(
-                    content=json.dumps(
-                        {
-                            "paper_id": paper_id,
-                            "title": paper_info.get("title", ""),
-                            "abstract": paper_info.get("abstract", ""),
-                            "full_text_chunks": chunks_text,
-                        },
-                        ensure_ascii=False,
-                    )
-                ),
+                HumanMessage(content=json.dumps(human_payload, ensure_ascii=False)),
             ]
         )
         notes.append(

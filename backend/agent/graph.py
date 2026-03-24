@@ -304,6 +304,7 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
             result = {
                 "routing_decision": next_wf,
                 "current_step_index": next_index,
+                "_step_retry_count": 0,
             }
             # Bug-1 fix: critique needs target_workflow from previous step
             if next_wf == "critique":
@@ -336,7 +337,7 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
             reason=evaluation.reason,
             suggestion=evaluation.suggestion,
         )
-        return {"routing_decision": "__replan__", "plan": None}
+        return {"routing_decision": "__replan__", "plan": None, "_step_retry_count": 0}
 
     return checkpoint_eval_node
 
