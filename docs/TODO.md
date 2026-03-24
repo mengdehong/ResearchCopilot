@@ -5,10 +5,10 @@
 - [x] Supervisor 各 WF State 独立拆分（当前共用 SharedState）
 - [x] Supervisor Pre-plan 检查点回评逻辑
 - [x] Critique WF → 打回上游 WF 自动重注入循环
-- [ ] Extraction WF 增量分析（跳过已有笔记的论文）
-- [ ] Ideation WF 三步 CoT 完整实现
-- [ ] Publish WF Typst/Beamer PDF 编译输出
-- [ ] Publish WF ZIP 打包完整流程（文献+报告+代码+图表）
+- [x] Extraction WF 增量分析（跳过已有笔记的论文）
+- [x] Ideation WF 三步 CoT 完整实现
+- [x] Publish WF Typst/Beamer PDF 编译输出
+- [x] Publish WF ZIP 打包完整流程（文献+报告+代码+图表）
 
 ## Tools & Skills
 

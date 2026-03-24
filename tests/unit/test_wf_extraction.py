@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from backend.agent.state import ComparisonEntry, ReadingNote
-from backend.agent.workflows.extraction.graph import build_extraction_graph
+from backend.agent.workflows.extraction.graph import _route_after_check, build_extraction_graph
 from backend.agent.workflows.extraction.nodes import (
     ComparisonResult,
     GeneratedNote,
@@ -69,6 +69,49 @@ def test_check_existing_notes_skips_existing() -> None:
     }
     result = check_existing_notes(state)
     assert result["paper_ids"] == ["p2", "p3"]
+
+
+def test_check_existing_notes_from_artifacts() -> None:
+    """从 artifacts 持久层跳过已有笔记的论文。"""
+    state = {
+        "paper_ids": ["p1", "p2", "p3"],
+        "reading_notes": [],
+        "artifacts": {
+            "extraction": {
+                "reading_notes": [
+                    {"paper_id": "p1", "key_contributions": []},
+                    {"paper_id": "p2", "key_contributions": []},
+                ],
+            },
+        },
+    }
+    result = check_existing_notes(state)
+    assert result["paper_ids"] == ["p3"]
+
+
+def test_check_existing_notes_both_sources() -> None:
+    """同时合并 in-memory 和 artifacts 两个来源。"""
+    state = {
+        "paper_ids": ["p1", "p2", "p3", "p4"],
+        "reading_notes": [_make_reading_note(paper_id="p1")],
+        "artifacts": {
+            "extraction": {
+                "reading_notes": [{"paper_id": "p3"}],
+            },
+        },
+    }
+    result = check_existing_notes(state)
+    assert result["paper_ids"] == ["p2", "p4"]
+
+
+def test_route_after_check_skip() -> None:
+    """paper_ids 为空时路由到 write_artifacts。"""
+    assert _route_after_check({"paper_ids": []}) == "write_artifacts"
+
+
+def test_route_after_check_continue() -> None:
+    """paper_ids 非空时路由到 retrieve_chunks。"""
+    assert _route_after_check({"paper_ids": ["p1"]}) == "retrieve_chunks"
 
 
 # ── retrieve_chunks ──

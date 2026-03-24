@@ -7,6 +7,9 @@ from backend.agent.workflows.publish.graph import build_publish_graph
 from backend.agent.workflows.publish.nodes import (
     MarkdownReport,
     OutlineResult,
+    _collect_execution_outputs,
+    _collect_literature_pdfs,
+    _collect_presentation_files,
     assemble_outline,
     generate_markdown,
     package_zip,
@@ -180,3 +183,79 @@ def test_publish_graph_compiles() -> None:
     assert "assemble_outline" in node_names
     assert "request_finalization" in node_names
     assert "write_artifacts" in node_names
+
+
+# ── render_presentation with beamer backend ──
+
+
+def test_render_presentation_beamer_backend(tmp_path: object) -> None:
+    from pathlib import Path
+
+    state = {
+        "output_files": [],
+        "markdown_content": "# Report",
+        "outline": [_make_section()],
+        "render_backend": "beamer",
+    }
+    import backend.agent.workflows.publish.nodes as nodes_mod
+
+    original_output_dir = nodes_mod.PPT_OUTPUT_DIR
+    nodes_mod.PPT_OUTPUT_DIR = Path(str(tmp_path))
+    try:
+        result = render_presentation(state)
+    finally:
+        nodes_mod.PPT_OUTPUT_DIR = original_output_dir
+
+    assert "presentation.tex" in result["output_files"]
+    assert result["presentation_schema"] is not None
+
+
+# ── ZIP collect helpers ──
+
+
+def test_collect_presentation_files(tmp_path: object) -> None:
+    from pathlib import Path
+
+    import backend.agent.workflows.publish.nodes as nodes_mod
+
+    original_output_dir = nodes_mod.PPT_OUTPUT_DIR
+    nodes_mod.PPT_OUTPUT_DIR = Path(str(tmp_path))
+    try:
+        # Create a dummy presentation file
+        (Path(str(tmp_path)) / "presentation.typ").write_text("test")
+        files = _collect_presentation_files()
+        assert len(files) == 1
+        assert files[0][0] == "slides/presentation.typ"
+    finally:
+        nodes_mod.PPT_OUTPUT_DIR = original_output_dir
+
+
+def test_collect_execution_outputs_empty() -> None:
+    assert _collect_execution_outputs({}) == []
+
+
+def test_collect_literature_pdfs_empty() -> None:
+    assert _collect_literature_pdfs({}) == []
+
+
+def test_package_zip_full_content(tmp_path: object) -> None:
+    """package_zip 打包包含 report + citations。"""
+    import zipfile
+
+    state = {
+        "markdown_content": "# Full Report",
+        "output_files": [],
+        "citation_map": {"1": "paper1", "2": "paper2"},
+        "artifacts": {},
+    }
+    result = package_zip(state)
+    assert "report.md" in result["output_files"]
+    assert "citations.json" in result["output_files"]
+
+    # Verify ZIP contents
+    import io
+
+    with zipfile.ZipFile(io.BytesIO(result["zip_bytes"]), "r") as zf:
+        names = zf.namelist()
+        assert "report.md" in names
+        assert "citations.json" in names
