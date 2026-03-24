@@ -109,9 +109,7 @@ class DockerExecutor:
                 error_type=type(exc).__name__,
                 exc_info=True,
             )
-            raise SandboxError(
-                f"Sandbox execution failed: {type(exc).__name__}"
-            ) from exc
+            raise SandboxError(f"Sandbox execution failed: {type(exc).__name__}") from exc
         finally:
             if container:
                 self._destroy_container(container)

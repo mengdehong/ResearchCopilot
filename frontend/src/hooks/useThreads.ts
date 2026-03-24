@@ -6,6 +6,7 @@ export interface MessagesResponse {
     messages: Message[]
     pending_interrupt: InterruptData | null
     cot_nodes: { name: string }[] | null
+    content_blocks: { content: string; workflow: string }[] | null
 }
 
 export function useThreads(workspaceId: string, limit?: number) {

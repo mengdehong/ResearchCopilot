@@ -21,6 +21,7 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
+          cache-dependency-path: "uv.lock"
 
       - name: Install dependencies
         run: uv sync --frozen --all-extras
@@ -33,6 +34,9 @@ jobs:
 
       - name: Unit tests
         run: uv run pytest tests/unit/ -v --tb=short
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/test
+          JWT_SECRET: ci-test-secret
 
   frontend:
     name: Frontend Lint & Build
@@ -100,6 +104,7 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
+          cache-dependency-path: "uv.lock"
 
       - name: Install dependencies
         run: uv sync --frozen --all-extras

@@ -1,5 +1,7 @@
 """数据库连接集成测试(需要运行中的 PostgreSQL)。"""
 
+import os
+
 import pytest
 from sqlalchemy import text
 
@@ -9,7 +11,10 @@ from backend.core.database import (
     create_session_factory,
 )
 
-DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/research_copilot"
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/research_copilot",
+)
 
 
 @pytest.fixture

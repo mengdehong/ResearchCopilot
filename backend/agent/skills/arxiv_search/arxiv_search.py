@@ -64,18 +64,22 @@ def _execute(
         ]
 
         title = (title_el.text or "").strip() if title_el is not None else ""
-        abstract = (abstract_el.text or "").strip().replace("\n", " ") if abstract_el is not None else ""
+        abstract = (
+            (abstract_el.text or "").strip().replace("\n", " ") if abstract_el is not None else ""
+        )
         published_text = published_el.text if published_el is not None else None
         published = (published_text or "")[:10]
         url = (id_el.text or "").strip() if id_el is not None else ""
 
-        papers.append({
-            "title": title,
-            "authors": authors,
-            "abstract": abstract,
-            "url": url,
-            "published": published,
-        })
+        papers.append(
+            {
+                "title": title,
+                "authors": authors,
+                "abstract": abstract,
+                "url": url,
+                "published": published,
+            }
+        )
 
     logger.info("arxiv_search_done", results=len(papers))
     return {"papers": papers}
