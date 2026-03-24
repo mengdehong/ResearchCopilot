@@ -1,0 +1,31 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins
+    "RUF",  # ruff-specific
+    "SIM",  # flake8-simplify
+    "TCH",  # flake8-type-checking
+]
+ignore = [
+    "E501",   # line too long (format handles it)
+    "B008",   # do not perform function calls in argument defaults (FastAPI Depends)
+    "RUF001", # ambiguous characters in strings (Chinese text)
+    "RUF002", # ambiguous characters in docstrings (Chinese text)
+    "RUF003", # ambiguous characters in comments (Chinese text)
+]
+
+[lint.isort]
+known-first-party = ["backend"]
+
+[format]
+quote-style = "double"
+indent-style = "space"

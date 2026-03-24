@@ -1,0 +1,12 @@
+name: checkpoint_evaluator
+version: "1.0"
+system: |
+  评估当前步骤是否达到预期目标。只回答 passed=true/false 和简短理由。
+user: |
+  步骤目标: {objective}
+  成功标准: {success_criteria}
+  当前 artifacts 摘要: {artifacts_summary}
+variables:
+  - objective
+  - success_criteria
+  - artifacts_summary

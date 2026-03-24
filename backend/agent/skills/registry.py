@@ -1,0 +1,53 @@
+"""Skill 注册中心。发现、注册和调度技能。"""
+
+from backend.agent.skills.base import SkillDefinition
+from backend.core.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+class SkillRegistry:
+    """技能注册中心。"""
+
+    def __init__(self) -> None:
+        self._skills: dict[str, SkillDefinition] = {}
+
+    def register(self, skill: SkillDefinition) -> None:
+        """注册一个 Skill。"""
+        if skill.name in self._skills:
+            logger.warning("skill_already_registered", name=skill.name)
+        self._skills[skill.name] = skill
+        logger.info("skill_registered", name=skill.name)
+
+    def get(self, name: str) -> SkillDefinition:
+        """按名称获取 Skill。"""
+        if name not in self._skills:
+            raise KeyError(f"Skill not found: {name}")
+        return self._skills[name]
+
+    def list_skills(self) -> list[SkillDefinition]:
+        """列出所有已注册 Skill。"""
+        return list(self._skills.values())
+
+    def search_by_tag(self, tag: str) -> list[SkillDefinition]:
+        """按标签搜索 Skill。"""
+        return [s for s in self._skills.values() if tag in s.tags]
+
+
+# ---------------------------------------------------------------------------
+# 全局注册实例（应用启动时填充）
+# ---------------------------------------------------------------------------
+
+skills_registry = SkillRegistry()
+
+
+def _bootstrap() -> None:
+    """注册所有内置 Skill。延迟导入避免循环依赖。"""
+    from backend.agent.skills.arxiv_search import ARXIV_SEARCH_SKILL  # noqa: PLC0415
+    from backend.agent.skills.pdf_to_md import PDF_TO_MD_SKILL  # noqa: PLC0415
+
+    skills_registry.register(ARXIV_SEARCH_SKILL)
+    skills_registry.register(PDF_TO_MD_SKILL)
+
+
+_bootstrap()

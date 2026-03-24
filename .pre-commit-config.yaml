@@ -1,0 +1,46 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_stages: [pre-commit]
+
+repos:
+  # ── 基础文件卫生 ──
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+  # ── Python: Ruff lint + format ──
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # ── Pre-push: 后端单元测试 ──
+  - repo: local
+    hooks:
+      - id: backend-unit-tests
+        name: Backend unit tests
+        entry: uv run pytest tests/unit/ -x --tb=short -q
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: frontend-eslint
+        name: Frontend ESLint
+        entry: bash -c 'cd frontend && npx eslint src/'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: frontend-typecheck
+        name: Frontend TypeScript check
+        entry: bash -c 'cd frontend && npx tsc --noEmit'
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

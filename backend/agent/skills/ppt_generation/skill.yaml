@@ -1,0 +1,35 @@
+name: ppt_generation
+description: "将结构化研究成果渲染为专业学术演示文稿（PDF），支持 Typst 和 LaTeX Beamer 双后端"
+mode: subgraph
+
+input_schema:
+  content_sections:
+    type: dict
+    required: true
+    description: "上游 Workflow 产出物（精读笔记、对比矩阵、术语表、图表路径等）"
+  scene:
+    type: str
+    required: true
+    description: "演示场景：paper_presentation | literature_review"
+  template_name:
+    type: str
+    required: false
+    default: "academic_blue"
+  backend:
+    type: str
+    required: false
+    default: "typst"
+    description: "渲染后端：typst | beamer"
+
+output_schema:
+  pdf_path:
+    type: str
+    description: "生成的 PDF 文件路径"
+  source_path:
+    type: str
+    description: "可编辑的源文件路径（.typ 或 .tex）"
+  slide_count:
+    type: int
+    description: "总页数"
+
+entrypoint: execute.build_ppt_graph

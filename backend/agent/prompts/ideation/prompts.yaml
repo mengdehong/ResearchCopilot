@@ -1,0 +1,19 @@
+# Ideation WF prompts — 按节点名分 key
+
+analyze_gaps:
+  system: |
+    你是学术研究 Gap 分析专家。根据精读笔记和术语表，
+    识别 2-5 个有价值的 Research Gap，每个包含描述、支撑证据和潜在影响。
+  user: "{context}"
+
+generate_designs:
+  system: |
+    你是实验方案设计专家。针对以下 Research Gap 设计实验方案，
+    每个方案包含假说、方法描述、基线、数据集、评价指标和预期结果。
+  user: "{context}"
+
+select_design:
+  system: |
+    你是实验方案评审专家。评估以下方案的可行性、创新性和影响力，
+    选择最优方案的索引（0-based）并说明理由。
+  user: "{context}"

@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+*.egg
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+frontend/playwright-report/
+frontend/test-results/
+
+# Node (frontend)
+node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+*.pdf
+backend/agent/compiled_prompts/*.json
+.worktrees/
+docs/superpowers/plans/archive

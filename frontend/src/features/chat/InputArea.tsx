@@ -1,0 +1,215 @@
+import { useState, useCallback, useRef, type KeyboardEvent, type ChangeEvent } from 'react'
+import { Send, Loader2, Paperclip, X, Mic, MicOff, Square } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/i18n/useTranslation'
+import useVoiceInput from '@/hooks/useVoiceInput'
+
+interface InputAreaProps {
+    onSend: (message: string, files?: File[]) => void
+    disabled: boolean
+    threadId: string
+    isStreaming?: boolean
+    onCancel?: () => void
+}
+
+export default function InputArea({ onSend, disabled, isStreaming = false, onCancel }: InputAreaProps) {
+    const [value, setValue] = useState('')
+    const [files, setFiles] = useState<File[]>([])
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const { t } = useTranslation()
+
+    // ─── Voice Input ───
+
+    const handleTranscript = useCallback((text: string) => {
+        setValue((prev) => (prev ? prev + ' ' + text : text))
+    }, [])
+
+    const voice = useVoiceInput(handleTranscript)
+
+    const displayTime = `${Math.floor(voice.elapsedSeconds / 60)}:${(voice.elapsedSeconds % 60).toString().padStart(2, '0')}`
+
+    const handleMicClick = useCallback(async () => {
+        if (voice.status === 'recording') {
+            voice.stopRecording()
+        } else {
+            await voice.startRecording()
+        }
+    }, [voice])
+
+    const isRecording = voice.status === 'recording'
+    const isTranscribing = voice.status === 'transcribing'
+
+    const handleSend = useCallback(() => {
+        const trimmed = value.trim()
+        if (!trimmed || disabled) return
+        onSend(trimmed, files.length > 0 ? files : undefined)
+        setValue('')
+        setFiles([])
+    }, [value, disabled, onSend, files])
+
+    const handleKeyDown = useCallback(
+        (e: KeyboardEvent<HTMLTextAreaElement>) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSend()
+            }
+        },
+        [handleSend],
+    )
+
+    const handleFileSelect = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+        const selected = e.target.files
+        if (!selected) return
+        setFiles((prev) => [...prev, ...Array.from(selected)])
+        // Reset input so the same file can be selected again
+        e.target.value = ''
+    }, [])
+
+    const removeFile = useCallback((index: number) => {
+        setFiles((prev) => prev.filter((_, i) => i !== index))
+    }, [])
+
+    return (
+        <div className="shrink-0 px-4 py-2 border-t border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-2xl z-20">
+            {/* Recording indicator */}
+            {isRecording && (
+                <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-[var(--error-subtle,rgba(239,68,68,0.1))]">
+                    <span className="size-2 rounded-full bg-red-500 animate-[pulse-glow_2s_ease-in-out_infinite]" />
+                    <span className="text-xs text-red-500 font-medium">
+                        {t('chat.voice.recording')}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)] font-mono">{displayTime}</span>
+                    {voice.interimText && (
+                        <span className="text-xs text-[var(--text-secondary)] truncate max-w-[200px] italic">
+                            {voice.interimText}
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {/* Transcribing indicator */}
+            {isTranscribing && (
+                <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-[var(--accent-subtle)]">
+                    <Loader2 className="size-3 animate-spin text-[var(--accent)]" />
+                    <span className="text-xs text-[var(--accent)]">
+                        {t('chat.voice.transcribing')}
+                    </span>
+                </div>
+            )}
+
+            {/* Voice error */}
+            {voice.error && voice.status === 'error' && (
+                <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-[var(--error-subtle,rgba(239,68,68,0.1))]">
+                    <span className="text-xs text-red-500">
+                        {voice.error === 'mic-permission-denied'
+                            ? t('chat.voice.micPermissionDenied')
+                            : t('chat.voice.error')}
+                    </span>
+                </div>
+            )}
+
+            {/* File tags */}
+            {files.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                    {files.map((file, i) => (
+                        <span
+                            key={`${file.name}-${i}`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--surface-raised)] text-xs text-[var(--text-secondary)] border border-[var(--border)]"
+                        >
+                            <Paperclip className="size-3" />
+                            <span className="max-w-[120px] truncate">{file.name}</span>
+                            <button
+                                onClick={() => removeFile(i)}
+                                className="hover:text-[var(--error)] transition-colors cursor-pointer"
+                                aria-label={`Remove ${file.name}`}
+                            >
+                                <X className="size-3" />
+                            </button>
+                        </span>
+                    ))}
+                </div>
+            )}
+
+            <div className="flex items-center gap-2">
+                {/* Hidden file input */}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    multiple
+                    accept=".pdf,.txt,.md,.csv,.json,.py,.ipynb,.tex,.bib"
+                />
+
+                {/* Attach button */}
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={disabled}
+                    aria-label="Attach files"
+                    className="shrink-0 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                >
+                    <Paperclip className="size-4" />
+                </Button>
+
+                {/* Voice button */}
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={handleMicClick}
+                    disabled={disabled || isTranscribing}
+                    aria-label={isRecording ? 'Stop recording' : 'Start voice input'}
+                    className={`shrink-0 transition-colors ${isRecording
+                        ? 'text-red-500 hover:text-red-600 animate-[pulse-glow_2s_ease-in-out_infinite]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        }`}
+                >
+                    {isTranscribing ? (
+                        <Loader2 className="size-4 animate-spin" />
+                    ) : isRecording ? (
+                        <MicOff className="size-4" />
+                    ) : (
+                        <Mic className="size-4" />
+                    )}
+                </Button>
+
+                <div className="flex-1 relative flex">
+                    <textarea
+                        className="w-full resize-none rounded-3xl border border-[var(--border)] bg-[var(--background)] px-4 sm:px-5 py-2.5 h-[40px] m-0 overflow-hidden text-sm leading-5 text-[var(--text-primary)] placeholder:text-xs placeholder:leading-5 placeholder:text-[var(--text-muted)] placeholder:truncate focus:border-[var(--accent)] focus:outline-none focus:ring-[3px] focus:ring-[var(--accent-subtle)] transition-all shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] focus:shadow-[var(--shadow-md)] disabled:opacity-50"
+                        placeholder="Type your research question..."
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        disabled={disabled}
+                        rows={1}
+                    />
+                </div>
+                {isStreaming && onCancel ? (
+                    <Button
+                        size="icon"
+                        onClick={onCancel}
+                        aria-label="Cancel run"
+                        className="shrink-0 transition-all duration-200 active:scale-[0.85] rounded-full h-10 w-10 shadow-[var(--shadow-sm)] m-0 bg-[var(--error,#ef4444)] hover:bg-[var(--error,#ef4444)]/90 text-white"
+                    >
+                        <Square className="size-4" />
+                    </Button>
+                ) : (
+                    <Button
+                        size="icon"
+                        onClick={handleSend}
+                        disabled={disabled || !value.trim()}
+                        aria-label="Send message"
+                        className="shrink-0 transition-all duration-200 active:scale-[0.85] rounded-full h-10 w-10 shadow-[var(--shadow-sm)] m-0"
+                    >
+                        {disabled && !isStreaming ? (
+                            <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                            <Send className="size-4" />
+                        )}
+                    </Button>
+                )}
+            </div>
+        </div>
+    )
+}
