@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { MessageSquare, FileText } from 'lucide-react'
 import { useAgentStore } from '@/stores/useAgentStore'
@@ -35,6 +35,7 @@ export default function WorkbenchPage() {
     const resetRunState = useAgentStore((s) => s.resetRunState)
 
     const [activeRunId, setActiveRunId] = useState('')
+    const navigate = useNavigate()
     const { data: threadDetail } = useThread(threadId)
 
     const createThread = useCreateThread()
@@ -151,7 +152,8 @@ export default function WorkbenchPage() {
                     currentThreadId = thread.thread_id
                     log.info('thread created', { threadId: currentThreadId })
                     justCreatedRef.current = true
-                    setSearchParams({ thread: currentThreadId }, { replace: true })
+                    // Navigate to /chat sub-path so the URL stays consistent after Dashboard was added
+                    navigate(`/workspace/${workspaceId}/chat?thread=${currentThreadId}`, { replace: true })
                 } catch {
                     log.error('thread creation failed', { workspaceId })
                     addMessage({

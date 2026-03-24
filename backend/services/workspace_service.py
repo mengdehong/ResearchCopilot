@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from backend.models.workspace import Workspace
 from backend.repositories import base as base_repo
-from backend.repositories import document_repo, workspace_repo
+from backend.repositories import document_repo, thread_repo, workspace_repo
 
 if TYPE_CHECKING:
     import uuid
@@ -26,6 +26,7 @@ class WorkspaceSummary:
     workspace_id: uuid.UUID
     name: str
     document_count: int
+    thread_count: int
     doc_status_counts: DocStatusCounts
 
 
@@ -98,19 +99,21 @@ async def get_summary(
     workspace_id: uuid.UUID,
     owner: User,
 ) -> WorkspaceSummary | None:
-    """Get workspace summary with aggregated doc stats."""
+    """Get workspace summary with aggregated doc and thread stats."""
     ws = await get_workspace(session, workspace_id, owner)
     if ws is None:
         return None
 
-    docs, counts = await asyncio.gather(
+    docs, counts, threads = await asyncio.gather(
         document_repo.list_by_workspace(session, workspace_id),
         document_repo.count_by_status(session, workspace_id),
+        thread_repo.list_by_workspace(session, workspace_id),
     )
 
     return WorkspaceSummary(
         workspace_id=ws.id,
         name=ws.name,
         document_count=len(docs),
+        thread_count=len(threads),
         doc_status_counts=counts,
     )

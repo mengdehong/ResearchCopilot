@@ -6,6 +6,7 @@ import { AuthLayout } from '@/features/auth/components/AuthLayout'
 
 /** Lazy-loaded page components (Main App) */
 import WorkspaceListPage from '@/features/workspace/WorkspaceListPage'
+import WorkspaceDashboardPage from '@/features/workspace/WorkspaceDashboardPage'
 import WorkbenchPage from '@/features/workbench/WorkbenchPage'
 import DocumentsPage from '@/features/documents/DocumentsPage'
 import SettingsPage from '@/features/settings/SettingsPage'
@@ -48,7 +49,8 @@ export const router = createBrowserRouter([
                 children: [
                     { index: true, element: <Navigate to="/workspaces" replace /> },
                     { path: 'workspaces', element: <WorkspaceListPage /> },
-                    { path: 'workspace/:id', element: <WorkbenchPage /> },
+                    { path: 'workspace/:id', element: <WorkspaceDashboardPage /> },
+                    { path: 'workspace/:id/chat', element: <WorkbenchPage /> },
                     { path: 'workspace/:id/documents', element: <DocumentsPage /> },
                     { path: 'settings', element: <SettingsPage /> },
                 ],

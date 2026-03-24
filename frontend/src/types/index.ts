@@ -30,6 +30,7 @@ export interface WorkspaceSummary {
     workspace_id: string
     name: string
     document_count: number
+    thread_count: number
     doc_status_counts: {
         uploading: number
         pending: number
