@@ -79,6 +79,7 @@ class StepEvaluation(BaseModel):
     passed: bool
     reason: str
     suggestion: str | None = None
+    retry_same: bool = False
 
 
 def route_to_workflow(state: dict) -> str:

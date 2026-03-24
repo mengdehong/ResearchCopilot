@@ -36,6 +36,9 @@ _CRITIQUE_TARGET_ORDER = ["execution", "ideation", "extraction", "discovery"]
 # Critique 打回最大迭代次数（蓝图要求 max 2 轮）
 MAX_CRITIQUE_ROUNDS = 2
 
+# 单步最大重试次数（retry_same），超出则回 Supervisor 重规划
+MAX_STEP_RETRIES = 2
+
 
 def _infer_critique_target(state: dict) -> str:
     """推断 critique 应审查的目标 WF。取 artifacts 中最新的非空 WF 命名空间。"""
@@ -167,6 +170,51 @@ def _build_supervisor_node(llm: BaseChatModel):
     return supervisor_node
 
 
+def _handle_critique_revise(
+    critique_results: dict,
+    max_rounds: int,
+) -> dict | None:
+    """处理 Critique 打回逻辑。纯函数，返回 state update dict 或 None。"""
+    for target_wf, result in critique_results.items():
+        if not isinstance(result, dict) or result.get("verdict") != "revise":
+            continue
+        critique_round = result.get("round", 1)
+        if critique_round >= max_rounds:
+            logger.warning(
+                "critique_max_rounds_reached",
+                target=target_wf,
+                round=critique_round,
+                max_rounds=max_rounds,
+            )
+            continue
+        feedbacks = result.get("feedbacks", [])
+        feedback_text = "\n".join(
+            f"- [{fb.get('severity', 'unknown')}] {fb.get('category', '')}: "
+            f"{fb.get('description', '')} → {fb.get('suggestion', '')}"
+            for fb in feedbacks
+        )
+        revision_message = HumanMessage(
+            content=(
+                f"根据模拟审稿意见，请修改 {target_wf} 阶段的产出物。"
+                f"需要修正的问题：\n{feedback_text}\n"
+                f"请基于以上反馈重新执行 {target_wf} 阶段。"
+            )
+        )
+        return {
+            "messages": [revision_message],
+            "routing_decision": target_wf,
+            "critique_round": critique_round + 1,
+            "revision_context": feedback_text,
+            "plan": None,
+            "artifacts": {
+                "critique": {
+                    target_wf: {"verdict": "revision_in_progress"},
+                },
+            },
+        }
+    return None
+
+
 def _build_checkpoint_eval_node(llm: BaseChatModel):
     """构建检查点回评节点闭包。"""
 
@@ -177,52 +225,16 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
 
         # 特殊处理：Critique 打回
         critique_results = state.get("artifacts", {}).get("critique", {})
-        for target_wf, result in critique_results.items():
-            if isinstance(result, dict) and result.get("verdict") == "revise":
-                critique_round = result.get("round", 1)
-
-                # 迭代上限检查：超出则视为通过，防止死循环
-                if critique_round >= MAX_CRITIQUE_ROUNDS:
-                    logger.warning(
-                        "critique_max_rounds_reached",
-                        target=target_wf,
-                        round=critique_round,
-                        max_rounds=MAX_CRITIQUE_ROUNDS,
-                    )
-                    continue
-
-                feedbacks = result.get("feedbacks", [])
-                feedback_text = "\n".join(
-                    f"- [{fb.get('severity', 'unknown')}] {fb.get('category', '')}: "
-                    f"{fb.get('description', '')} → {fb.get('suggestion', '')}"
-                    for fb in feedbacks
-                )
-                revision_message = HumanMessage(
-                    content=(
-                        f"根据模拟审稿意见，请修改 {target_wf} 阶段的产出物。"
-                        f"需要修正的问题：\n{feedback_text}\n"
-                        f"请基于以上反馈重新执行 {target_wf} 阶段。"
-                    )
-                )
-                logger.info(
-                    "checkpoint_eval",
-                    step_index=step_index,
-                    action="critique_revise",
-                    target=target_wf,
-                    round=critique_round,
-                )
-                return {
-                    "messages": [revision_message],
-                    "routing_decision": target_wf,
-                    "critique_round": critique_round + 1,
-                    "plan": None,
-                    # Bug-2 fix: mark as handled to break re-scan loop
-                    "artifacts": {
-                        "critique": {
-                            target_wf: {"verdict": "revision_in_progress"},
-                        },
-                    },
-                }
+        revise_update = _handle_critique_revise(critique_results, MAX_CRITIQUE_ROUNDS)
+        if revise_update is not None:
+            logger.info(
+                "checkpoint_eval",
+                step_index=step_index,
+                action="critique_revise",
+                target=revise_update["routing_decision"],
+                round=revise_update["critique_round"],
+            )
+            return revise_update
 
         # 无计划或已完成 → 结束
         if not plan:
@@ -243,12 +255,23 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
             ensure_ascii=False,
         )
 
+        previous_steps = (
+            [
+                f"Step {i}: {plan.steps[i].workflow} - {plan.steps[i].objective}"
+                for i in range(step_index)
+            ]
+            if step_index > 0
+            else []
+        )
+        previous_steps_summary = "\n".join(previous_steps) if previous_steps else "无"
+
         prompt = load_prompt(
             "checkpoint_eval",
             variables={
                 "objective": current_step.objective,
                 "success_criteria": current_step.success_criteria,
                 "artifacts_summary": artifacts_summary,
+                "previous_steps_summary": previous_steps_summary,
             },
         )
 
@@ -287,12 +310,31 @@ def _build_checkpoint_eval_node(llm: BaseChatModel):
                 result["target_workflow"] = plan.steps[step_index].workflow
             return result
 
-        # 不通过 → 回到 Supervisor 重新规划
+        # retry_same → 重试当前步骤（含重试次数保护）
+        step_retry_count = state.get("_step_retry_count", 0)
+        if evaluation.retry_same and step_retry_count < MAX_STEP_RETRIES:
+            current_wf = current_step.workflow
+            logger.info(
+                "checkpoint_eval",
+                step_index=step_index,
+                passed=False,
+                action="retry_same",
+                wf=current_wf,
+                retry=step_retry_count + 1,
+            )
+            return {
+                "routing_decision": current_wf,
+                "current_step_index": step_index,
+                "_step_retry_count": step_retry_count + 1,
+            }
+
+        # 不通过 + 不重试 → 回到 Supervisor 重新规划
         logger.info(
             "checkpoint_eval",
             step_index=step_index,
             passed=False,
             reason=evaluation.reason,
+            suggestion=evaluation.suggestion,
         )
         return {"routing_decision": "__replan__", "plan": None}
 

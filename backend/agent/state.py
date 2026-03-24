@@ -45,6 +45,7 @@ class SharedState(_SharedBase, total=False):
 
     target_workflow: str
     critique_round: int
+    revision_context: str  # Critique 打回时携带的反馈上下文
 
 
 # ── Supervisor State ──
