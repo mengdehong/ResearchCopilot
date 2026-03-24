@@ -55,6 +55,35 @@ class MockLangGraphRunner:
         self.calls.append(("cancel_run", {"run_id": run_id}))
         self._queues.pop(run_id, None)
 
+    async def resume_run(
+        self,
+        *,
+        run_id: str,
+        thread_id: str,
+        resume_payload: dict,
+        config: dict | None = None,
+    ) -> None:
+        """恢复被中断的 run，记录 resume_payload 供断言。"""
+        self.calls.append(
+            (
+                "resume_run",
+                {
+                    "run_id": run_id,
+                    "thread_id": thread_id,
+                    "resume_payload": resume_payload,
+                },
+            )
+        )
+        queue: asyncio.Queue[dict | None] = asyncio.Queue()
+        events = [
+            {"event": "events/on_chain_start", "data": {"name": "research_graph"}},
+            {"event": "events/on_chain_end", "data": {"output": "Resumed"}},
+        ]
+        for event in events:
+            await queue.put(event)
+        await queue.put(None)
+        self._queues[run_id] = queue
+
     async def shutdown(self) -> None:
         """关闭所有 run。"""
         self._queues.clear()
