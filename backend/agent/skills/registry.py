@@ -43,8 +43,8 @@ skills_registry = SkillRegistry()
 
 def _bootstrap() -> None:
     """注册所有内置 Skill。延迟导入避免循环依赖。"""
-    from backend.agent.skills.arxiv_search import ARXIV_SEARCH_SKILL  # noqa: PLC0415
-    from backend.agent.skills.pdf_to_md import PDF_TO_MD_SKILL  # noqa: PLC0415
+    from backend.agent.skills.arxiv_search import ARXIV_SEARCH_SKILL
+    from backend.agent.skills.pdf_to_md import PDF_TO_MD_SKILL
 
     skills_registry.register(ARXIV_SEARCH_SKILL)
     skills_registry.register(PDF_TO_MD_SKILL)

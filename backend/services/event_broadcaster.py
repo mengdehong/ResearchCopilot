@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from backend.api.schemas.sse_events import SSEEvent
 from backend.core.logger import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
+
+    from backend.api.schemas.sse_events import SSEEvent
 
 logger = get_logger(__name__)
 

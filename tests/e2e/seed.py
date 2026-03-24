@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import jwt
+
+if TYPE_CHECKING:
+    import uuid
 
 
 @dataclass(frozen=True)

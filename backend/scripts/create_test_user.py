@@ -1,10 +1,14 @@
+"""创建测试用户脚本 — 直接操作数据库。"""
+
 import asyncio
-import sys
 import os
+import sys
 import uuid
 
 # Add project root to path so backend module is found
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+from sqlalchemy import select
 
 from backend.core.config import Settings
 from backend.core.database import create_engine, create_session_factory
@@ -15,14 +19,13 @@ settings = Settings()
 engine = create_engine(settings.database_url)
 SessionLocal = create_session_factory(engine)
 
-from sqlalchemy import select
 
-async def create_user(email: str, password: str, display_name: str):
+async def create_user(email: str, password: str, display_name: str) -> None:
     async with SessionLocal() as session:
         stmt = select(User).where(User.email == email)
         result = await session.execute(stmt)
         user = result.scalar_one_or_none()
-        
+
         if user:
             print(f"User {email} already exists. Updating password and verification status...")
             user.password_hash = hash_password(password)
@@ -38,15 +41,16 @@ async def create_user(email: str, password: str, display_name: str):
                 auth_provider="local",
             )
             session.add(user)
-            
+
         try:
             await session.commit()
-            print(f"Success! Test user ready:")
+            print("Success! Test user ready:")
             print(f"Email: {email}")
             print(f"Password: {password}")
         except Exception as e:
             await session.rollback()
             print(f"Error: {e}")
+
 
 if __name__ == "__main__":
     # Create a verified test account

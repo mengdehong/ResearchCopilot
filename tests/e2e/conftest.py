@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 import httpx
 import pytest
@@ -28,6 +28,9 @@ from backend.models.workspace import Workspace
 
 from .mocks.mock_langgraph import MockLangGraphRunner
 from .seed import SeedData, sign_test_token
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 # ---------------------------------------------------------------------------
 # 所有 E2E 测试和 fixtures 使用 session 级 event loop

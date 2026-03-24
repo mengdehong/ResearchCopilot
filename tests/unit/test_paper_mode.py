@@ -7,7 +7,6 @@ from backend.services.parser_engine import (
     trim_references_if_paper,
 )
 
-
 # ---------------------------------------------------------------------------
 # _is_ref_heading
 # ---------------------------------------------------------------------------
@@ -100,7 +99,7 @@ def test_looks_like_paper_negative() -> None:
 
 
 def test_trim_references_auto_paper() -> None:
-    text, trimmed, reason = trim_references_if_paper(_PAPER_MD, "auto")
+    text, trimmed, _reason = trim_references_if_paper(_PAPER_MD, "auto")
     assert trimmed
     assert "References" not in text
     assert "Author A" not in text
@@ -123,6 +122,6 @@ def test_trim_references_on_non_paper() -> None:
 
 def test_trim_references_no_heading() -> None:
     md = "# Some Doc\n\nContent without reference heading.\n"
-    text, trimmed, reason = trim_references_if_paper(md, "auto")
+    _text, trimmed, reason = trim_references_if_paper(md, "auto")
     assert not trimmed
     assert reason == "no references heading"
