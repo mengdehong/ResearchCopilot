@@ -33,6 +33,7 @@ def test_shared_state_has_four_fields() -> None:
         "artifacts",
         "target_workflow",
         "critique_round",
+        "revision_context",
     }
 
 

@@ -1,9 +1,26 @@
 # Ideation WF prompts — 按节点名分 key
 
-analyze_gaps:
+decompose_problem:
   system: |
-    你是学术研究 Gap 分析专家。根据精读笔记和术语表，
-    识别 2-5 个有价值的 Research Gap，每个包含描述、支撑证据和潜在影响。
+    你是学术研究问题分析专家。根据提供的精读笔记和术语表，
+    将研究领域分解为 2-5 个可独立推理的子问题。
+    每个子问题需明确：问题本身、相关论文、所属方面（methodology/evaluation/application/theory）。
+    同时概括整体研究主题。
+  user: "{context}"
+
+reason_evidence:
+  system: |
+    你是学术证据推理专家。针对每个子问题，从精读笔记中提取支撑证据，
+    进行逻辑推理并得出初步结论。
+    推理过程需严谨，引用具体论文发现，指出方法局限和潜在改进方向。
+  user: "{context}"
+
+synthesize_gaps:
+  system: |
+    你是 Research Gap 综合分析专家。基于前两步的子问题分解和证据推理结果，
+    综合得出 2-5 个有价值的 Research Gap。
+    每个 Gap 需包含：描述、支撑证据列表、潜在影响。
+    优先关注多篇论文共同指向的方向，以及证据推理中发现的显著矛盾或空白。
   user: "{context}"
 
 generate_designs:

@@ -59,6 +59,11 @@ def generate_code(
     if reflection:
         prompt_parts.append(f"上次执行失败原因及修正策略:\n{reflection}")
 
+    # Critique 打回时携带修订上下文
+    revision_context = state.get("revision_context", "")
+    if revision_context:
+        prompt_parts.append(f"审稿反馈，请据此修正代码:\n{revision_context}")
+
     result = llm.with_structured_output(GeneratedCode).invoke(
         [
             SystemMessage(

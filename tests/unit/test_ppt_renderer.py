@@ -214,6 +214,13 @@ def test_factory_creates_typst_renderer() -> None:
     assert isinstance(renderer, TypstRenderer)
 
 
+def test_factory_creates_beamer_renderer() -> None:
+    from backend.agent.skills.ppt_generation.renderer.beamer_renderer import BeamerRenderer
+
+    renderer = create_renderer("beamer")
+    assert isinstance(renderer, BeamerRenderer)
+
+
 def test_factory_rejects_unsupported_backend() -> None:
-    with pytest.raises(NotImplementedError, match="beamer"):
-        create_renderer("beamer")
+    with pytest.raises(NotImplementedError, match="html"):
+        create_renderer("html")

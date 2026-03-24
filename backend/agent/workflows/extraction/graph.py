@@ -1,4 +1,4 @@
-"""Extraction WF 子图编排。线性：wait_rag_ready → check_existing_notes → retrieve_chunks → generate_notes → cross_compare → build_glossary → write_artifacts。"""
+"""Extraction WF 子图编排。wait_rag_ready → check_existing_notes →（增量路由）→ retrieve → ... → write_artifacts。"""
 
 from functools import partial
 
@@ -17,6 +17,11 @@ from backend.agent.workflows.extraction.nodes import (
     write_artifacts,
 )
 from backend.services.rag_engine import RAGEngine
+
+
+def _route_after_check(state: ExtractionState) -> str:
+    """增量路由：paper_ids 为空时跳过检索直接写 artifacts。"""
+    return "write_artifacts" if not state.get("paper_ids") else "retrieve_chunks"
 
 
 def build_extraction_graph(
@@ -41,7 +46,11 @@ def build_extraction_graph(
 
     graph.add_edge(START, "wait_rag_ready")
     graph.add_edge("wait_rag_ready", "check_existing_notes")
-    graph.add_edge("check_existing_notes", "retrieve_chunks")
+    graph.add_conditional_edges(
+        "check_existing_notes",
+        _route_after_check,
+        {"retrieve_chunks": "retrieve_chunks", "write_artifacts": "write_artifacts"},
+    )
     graph.add_edge("retrieve_chunks", "generate_notes")
     graph.add_edge("generate_notes", "cross_compare")
     graph.add_edge("cross_compare", "build_glossary")

@@ -134,6 +134,7 @@ class ExperimentDesign(BaseModel):
 
 
 class IdeationState(SharedState, total=False):
+    cot_trace: list[dict]  # [{step, reasoning, output}] CoT 推理轨迹
     research_gaps: list[ResearchGap]
     experiment_designs: list[ExperimentDesign]
     selected_design_index: int | None
@@ -180,6 +181,7 @@ class OutlineSection(BaseModel):
 
 
 class PublishState(SharedState, total=False):
+    render_backend: str  # "typst" | "beamer", 默认 "typst"
     outline: list[OutlineSection]
     markdown_content: str
     user_edited_markdown: str | None  # Canvas 手改后回流的 Markdown

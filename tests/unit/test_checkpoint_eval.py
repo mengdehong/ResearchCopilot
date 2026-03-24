@@ -49,6 +49,7 @@ def test_checkpoint_eval_pass_advances_to_next_step() -> None:
     result = node(state)
     assert result["routing_decision"] == "extraction"
     assert result["current_step_index"] == 1
+    assert result["_step_retry_count"] == 0, "advance 应重置 retry count"
 
 
 @pytest.mark.unit
@@ -79,6 +80,7 @@ def test_checkpoint_eval_fail_replans() -> None:
     result = node(state)
     assert result["routing_decision"] == "__replan__"
     assert result["plan"] is None
+    assert result["_step_retry_count"] == 0, "replan 应重置 retry count"
 
 
 # ── fail → retry_same ──
@@ -115,6 +117,7 @@ def test_checkpoint_eval_retry_max_falls_back_to_replan() -> None:
 
     result = node(state)
     assert result["routing_decision"] == "__replan__"
+    assert result["_step_retry_count"] == 0, "retry 上限后 replan 应重置 retry count"
 
 
 # ── no plan → end ──
