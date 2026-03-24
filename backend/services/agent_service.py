@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import HumanMessage
@@ -147,7 +147,7 @@ async def cancel_run(
     snapshot = await run_snapshot_repo.get_by_run_id(session, uuid.UUID(run_id))
     if snapshot is not None:
         snapshot.status = "cancelled"
-        snapshot.completed_at = datetime.utcnow()
+        snapshot.completed_at = datetime.now(tz=UTC)
         await session.flush()
 
     await update_thread_status(session, thread_id, "idle")
@@ -165,3 +165,50 @@ async def update_thread_status(
     if thread is not None:
         thread.status = status
         await session.flush()
+
+
+async def pause_run(
+    session: AsyncSession,
+    runner: LangGraphRunner,
+    *,
+    thread_id: uuid.UUID,
+    run_id: str,
+    owner: User,
+) -> bool:
+    """Pause a running run."""
+    thread = await _verify_thread_ownership(session, thread_id, owner)
+    if thread is None:
+        return False
+
+    snapshot = await run_snapshot_repo.get_by_run_id(session, uuid.UUID(run_id))
+    if snapshot is not None:
+        snapshot.status = "paused"
+        await session.flush()
+
+    await update_thread_status(session, thread_id, "paused")
+    await runner.pause_run(run_id)
+    return True
+
+
+async def kill_run(
+    session: AsyncSession,
+    runner: LangGraphRunner,
+    *,
+    thread_id: uuid.UUID,
+    run_id: str,
+    owner: User,
+) -> bool:
+    """Kill a running run (hard termination)."""
+    thread = await _verify_thread_ownership(session, thread_id, owner)
+    if thread is None:
+        return False
+
+    snapshot = await run_snapshot_repo.get_by_run_id(session, uuid.UUID(run_id))
+    if snapshot is not None:
+        snapshot.status = "killed"
+        snapshot.completed_at = datetime.now(tz=UTC)
+        await session.flush()
+
+    await update_thread_status(session, thread_id, "idle")
+    await runner.cancel_run(run_id)
+    return True
